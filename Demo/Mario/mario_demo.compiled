@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="C:\Lazarus\fpc\bin\i386-win32\fpc.exe" Date="1549895413"/>
-  <Params Value="-MObjFPC -Scgi -O1 -gw3 -gl -l -vewnhibq -FlC:\Lazarus\config_lazarus\onlinepackagemanager\packages\Ray4Laz\libs\i386-win32 -FuD:\Delphi\PROJETOS\2025\ECS\Claude\Demo\Mario\ -FuD:\Delphi\PROJETOS\2025\ECS\Claude\Engine\Core -FuD:\Delphi\PROJETOS\2025\ECS\Claude\Engine\Components -FuD:\Delphi\PROJETOS\2025\ECS\Claude\Engine\Systems -FuD:\Delphi\PROJETOS\2025\ECS\Claude\Engine\Utils -FuD:\Delphi\PROJETOS\2025\ECS\Claude\Demo\Mario\Systems -FuC:\Lazarus\lazarus\lcl\units\i386-win32 -FuC:\Lazarus\lazarus\components\freetype\lib\i386-win32 -FuC:\Lazarus\config_lazarus\onlinepackagemanager\packages\Ray4Laz\package\lib\i386-win32 -FuC:\Lazarus\lazarus\components\lazutils\lib\i386-win32 -FuC:\Lazarus\lazarus\packager\units\i386-win32 -oD:\Delphi\PROJETOS\2025\ECS\Claude\Demo\Mario\mario_demo.exe mario_demo.lpr"/>
-  <Complete Value="False"/>
-</CONFIG>

@@ -1,0 +1,159 @@
+unit P2D.Core.Entity;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  SysUtils, fgl, P2D.Core.Types, P2D.Core.Component;
+
+type
+  // -------------------------------------------------------------------------
+  // Component storage per entity: maps component-class to component instance
+  // -------------------------------------------------------------------------
+  TComponentMap = specialize TFPGMap<Pointer, TComponent2D>;
+
+  TEntity = class
+  private
+    FID        : TEntityID;
+    FName      : string;
+    FAlive     : Boolean;
+    FComponents: TComponentMap;
+  public
+    constructor Create(AID: TEntityID; const AName: string = '');
+    destructor  Destroy; override;
+
+    function  AddComponent(AComp: TComponent2D): TComponent2D;
+    function  GetComponent(AClass: TComponent2DClass): TComponent2D;
+    function  HasComponent(AClass: TComponent2DClass): Boolean;
+    procedure RemoveComponent(AClass: TComponent2DClass);
+
+    property ID    : TEntityID read FID;
+    property Name  : string    read FName  write FName;
+    property Alive : Boolean   read FAlive write FAlive;
+  end;
+
+  // -------------------------------------------------------------------------
+  // Entity manager – creates, destroys and stores all entities in the world
+  // -------------------------------------------------------------------------
+  TEntityList = specialize TFPGObjectList<TEntity>;
+
+  TEntityManager = class
+  private
+    FEntities  : TEntityList;
+    FNextID    : TEntityID;
+  public
+    constructor Create;
+    destructor  Destroy; override;
+
+    function  CreateEntity(const AName: string = ''): TEntity;
+    procedure DestroyEntity(AID: TEntityID);
+    function  GetEntity(AID: TEntityID): TEntity;
+    function  GetAll: TEntityList;
+    procedure PurgeDestroyed;
+  end;
+
+implementation
+
+// ---------------------------------------------------------------------------
+// TEntity
+// ---------------------------------------------------------------------------
+constructor TEntity.Create(AID: TEntityID; const AName: string);
+begin
+  inherited Create;
+  FID         := AID;
+  FName       := AName;
+  FAlive      := True;
+  FComponents := TComponentMap.Create;
+  FComponents.Sorted := True;
+end;
+
+destructor TEntity.Destroy;
+var I: Integer;
+begin
+  for I := 0 to FComponents.Count - 1 do
+    FComponents.Data[I].Free;
+  FComponents.Free;
+  inherited;
+end;
+
+function TEntity.AddComponent(AComp: TComponent2D): TComponent2D;
+begin
+  AComp.OwnerEntity := FID;
+  FComponents[Pointer(AComp.ClassType)] := AComp;
+  Result := AComp;
+end;
+
+function TEntity.GetComponent(AClass: TComponent2DClass): TComponent2D;
+var Idx: Integer;
+begin
+  Result := nil;
+  Idx := FComponents.IndexOf(Pointer(AClass));
+  if Idx >= 0 then Result := FComponents.Data[Idx];
+end;
+
+function TEntity.HasComponent(AClass: TComponent2DClass): Boolean;
+begin
+  Result := FComponents.IndexOf(Pointer(AClass)) >= 0;
+end;
+
+procedure TEntity.RemoveComponent(AClass: TComponent2DClass);
+var Idx: Integer;
+begin
+  Idx := FComponents.IndexOf(Pointer(AClass));
+  if Idx >= 0 then
+  begin
+    FComponents.Data[Idx].Free;
+    FComponents.Delete(Idx);
+  end;
+end;
+
+// ---------------------------------------------------------------------------
+// TEntityManager
+// ---------------------------------------------------------------------------
+constructor TEntityManager.Create;
+begin
+  inherited Create;
+  FEntities := TEntityList.Create(True);
+  FNextID   := 1;
+end;
+
+destructor TEntityManager.Destroy;
+begin
+  FEntities.Free;
+  inherited;
+end;
+
+function TEntityManager.CreateEntity(const AName: string): TEntity;
+begin
+  Result := TEntity.Create(FNextID, AName);
+  Inc(FNextID);
+  FEntities.Add(Result);
+end;
+
+procedure TEntityManager.DestroyEntity(AID: TEntityID);
+var E: TEntity;
+begin
+  E := GetEntity(AID);
+  if Assigned(E) then E.Alive := False;
+end;
+
+function TEntityManager.GetEntity(AID: TEntityID): TEntity;
+var E: TEntity;
+begin
+  Result := nil;
+  for E in FEntities do
+    if E.ID = AID then begin Result := E; Exit; end;
+end;
+
+function TEntityManager.GetAll: TEntityList;
+begin Result := FEntities; end;
+
+procedure TEntityManager.PurgeDestroyed;
+var I: Integer;
+begin
+  for I := FEntities.Count - 1 downto 0 do
+    if not FEntities[I].Alive then FEntities.Delete(I);
+end;
+
+end.

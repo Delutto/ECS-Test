@@ -38,10 +38,13 @@ type
   // -------------------------------------------------------------------------
   TEntityList = specialize TFPGObjectList<TEntity>;
 
+  TEntityMap = specialize TFPGMap<TEntityID, TEntity>;
+
   TEntityManager = class
   private
-    FEntities  : TEntityList;
-    FNextID    : TEntityID;
+    FEntities : TEntityList;  // lista para iteração
+    FEntityMap: TEntityMap;   // mapa para lookup rápido
+    FNextID   : TEntityID;
   public
     constructor Create;
     destructor  Destroy; override;
@@ -61,6 +64,7 @@ implementation
 constructor TEntity.Create(AID: TEntityID; const AName: string);
 begin
   inherited Create;
+
   FID         := AID;
   FName       := AName;
   FAlive      := True;
@@ -69,27 +73,36 @@ begin
 end;
 
 destructor TEntity.Destroy;
-var I: Integer;
+var
+  I: Integer;
 begin
   for I := 0 to FComponents.Count - 1 do
     FComponents.Data[I].Free;
   FComponents.Free;
+
   inherited;
 end;
 
 function TEntity.AddComponent(AComp: TComponent2D): TComponent2D;
+var
+   Idx: Integer;
 begin
-  AComp.OwnerEntity := FID;
-  FComponents[Pointer(AComp.ClassType)] := AComp;
-  Result := AComp;
+   AComp.OwnerEntity := FID;
+   Idx := FComponents.IndexOf(Pointer(AComp.ClassType));
+   if Idx >= 0 then
+      FComponents.Data[Idx].Free;
+   FComponents[Pointer(AComp.ClassType)] := AComp;
+   Result := AComp;
 end;
 
 function TEntity.GetComponent(AClass: TComponent2DClass): TComponent2D;
-var Idx: Integer;
+var
+  Idx: Integer;
 begin
-  Result := nil;
-  Idx := FComponents.IndexOf(Pointer(AClass));
-  if Idx >= 0 then Result := FComponents.Data[Idx];
+   Result := nil;
+   Idx := FComponents.IndexOf(Pointer(AClass));
+   if Idx >= 0 then
+      Result := FComponents.Data[Idx];
 end;
 
 function TEntity.HasComponent(AClass: TComponent2DClass): Boolean;
@@ -98,7 +111,8 @@ begin
 end;
 
 procedure TEntity.RemoveComponent(AClass: TComponent2DClass);
-var Idx: Integer;
+var
+  Idx: Integer;
 begin
   Idx := FComponents.IndexOf(Pointer(AClass));
   if Idx >= 0 then
@@ -113,47 +127,59 @@ end;
 // ---------------------------------------------------------------------------
 constructor TEntityManager.Create;
 begin
-  inherited Create;
-  FEntities := TEntityList.Create(True);
-  FNextID   := 1;
+   inherited Create;
+
+   FEntities := TEntityList.Create(True);
+   FNextID   := 1;
 end;
 
 destructor TEntityManager.Destroy;
 begin
-  FEntities.Free;
-  inherited;
+   FEntities.Free;
+   inherited;
 end;
 
 function TEntityManager.CreateEntity(const AName: string): TEntity;
 begin
   Result := TEntity.Create(FNextID, AName);
-  Inc(FNextID);
   FEntities.Add(Result);
+  FEntityMap[FNextID] := Result;
+  Inc(FNextID);
 end;
 
 procedure TEntityManager.DestroyEntity(AID: TEntityID);
-var E: TEntity;
+var
+   E: TEntity;
 begin
-  E := GetEntity(AID);
-  if Assigned(E) then E.Alive := False;
+   E := GetEntity(AID);
+   if Assigned(E) then
+      E.Alive := False;
 end;
 
 function TEntityManager.GetEntity(AID: TEntityID): TEntity;
-var E: TEntity;
+var
+   Idx: Integer;
 begin
-  Result := nil;
-  for E in FEntities do
-    if E.ID = AID then begin Result := E; Exit; end;
+   Result := nil;
+   Idx := FEntityMap.IndexOf(AID);
+   if Idx >= 0 then
+      Result := FEntityMap.Data[Idx];
 end;
 
 function TEntityManager.GetAll: TEntityList;
-begin Result := FEntities; end;
+begin
+   Result := FEntities;
+end;
 
 procedure TEntityManager.PurgeDestroyed;
-var I: Integer;
+var
+   I: Integer;
 begin
-  for I := FEntities.Count - 1 downto 0 do
-    if not FEntities[I].Alive then FEntities.Delete(I);
+   for I := FEntities.Count - 1 downto 0 do
+   begin
+      if not FEntities[I].Alive then
+         FEntities.Delete(I);
+   end;
 end;
 
 end.

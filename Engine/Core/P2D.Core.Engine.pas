@@ -20,8 +20,7 @@ type
     FTargetFPS  : Integer;
     FRunning    : Boolean;
   public
-    constructor Create(AWidth, AHeight: Integer;
-                       const ATitle: string; AFPS: Integer = 60);
+    constructor Create(AWidth, AHeight: Integer; const ATitle: string; AFPS: Integer = 60);
     destructor  Destroy; override;
 
     procedure Run;
@@ -54,26 +53,53 @@ begin
 end;
 
 procedure TEngine2D.Run;
-var Delta: Single;
+const
+  FIXED_DT  = 1.0 / 60.0; // passo físico fixo
+  MAX_DELTA = 0.25;       // cap para evitar "spiral of death"
+var
+  Delta, Accumulator, Alpha: Single;
 begin
   InitWindow(FScreenW, FScreenH, PChar(FTitle));
+  if not IsWindowReady then
+    raise Exception.Create('TEngine2D: Falha ao inicializar janela raylib.');
   SetTargetFPS(FTargetFPS);
   InitAudioDevice;
+  if not IsAudioDeviceReady then
+    raise Exception.Create('TEngine2D: Falha ao inicializar áudio raylib.');
 
-  FWorld.Init;
-  FRunning := True;
+   try
+      FWorld.Init;
+      FRunning  := True;
+      Accumulator := 0.0;
 
-  while FRunning and not WindowShouldClose do
-  begin
-    Delta := GetFrameTime;
+      while FRunning and not WindowShouldClose do
+      begin
+         // Clamp para evitar explosão de física em lag spikes
+         Delta := Min(GetFrameTime, MAX_DELTA);
+         Accumulator := Accumulator + Delta;
 
-    FWorld.Update(Delta);
+         // Passos físicos fixos
+         while Accumulator >= FIXED_DT do
+         begin
+            FWorld.FixedUpdate(FIXED_DT); // física determinística
+            Accumulator := Accumulator - FIXED_DT;
+         end;
 
-    BeginDrawing;
-      ClearBackground(GetColor($5C94FCFF)); // Mario sky blue
-      FWorld.Render;
-    EndDrawing;
-  end;
+         // Alpha para interpolação visual (opcional)
+         Alpha := Accumulator / FIXED_DT;
+         FWorld.Update(Delta); // lógica de jogo (input, animação, câmera)
+
+         BeginDrawing;
+         ClearBackground(GetColor($5C94FCFF));
+         FWorld.Render;
+         EndDrawing;
+      end;
+   except on E: Exception do
+   begin
+      TraceLog(LOG_ERROR, PChar('Erro fatal: ' + E.Message));
+      raise;
+   end;
+   end;
 
   FWorld.Shutdown;
   CloseAudioDevice;

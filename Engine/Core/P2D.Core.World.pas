@@ -18,6 +18,7 @@ type
   private
     FEntities: TEntityManager;
     FSystems : TSystemList;
+    FShutdownCalled: Boolean; // flag de controle
     procedure SortSystems;
   public
     constructor Create;
@@ -49,7 +50,13 @@ implementation
 
 function SystemCompare(const A, B: TSystem2D): Integer;
 begin
-  Result := A.Priority - B.Priority;
+  if A.Priority < B.Priority then
+    Result := -1
+  else
+    if A.Priority > B.Priority then
+      Result := 1
+    else
+      Result := 0;
 end;
 
 // ---------------------------------------------------------------------------
@@ -74,20 +81,31 @@ begin
 end;
 
 function TWorld.CreateEntity(const AName: string): TEntity;
-begin Result := FEntities.CreateEntity(AName); end;
+begin
+  Result := FEntities.CreateEntity(AName);
+end;
 
 procedure TWorld.DestroyEntity(AID: TEntityID);
-begin FEntities.DestroyEntity(AID); end;
+begin
+  FEntities.DestroyEntity(AID);
+end;
 
 function TWorld.GetEntity(AID: TEntityID): TEntity;
-begin Result := FEntities.GetEntity(AID); end;
+begin
+  Result := FEntities.GetEntity(AID);
+end;
 
 function TWorld.AddSystem(ASystem: TSystem2D): TSystem2D;
+var
+  S: TSystem2D;
 begin
+  // Verifica duplicata por instância
+  for S in FSystems do
+    if S = ASystem then
+      raise Exception.CreateFmt('TWorld.AddSystem: Sistema "%s" já registrado.', [ASystem.ClassName]);
   FSystems.Add(ASystem);
   SortSystems;
   Result := ASystem;
-end;
 
 function TWorld.GetSystem(AClass: TSystem2DClass): TSystem2D;
 var S: TSystem2D;
@@ -98,14 +116,16 @@ begin
 end;
 
 procedure TWorld.Init;
-var S: TSystem2D;
+var
+  S: TSystem2D;
 begin
   for S in FSystems do
     if S.Enabled then S.Init;
 end;
 
 procedure TWorld.Update(ADelta: Single);
-var S: TSystem2D;
+var
+  S: TSystem2D;
 begin
   for S in FSystems do
     if S.Enabled then S.Update(ADelta);
@@ -113,16 +133,23 @@ begin
 end;
 
 procedure TWorld.Render;
-var S: TSystem2D;
+var
+  S: TSystem2D;
 begin
   for S in FSystems do
     if S.Enabled then S.Render;
 end;
 
 procedure TWorld.Shutdown;
-var S: TSystem2D;
+var
+  S: TSystem2D;
 begin
-  for S in FSystems do S.Shutdown;
+  if FShutdownCalled then
+    Exit;
+  FShutdownCalled := True;
+  for S in FSystems do
+    if S.Enabled then
+      S.Shutdown;
 end;
 
 end.

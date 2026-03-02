@@ -69,14 +69,19 @@ implementation
 
 function SystemCompare(const A, B: TSystem2D): Integer;
 begin
-  if A.Priority < B.Priority then Result := -1
-  else if A.Priority > B.Priority then Result := 1
-  else Result := 0;
+   if A.Priority < B.Priority then
+      Result := -1
+   else
+      if A.Priority > B.Priority then
+         Result := 1
+      else
+         Result := 0;
 end;
 
 constructor TWorld.Create;
 begin
   inherited Create;
+
   FEntities       := TEntityManager.Create;
   FSystems        := TSystemList.Create(True);
   FShutdownCalled := False;
@@ -87,6 +92,7 @@ begin
   Shutdown;
   FSystems.Free;
   FEntities.Free;
+
   inherited;
 end;
 

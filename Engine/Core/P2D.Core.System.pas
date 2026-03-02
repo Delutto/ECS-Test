@@ -5,12 +5,33 @@ unit P2D.Core.System;
 interface
 
 uses
-  SysUtils, fgl,
-  P2D.Core.Types,
-  P2D.Core.Component,
-  P2D.Core.Entity;
+   SysUtils, fgl,
+   P2D.Core.Types,
+   P2D.Core.Component,
+   P2D.Core.Entity;
 
 type
+   {---------------------------------------------------------------------------
+   TRenderLayer
+   ---------------------------------------------------------------------------
+   Define em qual espaço de coordenadas o sistema renderiza.
+
+   rlWorld  — coordenadas do mundo, afetadas pela câmera (BeginMode2D).
+              Usado por: TTileMapSystem, TRenderSystem.
+
+   rlScreen — coordenadas de tela fixas, independentes da câmera.
+              Usado por: THUDSystem e qualquer overlay 2D.
+
+   O loop do demo chama RenderByLayer(rlWorld) dentro de BeginMode2D e
+   RenderByLayer(rlScreen) fora dele, garantindo que cada sistema
+   desenhe no espaço correto.
+   ---------------------------------------------------------------------------}
+   TRenderLayer = (rlWorld, rlScreen);
+
+   {---------------------------------------------------------------------------
+   TWorldBase — interface mínima que TSystem2D precisa do World.
+   TWorld (em P2D.Core.World) herda desta classe e implementa tudo.
+   ---------------------------------------------------------------------------}
   TWorldBase = class
   protected
     { Getter abstrato exposto via propriedade Entities. }
@@ -25,6 +46,9 @@ type
     { Busca uma entidade pelo ID. Retorna nil se não encontrada. }
     function  GetEntity(AID: TEntityID): TEntity; virtual; abstract;
 
+    { Renderiza apenas os sistemas cuja RenderLayer = ALayer. }
+    procedure RenderByLayer(ALayer: TRenderLayer); virtual; abstract;
+
     { Executa sistemas de passo fixo (física, colisão). }
     procedure FixedUpdate(AFixedDelta: Single); virtual; abstract;
 
@@ -32,29 +56,30 @@ type
     property Entities: TEntityManager read GetEntities;
   end;
 
-  // ---------------------------------------------------------------------------
-  // TComponentClassList
-  // Lista não-proprietária de metaclasses de componentes.
-  // Define a "assinatura" (quais componentes) de um sistema.
-  // ---------------------------------------------------------------------------
+  {---------------------------------------------------------------------------
+   TComponentClassList
+   Lista não-proprietária de metaclasses de componentes.
+   Define a "assinatura" (quais componentes) de um sistema.
+   ---------------------------------------------------------------------------}
   TComponentClassList = specialize TFPGList<TComponent2DClass>;
 
-  // ---------------------------------------------------------------------------
-  // TEntityRefList
-  // Lista não-proprietária de referências a TEntity.
-  // Resultado de query — entidades pertencem ao TEntityManager.
-  // ---------------------------------------------------------------------------
+  {---------------------------------------------------------------------------
+   TEntityRefList
+   Lista não-proprietária de referências a TEntity.
+   Resultado de query — entidades pertencem ao TEntityManager.
+   ---------------------------------------------------------------------------}
   TEntityRefList = specialize TFPGList<TEntity>;
 
-  // ---------------------------------------------------------------------------
-  // TSystem2D — classe base para todos os sistemas ECS
-  // ---------------------------------------------------------------------------
+  {---------------------------------------------------------------------------
+   TSystem2D — classe base para todos os sistemas ECS
+   ---------------------------------------------------------------------------}
   TSystem2D = class
   private
     FWorld          : TWorldBase;
     FPriority       : TSystemPriority;
     FEnabled        : Boolean;
     FName           : string;
+    FRenderLayer    : TRenderLayer;
     FRequiredClasses: TComponentClassList;
     FMatchCache     : TEntityRefList;
     FCacheDirty     : Boolean;
@@ -62,10 +87,8 @@ type
   protected
     { Registra um tipo de componente como obrigatório para este sistema. Chamado na implementação de Init pelas subclasses. Idempotente: duplicatas são ignoradas silenciosamente. }
     procedure RequireComponent(AClass: TComponent2DClass);
-
     { Reconstrói FMatchCache com as entidades que satisfazem FRequiredClasses. Chamado automaticamente por GetMatchingEntities quando FCacheDirty=True. }
     procedure RefreshCache;
-
   public
     constructor Create(AWorld: TWorldBase); virtual;
     destructor  Destroy; override;
@@ -78,10 +101,8 @@ type
 
     { Retorna entidades vivas que possuem TODOS os componentes requeridos. Cache O(1) na maioria dos frames; O(n·m) após invalidação estrutural. }
     function GetMatchingEntities: TEntityRefList;
-
     { Verifica pontualmente se AEntity satisfaz os requisitos do sistema. }
     function EntityMatches(AEntity: TEntity): Boolean;
-
     { Invalida o cache. Chamado pelo TWorld após mudanças estruturais(CreateEntity, DestroyEntity, AddComponent, RemoveComponent). }
     procedure InvalidateCache;
 
@@ -89,6 +110,10 @@ type
     property Priority : TSystemPriority read FPriority write FPriority;
     property Enabled  : Boolean         read FEnabled  write FEnabled;
     property Name     : string          read FName     write FName;
+    { Camada de render deste sistema.
+      Padrão: rlWorld — a grande maioria dos sistemas opera no espaço do mundo.
+      Sistemas de UI/overlay devem sobrescrever para rlScreen. }
+    property RenderLayer : TRenderLayer    read FRenderLayer write FRenderLayer;
   end;
 
   TSystem2DClass = class of TSystem2D;
@@ -103,6 +128,7 @@ begin
    FPriority        := 0;
    FEnabled         := True;
    FName            := '';
+   FRenderLayer     := rlWorld;
    FRequiredClasses := TComponentClassList.Create;
    FMatchCache      := TEntityRefList.Create;
    FCacheDirty      := True;
@@ -182,15 +208,16 @@ begin
    Result := FMatchCache;
 end;
 
-// -----------------------------------------------------------------------------
+{ Subclasses chamam RequireComponent() aqui. }
 procedure TSystem2D.Init;
 begin
-  { Subclasses chamam RequireComponent() aqui. }
+
 end;
 
+{ Implementação padrão vazia. Sistemas de física e colisão sobrescrevem este método. }
 procedure TSystem2D.FixedUpdate(AFixedDelta: Single);
 begin
-   { Implementação padrão vazia. Sistemas de física e colisão sobrescrevem este método. }
+
 end;
 
 procedure TSystem2D.Render;

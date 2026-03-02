@@ -10,12 +10,11 @@ uses
 type
    TSystemList = specialize TFPGObjectList<TSystem2D>;
 
-   // ---------------------------------------------------------------------------
-   // TWorld — implementação concreta de TWorldBase
-   // ---------------------------------------------------------------------------
-   // Estende TWorldBase (definida em P2D.Core.System) com a orquestração completa do ECS: lista de sistemas, loop de update/render e purga de entidades destruídas.
-   // A herança de TWorldBase é o que quebra a dependência circular: P2D.Core.System não precisa mais de P2D.Core.World na interface.
-   // ---------------------------------------------------------------------------
+  {---------------------------------------------------------------------------
+   TWorld — implementação concreta de TWorldBase
+   Estende TWorldBase (definida em P2D.Core.System) com a orquestração completa do ECS: lista de sistemas, loop de update/render e purga de entidades destruídas.
+   A herança de TWorldBase é o que quebra a dependência circular: P2D.Core.System não precisa mais de P2D.Core.World na interface.
+   ---------------------------------------------------------------------------}
    TWorld = class(TWorldBase)
    private
       FEntities      : TEntityManager;
@@ -28,7 +27,6 @@ type
    protected
       { Implementação dos métodos abstratos de TWorldBase. }
       function GetEntities: TEntityManager; override;
-
    public
       constructor Create;
       destructor  Destroy; override;
@@ -44,12 +42,21 @@ type
 
       { --- Loop principal ---------------------------------------------------- }
       procedure Init;
-      { Executa todos os sistemas habilitados em passo de tempo fixo.
+     {-------------------------------------------------------------------------
+      Executa todos os sistemas habilitados em passo de tempo fixo.
       Chamado múltiplas vezes por frame pelo acumulador em TEngine2D.Run.
-      NÃO chama PurgeDestroyed — isso é responsabilidade de Update, pois FixedUpdate pode rodar mais de uma vez antes do próximo render. }
+      NÃO chama PurgeDestroyed — isso é responsabilidade de Update, pois FixedUpdate pode rodar mais de uma vez antes do próximo render.
+      -------------------------------------------------------------------------}
       procedure FixedUpdate(AFixedDelta: Single); override;
       procedure Update(ADelta: Single);
+    { Renderiza TODOS os sistemas habilitados (sem distinção de camada).
+      Usado por TEngine2D.Run quando não há separação de câmera. }
       procedure Render;
+    { Renderiza apenas os sistemas com RenderLayer = ALayer.
+      Chamado pelo loop do demo para separar world-space de screen-space:
+         RenderByLayer(rlWorld)  → dentro de BeginMode2D/EndMode2D
+         RenderByLayer(rlScreen) → fora de BeginMode2D/EndMode2D }
+      procedure RenderByLayer(ALayer: TRenderLayer); override;
       procedure Shutdown;
 
       property Entities: TEntityManager read FEntities;
@@ -162,39 +169,54 @@ begin
   for S in FSystems do
     if S.Enabled then S.FixedUpdate(AFixedDelta);
 
-  { IMPORTANTE: PurgeDestroyed NÃO é chamado aqui. FixedUpdate pode ser executado várias vezes por frame. Remover entidades
-    durante o passo fixo enquanto o acumulador ainda tem passos restantes causaria acesso a entidades já liberadas. A purga acontece em Update,
-    uma única vez por frame, após todos os passos fixos. }
+  { IMPORTANTE: PurgeDestroyed NÃO é chamado aqui. FixedUpdate pode ser executado várias vezes por frame. Remover entidades durante o passo fixo enquanto o
+    acumulador ainda tem passos restantes causaria acesso a entidades já liberadas. A purga acontece em Update, uma única vez por frame, após todos os passos fixos. }
 end;
 
 procedure TWorld.Update(ADelta: Single);
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  for S in FSystems do
-    if S.Enabled then S.Update(ADelta);
+   for S in FSystems do
+      if S.Enabled then
+         S.Update(ADelta);
 
-  { Purga entidades marcadas como destruídas (Alive = False).
-    Executado uma vez por frame, após todos os passos fixos e após Update. }
-  FEntities.PurgeDestroyed;
+ { Purga entidades marcadas como destruídas (Alive = False).
+   Executado uma vez por frame, após todos os passos fixos e após Update. }
+   FEntities.PurgeDestroyed;
 end;
 
 procedure TWorld.Render;
 var
   S: TSystem2D;
 begin
-  for S in FSystems do
-    if S.Enabled then S.Render;
+  {Renderiza todos os sistemas sem distinção de camada.
+   Mantido para compatibilidade com TEngine2D.Run. }
+   for S in FSystems do
+      if S.Enabled then
+         S.Render;
+end;
+
+procedure TWorld.RenderByLayer(ALayer: TRenderLayer);
+var
+   S: TSystem2D;
+begin
+ { Itera todos os sistemas em ordem de prioridade (já ordenados) e chama Render apenas nos que pertencem à camada solicitada. }
+   for S in FSystems do
+      if S.Enabled and (S.RenderLayer = ALayer) then
+         S.Render;
 end;
 
 procedure TWorld.Shutdown;
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  if FShutdownCalled then Exit;
-  FShutdownCalled := True;
-  for S in FSystems do
-    if S.Enabled then S.Shutdown;
+   if FShutdownCalled then
+      Exit;
+   FShutdownCalled := True;
+   for S in FSystems do
+      if S.Enabled then
+         S.Shutdown;
 end;
 
 end.

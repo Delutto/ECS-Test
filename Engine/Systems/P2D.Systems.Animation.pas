@@ -5,8 +5,9 @@ unit P2D.Systems.Animation;
 interface
 
 uses
-  P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-  P2D.Components.Sprite, P2D.Components.Animation;
+   raylib,
+   P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Components.Sprite, P2D.Components.Animation;
 
 type
   TAnimationSystem = class(TSystem2D)
@@ -16,9 +17,6 @@ type
   end;
 
 implementation
-
-uses
-   P2D.Core.Types;
 
 constructor TAnimationSystem.Create(AWorld: TWorldBase);
 begin

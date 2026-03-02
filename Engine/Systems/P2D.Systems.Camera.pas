@@ -15,7 +15,7 @@ type
       FScreenW  : Integer;
       FScreenH  : Integer;
    public
-      constructor Create(AWorld: TWorld; AScreenW, AScreenH: Integer); reintroduce;
+      constructor Create(AWorld: TWorldBase; AScreenW, AScreenH: Integer); reintroduce;
       procedure Init; override;
       procedure Update(ADelta: Single); override;
       procedure BeginCameraMode;
@@ -25,7 +25,7 @@ type
 
 implementation
 
-constructor TCameraSystem.Create(AWorld: TWorld; AScreenW, AScreenH: Integer);
+constructor TCameraSystem.Create(AWorld: TWorldBase; AScreenW, AScreenH: Integer);
 begin
    inherited Create(AWorld);
 
@@ -36,10 +36,12 @@ begin
 end;
 
 procedure TCameraSystem.Init;
+var
+   E: TEntity;
 begin
    FCamEntity := nil;
    FTarget    := nil;
-   for var E in World.Entities.GetAll do
+   for E in World.Entities.GetAll do
    begin
       if E.Alive and E.HasComponent(TCamera2DComponent) then
       begin
@@ -47,7 +49,7 @@ begin
          Break;
       end;
    end;
-   for var E in World.Entities.GetAll do
+   for E in World.Entities.GetAll do
    begin
       if E.Alive and E.HasComponent(TPlayerTag) then
       begin

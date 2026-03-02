@@ -9,6 +9,8 @@ uses SysUtils, Classes;
 type
   TLogLevel = (llDebug, llInfo, llWarn, llError);
 
+  { TLogger }
+
   TLogger = class
   private
     class var FInstance: TLogger;
@@ -16,6 +18,8 @@ type
     FLevel: TLogLevel;
     FLogFile: string;
     constructor CreateInstance;
+    function GetLevel: TLogLevel;
+    procedure SetLevel(Value: TLogLevel);
   public
     class function Instance: TLogger;
     class destructor DestroyClass;
@@ -27,7 +31,7 @@ type
     procedure Error(const AMsg: string); inline;
     procedure SaveToFile(const APath: string);
 
-    property Level: TLogLevel read FLevel write FLevel;
+    property Level: TLogLevel read GetLevel write SetLevel;
   end;
 
 var
@@ -40,6 +44,16 @@ begin
   inherited Create;
   FLog   := TStringList.Create;
   FLevel := llDebug;
+end;
+
+function TLogger.GetLevel: TLogLevel;
+begin
+   Result := FLevel;
+end;
+
+procedure TLogger.SetLevel(Value: TLogLevel);
+begin
+   FLevel := Value;
 end;
 
 class function TLogger.Instance: TLogger;
@@ -59,7 +73,7 @@ end;
 
 procedure TLogger.Log(ALevel: TLogLevel; const AMsg: string);
 const
-  TAGS: array[TLogLevel] of string = ('[DEBUG]', '[INFO ]', '[WARN ]', '[ERROR]');
+  TAGS: array[TLogLevel] of string = ('[DEBUG]', '[INFO]', '[WARN]', '[ERROR]');
 var
    Line: string;
 begin

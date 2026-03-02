@@ -33,8 +33,8 @@ begin
   inherited Create;
   FillChar(Texture, SizeOf(Texture), 0);
   FillChar(SourceRect, SizeOf(SourceRect), 0);
-  Origin  := TVector2.Create(0, 0);
-  Tint    := clWhite;
+  Origin.Create(0, 0);
+  Tint    := WHITE;
   Flip    := flNone;
   ZOrder  := 0;
   Visible := True;

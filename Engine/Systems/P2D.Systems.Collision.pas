@@ -12,31 +12,29 @@ uses
   P2D.Components.Tags;
 
 type
+
+  { TCollisionSystem }
+
   TCollisionSystem = class(TSystem2D)
   private
-    procedure SolveTileCollision(ATr: TTransformComponent;
-                                 ARB: TRigidBodyComponent;
-                                 ACol: TColliderComponent;
-                                 AMap: TTileMapComponent;
-                                 AMapTr: TTransformComponent);
+    procedure SolveTileCollision(ATr: TTransformComponent; ARB: TRigidBodyComponent; ACol: TColliderComponent; AMap: TTileMapComponent; AMapTr: TTransformComponent);
     procedure SolveEntityCollisions;
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
+    procedure FixedUpdate(AFixedDelta: Single); override;
   end;
 
 implementation
 
-constructor TCollisionSystem.Create(AWorld: TWorld);
+constructor TCollisionSystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
   Priority := 20;
   Name     := 'CollisionSystem';
 end;
 
-procedure TCollisionSystem.SolveTileCollision(ATr: TTransformComponent;
-  ARB: TRigidBodyComponent; ACol: TColliderComponent;
-  AMap: TTileMapComponent; AMapTr: TTransformComponent);
+procedure TCollisionSystem.SolveTileCollision(ATr: TTransformComponent; ARB: TRigidBodyComponent; ACol: TColliderComponent; AMap: TTileMapComponent; AMapTr: TTransformComponent);
 var
   R    : TRectF;
   ColL, ColR, RowT, RowB: Integer;
@@ -169,6 +167,7 @@ begin
     end;
 end;
 
+{ Update é vazio: a detecção e resposta de colisão acontecem em FixedUpdate, no mesmo passo fixo que a física — garantindo consistência. }
 procedure TCollisionSystem.Update(ADelta: Single);
 var
   E     : TEntity;
@@ -180,7 +179,8 @@ var
   MapTr : TTransformComponent;
 begin
   // Find the tilemap entity
-  TileM := nil; MapTr := nil;
+  TileM := nil;
+  MapTr := nil;
   for MapE in World.Entities.GetAll do
     if MapE.Alive and MapE.HasComponent(TTileMapComponent) then
     begin
@@ -206,6 +206,49 @@ begin
         SolveTileCollision(Tr, RB, Col, TileM, MapTr);
     end;
 
+  SolveEntityCollisions;
+end;
+
+{ FixedUpdate: roda no mesmo passo fixo que TPhysicsSystem (prioridade 20 > 10). A ordem garante: Física integra posição → Colisão corrige posição. }
+procedure TCollisionSystem.FixedUpdate(AFixedDelta: Single);
+var
+  E    : TEntity;
+  Tr   : TTransformComponent;
+  RB   : TRigidBodyComponent;
+  Col  : TColliderComponent;
+  MapE : TEntity;
+  TileM: TTileMapComponent;
+  MapTr: TTransformComponent;
+begin
+  // Find the tilemap entity
+  TileM := nil;
+  MapTr := nil;
+  for MapE in World.Entities.GetAll do
+    if MapE.Alive and MapE.HasComponent(TTileMapComponent) then
+    begin
+      TileM := TTileMapComponent(MapE.GetComponent(TTileMapComponent));
+      MapTr := TTransformComponent(MapE.GetComponent(TTransformComponent));
+      Break;
+    end;
+
+  // Solve tile collisions for all rigid bodies
+  if Assigned(TileM) then
+    for E in World.Entities.GetAll do
+    begin
+      if not E.Alive then Continue;
+      if not E.HasComponent(TTransformComponent) then Continue;
+      if not E.HasComponent(TRigidBodyComponent)  then Continue;
+      if not E.HasComponent(TColliderComponent)   then Continue;
+
+      Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
+      RB  := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
+      Col := TColliderComponent(E.GetComponent(TColliderComponent));
+
+      if Tr.Enabled and RB.Enabled and Col.Enabled then
+        SolveTileCollision(Tr, RB, Col, TileM, MapTr);
+    end;
+
+  // Resolves collisions between entities (triggers, pickups, damage)
   SolveEntityCollisions;
 end;
 

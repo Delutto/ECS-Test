@@ -113,8 +113,7 @@ end;
 
 function TTileMapComponent.GetTileWorldRect(ACol, ARow: Integer): TRectF;
 begin
-  Result := TRectF.Create(ACol * TileWidth, ARow * TileHeight,
-                           TileWidth, TileHeight);
+  Result.Create(ACol * TileWidth, ARow * TileHeight, TileWidth, TileHeight);
 end;
 
 procedure TTileMapComponent.LoadTileSet(const APath: string; ACols: Integer);
@@ -131,6 +130,7 @@ var
   Tok  : string;
   Val  : Integer;
   TTyp : Integer;
+  Parts: TStringArray;
 begin
   Lines := TStringList.Create;
   try
@@ -139,7 +139,7 @@ begin
     SetSize(Length(Lines[0].Split([','])), Lines.Count);
     for R := 0 to Lines.Count - 1 do
     begin
-      var Parts := Lines[R].Split([',']);
+      Parts := Lines[R].Split([',']);
       for C := 0 to High(Parts) do
       begin
         if C >= MapCols then Break;

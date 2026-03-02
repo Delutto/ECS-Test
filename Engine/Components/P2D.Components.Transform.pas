@@ -20,8 +20,8 @@ implementation
 constructor TTransformComponent.Create;
 begin
   inherited Create;
-  Position := TVector2.Create(0, 0);
-  Scale    := TVector2.Create(1, 1);
+  Position.Create(0, 0);
+  Scale.Create(1, 1);
   Rotation := 0;
 end;
 

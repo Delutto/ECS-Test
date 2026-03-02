@@ -5,8 +5,7 @@ unit P2D.Components.Animation;
 interface
 
 uses
-  SysUtils, fgl, raylib,
-  P2D.Core.Component, P2D.Core.Types;
+   SysUtils, fgl, raylib, P2D.Core.Component, P2D.Core.Types;
 
 type
   TAnimFrame = record
@@ -25,7 +24,7 @@ type
     function FrameCount: Integer;
   end;
 
-  TAnimationMap = specialize TFPGObjectMap<string, TAnimation>;
+  TAnimationMap = specialize TFPGMapObject<string, TAnimation>;
 
   TAnimationComponent = class(TComponent2D)
   private

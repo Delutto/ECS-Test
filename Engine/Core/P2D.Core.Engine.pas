@@ -34,10 +34,14 @@ type
 
 implementation
 
+uses
+   Math;
+
 constructor TEngine2D.Create(AWidth, AHeight: Integer;
                               const ATitle: string; AFPS: Integer);
 begin
   inherited Create;
+
   FScreenW   := AWidth;
   FScreenH   := AHeight;
   FTitle     := ATitle;

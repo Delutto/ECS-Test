@@ -25,8 +25,8 @@ implementation
 constructor TRigidBodyComponent.Create;
 begin
   inherited Create;
-  Velocity     := TVector2.Create(0, 0);
-  Acceleration := TVector2.Create(0, 0);
+  Velocity.Create(0, 0);
+  Acceleration.Create(0, 0);
   Mass         := 1.0;
   GravityScale := 1.0;
   MaxFallSpeed := 600.0;

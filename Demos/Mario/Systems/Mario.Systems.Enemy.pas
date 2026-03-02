@@ -7,11 +7,11 @@ interface
 uses
   SysUtils, raylib,
   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-  P2D.Components.Transform, P2D.Components.RigidBody,
+  P2D.Components.Transform, P2D.Components.RigidBody, P2D.Core.Component,
   P2D.Components.Sprite, P2D.Components.Tags, P2D.Utils.Math;
 
 type
-  TGoombaComponent = class(P2D.Core.Component.TComponent2D)
+  TGoombaComponent = class(TComponent2D)
   public
     Speed    : Single;
     Direction: Single;  // -1 left, +1 right
@@ -20,13 +20,11 @@ type
 
   TEnemySystem = class(TSystem2D)
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
   end;
 
 implementation
-
-uses P2D.Core.Component;
 
 constructor TGoombaComponent.Create;
 begin
@@ -35,7 +33,7 @@ begin
   Direction := -1;
 end;
 
-constructor TEnemySystem.Create(AWorld: TWorld);
+constructor TEnemySystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
   Priority := 3;

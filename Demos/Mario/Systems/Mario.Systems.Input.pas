@@ -13,13 +13,13 @@ uses
 type
   TPlayerInputSystem = class(TSystem2D)
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
   end;
 
 implementation
 
-constructor TPlayerInputSystem.Create(AWorld: TWorld);
+constructor TPlayerInputSystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
   Priority := 1;
@@ -104,8 +104,8 @@ begin
       Dec(PC.Lives);
       if PC.Lives > 0 then
       begin
-        Tr.Position := TVector2.Create(48, 400);
-        RB.Velocity := TVector2.Create(0, 0);
+        Tr.Position.Create(48, 400);
+        RB.Velocity.Create(0, 0);
         PC.State    := psIdle;
       end else
         PC.State := psDead;

@@ -13,13 +13,13 @@ uses
 type
   TPlayerAnimSystem = class(TSystem2D)
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
   end;
 
 implementation
 
-constructor TPlayerAnimSystem.Create(AWorld: TWorld);
+constructor TPlayerAnimSystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
   Priority := 7;

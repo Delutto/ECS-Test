@@ -11,13 +11,16 @@ uses
 type
   TAnimationSystem = class(TSystem2D)
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
   end;
 
 implementation
 
-constructor TAnimationSystem.Create(AWorld: TWorld);
+uses
+   P2D.Core.Types;
+
+constructor TAnimationSystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
 

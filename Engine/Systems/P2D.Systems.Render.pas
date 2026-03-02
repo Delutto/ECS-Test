@@ -12,14 +12,14 @@ uses
 type
   TRenderSystem = class(TSystem2D)
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
     procedure Render; override;
   end;
 
 implementation
 
-constructor TRenderSystem.Create(AWorld: TWorld);
+constructor TRenderSystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
   Priority := 100;
@@ -38,6 +38,7 @@ var
   Dst : TRectangle;
   Org : TVector2;
   ScX : Single;
+  TexColor: TColor;
 begin
   for E in World.Entities.GetAll do
   begin
@@ -66,8 +67,8 @@ begin
     Org.X := Spr.Origin.X * Tr.Scale.X;
     Org.Y := Spr.Origin.Y * Tr.Scale.Y;
 
-    DrawTexturePro(Spr.Texture, Src, Dst, Org, Tr.Rotation,
-                   RayColor(Spr.Tint.R, Spr.Tint.G, Spr.Tint.B, Spr.Tint.A));
+    TexColor.Create(Spr.Tint.R, Spr.Tint.G, Spr.Tint.B, Spr.Tint.A);
+    DrawTexturePro(Spr.Texture, Src, Dst, Org, Tr.Rotation, TexColor);
   end;
 end;
 

@@ -45,14 +45,13 @@ var
   Spr : TSpriteComponent;
   Anim: TAnimationComponent;
   Col : TColliderComponent;
-  PC  : TPlayerComponent;
   A   : TAnimation;
 begin
   E := AWorld.CreateEntity('Player');
 
   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := TVector2.Create(AX, AY);
-  Tr.Scale    := TVector2.Create(1, 1);
+  Tr.Position.Create(AX, AY);
+  Tr.Scale.Create(1, 1);
 
   RB := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
   RB.GravityScale := 1.2;
@@ -60,13 +59,13 @@ begin
   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
   Spr.Texture    := TexPlayer;
   Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
-  Spr.Origin     := Vector2(0, 0);
+  Spr.Origin.Create(0, 0);
 
   // Collider
   Col        := TColliderComponent(E.AddComponent(TColliderComponent.Create));
   Col.Tag    := ctPlayer;
-  Col.Offset := TVector2.Create(1, 0);
-  Col.Size   := TVector2.Create(14, 16);
+  Col.Offset.Create(1, 0);
+  Col.Size.Create(14, 16);
 
   // Animations (row 0 = small Mario)
   Anim := TAnimationComponent(E.AddComponent(TAnimationComponent.Create));
@@ -79,7 +78,7 @@ begin
   Anim.Play('idle');
 
   E.AddComponent(TPlayerTag.Create);
-  E.AddComponent(PC := TPlayerComponent.Create);
+  E.AddComponent(TPlayerComponent.Create);
 
   Result := E;
 end;
@@ -97,7 +96,7 @@ begin
   E := AWorld.CreateEntity('Goomba');
 
   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := TVector2.Create(AX, AY);
+  Tr.Position.Create(AX, AY);
 
   RB := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
 
@@ -107,13 +106,15 @@ begin
 
   Col        := TColliderComponent(E.AddComponent(TColliderComponent.Create));
   Col.Tag    := ctEnemy;
-  Col.Offset := TVector2.Create(1, 0);
-  Col.Size   := TVector2.Create(14, 16);
+  Col.Offset.Create(1, 0);
+  Col.Size .Create(14, 16);
 
   E.AddComponent(TEnemyTag.Create);
-  E.AddComponent(G := TGoombaComponent.Create);
+  G := TGoombaComponent.Create;
   G.Speed     := 60;
   G.Direction := -1;
+
+  E.AddComponent(G);
 
   Result := E;
 end;
@@ -129,7 +130,7 @@ begin
   E := AWorld.CreateEntity('Coin');
 
   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := TVector2.Create(AX, AY);
+  Tr.Position.Create(AX, AY);
 
   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
   Spr.Texture    := TexCoin;
@@ -138,8 +139,8 @@ begin
   Col           := TColliderComponent(E.AddComponent(TColliderComponent.Create));
   Col.Tag       := ctCoin;
   Col.IsTrigger := True;
-  Col.Size      := TVector2.Create(12, 12);
-  Col.Offset    := TVector2.Create(2, 2);
+  Col.Size.Create(12, 12);
+  Col.Offset.Create(2, 2);
 
   E.AddComponent(TCoinTag.Create);
   Result := E;
@@ -180,7 +181,7 @@ begin
   E := AWorld.CreateEntity('TileMap');
 
   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := TVector2.Create(0, 0);
+  Tr.Position.Create(0, 0);
 
   TM := TTileMapComponent(E.AddComponent(TTileMapComponent.Create));
   TM.TileWidth   := 16;
@@ -219,7 +220,7 @@ begin
   E := AWorld.CreateEntity('Camera');
 
   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := TVector2.Create(0, 0);
+  Tr.Position.Create(0, 0);
 
   Cam             := TCamera2DComponent(E.AddComponent(TCamera2DComponent.Create));
   Cam.Zoom        := 3.0;   // pixel-perfect scale for 16px tiles on 800px screen

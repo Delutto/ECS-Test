@@ -25,17 +25,15 @@ implementation
 constructor TColliderComponent.Create;
 begin
   inherited Create;
-  Offset    := TVector2.Create(0, 0);
-  Size      := TVector2.Create(16, 16);
-  Tag       := ctNone;
+  Offset.Create(0, 0);
+  Size.Create(16, 16);
+  Tag := ctNone;
   IsTrigger := False;
 end;
 
 function TColliderComponent.GetWorldRect(const APosition: TVector2): TRectF;
 begin
-  Result := TRectF.Create(APosition.X + Offset.X,
-                           APosition.Y + Offset.Y,
-                           Size.X, Size.Y);
+  Result.Create(APosition.X + Offset.X, APosition.Y + Offset.Y, Size.X, Size.Y);
 end;
 
 end.

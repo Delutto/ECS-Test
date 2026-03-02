@@ -22,12 +22,13 @@ implementation
 constructor TCamera2DComponent.Create;
 begin
   inherited Create;
+
   FillChar(RaylibCamera, SizeOf(RaylibCamera), 0);
   RaylibCamera.Zoom := 1.0;
   Zoom        := 1.0;
   FollowSpeed := 5.0;
   UseBounds   := False;
-  Bounds      := TRectF.Create(0, 0, 0, 0);
+  Bounds.Create(0, 0, 0, 0);
 end;
 
 end.

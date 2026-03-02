@@ -39,6 +39,7 @@ var
   E   : TEntity;
   PC  : TPlayerComponent;
   HUD : string;
+  col: TColor;
 begin
   PC := nil;
   for E in World.Entities.GetAll do
@@ -51,7 +52,8 @@ begin
   if not Assigned(PC) then Exit;
 
   // Panel
-  DrawRectangle(0, 0, FScreenW, 32, RayColor(0, 0, 0, 160));
+  col.Create(0, 0, 0, 160);
+  DrawRectangle(0, 0, FScreenW, 32, col);
 
   // Score
   HUD := Format('SCORE  %07d', [PC.Score]);
@@ -67,16 +69,16 @@ begin
   DrawText(PChar(HUD), FScreenW - 200, 8, 18, WHITE);
 
   // Controls hint
-  DrawText('Arrows/WASD: Move   Space/W: Jump   Shift/Z: Run',
-           10, FScreenH - 22, 12, RayColor(220,220,220,200));
+  col.Create(220,220,220,200);
+  DrawText('Arrows/WASD: Move   Space/W: Jump   Shift/Z: Run', 10, FScreenH - 22, 12, col);
 
   // Game over
   if PC.State = psDead then
   begin
-    DrawRectangle(0, 0, FScreenW, FScreenH, RayColor(0,0,0,160));
+    col.Create(0,0,0,160);
+    DrawRectangle(0, 0, FScreenW, FScreenH, col);
     DrawText('GAME OVER', FScreenW div 2 - 90, FScreenH div 2 - 20, 40, RED);
-    DrawText('Press R to restart', FScreenW div 2 - 110,
-             FScreenH div 2 + 30, 22, WHITE);
+    DrawText('Press R to restart', FScreenW div 2 - 110, FScreenH div 2 + 30, 22, WHITE);
   end;
 end;
 

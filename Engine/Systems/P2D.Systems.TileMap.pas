@@ -12,14 +12,14 @@ uses
 type
   TTileMapSystem = class(TSystem2D)
   public
-    constructor Create(AWorld: TWorld); override;
+    constructor Create(AWorld: TWorldBase); override;
     procedure Update(ADelta: Single); override;
     procedure Render; override;
   end;
 
 implementation
 
-constructor TTileMapSystem.Create(AWorld: TWorld);
+constructor TTileMapSystem.Create(AWorld: TWorldBase);
 begin
   inherited Create(AWorld);
   Priority := 30;
@@ -40,6 +40,7 @@ var
   Tile: TTileData;
   Src : TRectangle;
   Dst : TRectangle;
+  V2: TVector2;
 begin
   for E in World.Entities.GetAll do
   begin
@@ -65,8 +66,8 @@ begin
         Dst.Width  := TM.TileWidth;
         Dst.Height := TM.TileHeight;
 
-        DrawTexturePro(TM.TileSet, Src, Dst,
-                       Vector2(0, 0), 0, WHITE);
+        V2.Create(0, 0);
+        DrawTexturePro(TM.TileSet, Src, Dst, V2, 0, WHITE);
       end;
   end;
 end;

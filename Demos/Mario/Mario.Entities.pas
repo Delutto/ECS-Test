@@ -189,6 +189,7 @@ begin
    TM.TileWidth   := 16;
    TM.TileHeight  := 16;
    TM.TileSet     := TexTiles;
+   TM.OwnsTexture := False;
    TM.TileSetCols := 4;
    TM.SetSize(40, 15);
 

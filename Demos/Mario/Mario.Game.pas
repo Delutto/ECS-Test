@@ -5,28 +5,47 @@ unit Mario.Game;
 interface
 
 uses
-  SysUtils, Math, raylib,
-  P2D.Core.Engine, P2D.Core.World, P2D.Core.System, P2D.Systems.Physics, P2D.Systems.Collision,
-  P2D.Systems.Animation, P2D.Systems.Render, P2D.Systems.Camera, P2D.Systems.TileMap, P2D.Components.Tags,
-  Mario.ProceduralArt, Mario.Level, Mario.Systems.Input, Mario.Systems.Player, Mario.Systems.Enemy, Mario.Systems.HUD;
-
-const
-   SCREEN_W  = 800;
-   SCREEN_H  = 480;
-   FIXED_DT  = 1.0 / 60.0; // passo físico fixo (60 Hz)
-   MAX_DELTA = 0.25;       // teto de delta — evita "spiral of death"
+	SysUtils, Math, raylib,
+	P2D.Core.Engine,
+	P2D.Core.World,
+	P2D.Core.System,
+	P2D.Systems.Physics,
+	P2D.Systems.Collision,
+	P2D.Systems.Animation,
+	P2D.Systems.Render,
+	P2D.Systems.Camera,
+	P2D.Systems.TileMap,
+	P2D.Components.Tags,
+	Mario.ProceduralArt,
+	Mario.Level,
+	Mario.Systems.Input,
+	Mario.Systems.Player,
+	Mario.Systems.Enemy,
+	Mario.Systems.HUD;
 
 type
-   TMarioGame = class
+   { -------------------------------------------------------------------------
+   TMarioGame — Demo Super Mario World.
+
+   Herda de TEngine2D e sobrescreve os quatro hooks do ciclo de vida:
+      OnInit     → gera assets procedurais, registra sistemas, carrega level
+      OnUpdate   → verifica restart (KEY_R)
+      OnRender   → parallax + world-space (câmera) + screen-space (HUD)
+      OnShutdown → descarrega assets
+   -------------------------------------------------------------------------}
+   TMarioGame = class(TEngine2D)
    private
-      FEngine : TEngine2D;
-      FCamSys : TCameraSystem;
+      FCamSys: TCameraSystem;
+
       procedure RegisterSystems;
-      procedure OnRestart;
+      procedure DoRestart;
+   protected
+      procedure OnInit; override;
+      procedure OnUpdate(ADelta: Single); override;
+      procedure OnRender; override;
+      procedure OnShutdown; override;
    public
       constructor Create;
-      destructor  Destroy; override;
-      procedure Run;
    end;
 
 implementation
@@ -35,125 +54,119 @@ uses
    P2D.Core.Entity,
    P2D.Core.Types;
 
+{ TMarioGame }
+
 constructor TMarioGame.Create;
 begin
-   inherited Create;
-
-   FEngine := TEngine2D.Create(SCREEN_W, SCREEN_H, 'Pascal2D - Super Mario World Demo', 60);
-   RegisterSystems;
+   { Delega dimensões, título e FPS ao TEngine2D. }
+   inherited Create(800, 480, 'Pascal2D - Super Mario World Demo', 60);
 end;
 
-destructor TMarioGame.Destroy;
-begin
-   UnloadAssets;
-   FEngine.Free;
-
-   inherited;
-end;
-
+{ Registra todos os sistemas no World.
+  Chamado em OnInit, antes de FWorld.Init, para que os sistemas estejam prontos quando TWorld.Init invocar S.Init em cada um. }
 procedure TMarioGame.RegisterSystems;
 var
    W: TWorld;
 begin
-   W := FEngine.World;
+   W := World;
 
-   // rlWorld (padrão)
-   W.AddSystem(TPlayerInputSystem.Create(W));             //   1 — Update Input
-   W.AddSystem(TEnemySystem.Create(W));                   //   3 — Update Enemy
-   W.AddSystem(TAnimationSystem.Create(W));               //   5 — Update Anim
-   W.AddSystem(TPlayerAnimSystem.Create(W));              //   7 — Update PlayerAnim
-   W.AddSystem(TPhysicsSystem.Create(W));                 //  10 — FixedUpdate Physics
-   W.AddSystem(TCollisionSystem.Create(W));               //  20 — FixedUpdate Collision
-   W.AddSystem(TTileMapSystem.Create(W));                 //  30 — Render TileMap
-   W.AddSystem(TRenderSystem.Create(W));                  // 100 — Render Sprites
+   { rlWorld (padrão) — Update e FixedUpdate }
+   W.AddSystem(TPlayerInputSystem.Create(W));          //   1 — Input do jogador
+   W.AddSystem(TEnemySystem.Create(W));                //   3 — IA dos inimigos
+   W.AddSystem(TAnimationSystem.Create(W));            //   5 — Avança frames de animação
+   W.AddSystem(TPlayerAnimSystem.Create(W));           //   7 — Seleciona animação do player
+   W.AddSystem(TPhysicsSystem.Create(W));              //  10 — Integração física (FixedUpdate)
+   W.AddSystem(TCollisionSystem.Create(W));            //  20 — Detecção e resolução (FixedUpdate)
 
-   FCamSys := TCameraSystem.Create(W, SCREEN_W, SCREEN_H);
-   W.AddSystem(FCamSys);                                  //  15 — Update Camera
+   { rlWorld — Render }
+   W.AddSystem(TTileMapSystem.Create(W));              //  30 — Desenha tiles
+   W.AddSystem(TRenderSystem.Create(W));               // 100 — Desenha sprites
 
-   // rlScreen
-   // Render: HUD(200) — coordenadas de tela, fora de BeginMode2D
-   W.AddSystem(THUDSystem.Create(W, SCREEN_W, SCREEN_H)); // 200 — Render HUD
+   { Câmera — Update (priority 15, entre física e render) }
+   FCamSys := TCameraSystem.Create(W, ScreenW, ScreenH);
+   W.AddSystem(FCamSys);
+
+   { rlScreen — Render fora de BeginMode2D }
+   W.AddSystem(THUDSystem.Create(W, ScreenW, ScreenH));// 200 — HUD
 end;
 
-procedure TMarioGame.OnRestart;
+{ OnInit: chamado por TEngine2D.Run após InitWindow e InitAudioDevice.
+  O contexto OpenGL já está ativo, então GenerateAssets pode ser chamado. }
+procedure TMarioGame.OnInit;
+begin
+   { 1. Gera todas as texturas proceduralmente (requer OpenGL ativo). }
+   GenerateAssets;
+
+   { 2. Registra sistemas no World (sem entidades ainda — caches vazios). }
+   RegisterSystems;
+
+   { 3. Cria entidades do level (Player, Goombas, Moedas, TileMap, Câmera).
+       Após LoadLevel, TWorld.Init (chamado por TEngine2D.Run logo depois) invocará TCameraSystem.Init, que localizará câmera e player. }
+   LoadLevel(World);
+end;
+
+{ DoRestart: destrói todas as entidades, recarrega o level e re-vincula a câmera.
+  Os sistemas NÃO são recriados — apenas as entidades são substituídas. }
+procedure TMarioGame.DoRestart;
 var
    IDs: array of TEntityID;
    I  : Integer;
 begin
-   SetLength(IDs, FEngine.World.Entities.GetAll.Count);
-   for I := 0 to FEngine.World.Entities.GetAll.Count - 1 do
-      IDs[I] := FEngine.World.Entities.GetAll[I].ID;
-   for I := 0 to High(IDs) do
-      FEngine.World.DestroyEntity(IDs[I]);
-   FEngine.World.Entities.PurgeDestroyed;
+   { Coleta IDs antes de destruir para evitar modificar a lista durante iteração. }
+   SetLength(IDs, World.Entities.GetAll.Count);
+   for I := 0 to World.Entities.GetAll.Count - 1 do
+      IDs[I] := World.Entities.GetAll[I].ID;
 
-   LoadLevel(FEngine.World);
+   { Marca todas as entidades como mortas e remove imediatamente. }
+   for I := 0 to High(IDs) do
+      World.DestroyEntity(IDs[I]);
+   World.Entities.PurgeDestroyed;
+
+   { Recria entidades do level. }
+   LoadLevel(World);
+
+   { Re-vincula câmera e player no CameraSystem, pois as entidades antigas foram destruídas e novas foram criadas com novos IDs. }
    FCamSys.Init;
 end;
 
-procedure TMarioGame.Run;
-var
-   Delta, Accumulator: Single;
+{ OnUpdate: chamado 1× por frame após FWorld.Update. }
+procedure TMarioGame.OnUpdate(ADelta: Single);
 begin
-   InitWindow(SCREEN_W, SCREEN_H, 'Pascal2D - Super Mario World Demo');
-   SetTargetFPS(60);
-   InitAudioDevice;
+   if IsKeyPressed(KEY_R) then
+      DoRestart;
+end;
 
-   GenerateAssets; // requer contexto OpenGL — deve vir após InitWindow
-   LoadLevel(FEngine.World);
-   FEngine.World.Init;
-   FCamSys.Init;
+{ OnRender: chamado entre BeginDrawing/EndDrawing por TEngine2D.Run. }
+procedure TMarioGame.OnRender;
+begin
+   { Fundo do céu (cor base). }
+   ClearBackground(ColorCreate(92, 148, 252, 255));
 
-   Accumulator := 0.0;
+   { Parallax background — sem transformação de câmera.
+     Desloca 30% da posição da câmera para criar profundidade. }
+   DrawTextureEx(TexBackground,
+                 Vector2Create(-FCamSys.GetRaylibCamera.Target.X * 0.3 + ScreenW / 2 - 256, 0),
+                 0,    // Rotação
+                 2,    // Escala
+                 WHITE);
 
-   while not WindowShouldClose do
-   begin
-      // Clamp: evita passos físicos excessivos após lag spikes
-      Delta       := Min(GetFrameTime, MAX_DELTA);
-      Accumulator := Accumulator + Delta;
+   { World-space: TileMap (priority 30) e Sprites (priority 100).
+     Renderizados dentro do espaço da câmera 2D. }
+   FCamSys.BeginCameraMode;
+   World.RenderByLayer(rlWorld);
+   FCamSys.EndCameraMode;
 
-      if IsKeyPressed(KEY_R) then
-         OnRestart;
+   { Screen-space: HUD (priority 200).
+     Renderizado fora de BeginMode2D — coordenadas de tela absolutas. }
+   World.RenderByLayer(rlScreen);
 
-    { Passos físicos fixos
-      TPhysicsSystem e TCollisionSystem executam aqui, com delta constante.
-      Pode rodar 0, 1 ou mais vezes por frame dependendo do tempo decorrido.}
-      while Accumulator >= FIXED_DT do
-      begin
-         FEngine.World.FixedUpdate(FIXED_DT);
-         Accumulator := Accumulator - FIXED_DT;
-      end;
+   DrawFPS(ScreenW - 80, ScreenH - 20);
+end;
 
-    { Lógica variável (1× por frame)
-      Input, animação, câmera — tolerantes a delta variável.
-      PurgeDestroyed é chamado internamente ao final de Update.}
-      FEngine.World.Update(Delta);
-
-      // Render
-      BeginDrawing;
-         ClearBackground(ColorCreate(92, 148, 252, 255));
-
-         // Parallax background (antes da câmera — sem transformação)
-         DrawTextureEx(TexBackground, Vector2Create(-FCamSys.GetRaylibCamera.Target.X * 0.3 +  SCREEN_W / 2 - 256, 0), 0, 2, WHITE);
-
-         // World-space: TileMap(30) + Sprites(100)
-         FCamSys.BeginCameraMode;
-            FEngine.World.RenderByLayer(rlWorld);
-         FCamSys.EndCameraMode;
-
-         // Screen-space: HUD(200)
-         // Chamado FORA de BeginMode2D — coordenadas de tela absolutas.
-         FEngine.World.RenderByLayer(rlScreen);
-
-         DrawFPS(SCREEN_W - 80, SCREEN_H - 20);
-      EndDrawing;
-   end;
-
-   FEngine.World.Shutdown;
+{ OnShutdown: chamado por TEngine2D.Run após FWorld.Shutdown e antes de CloseWindow. }
+procedure TMarioGame.OnShutdown;
+begin
    UnloadAssets;
-   CloseAudioDevice;
-   CloseWindow;
 end;
 
 end.
-

@@ -18,6 +18,7 @@ type
     { reintroduce: construtor com parâmetros extras (AW, AH).
       Parâmetro AWorld usa TWorldBase — padrão de todos os sistemas. }
       constructor Create(AWorld: TWorldBase; AW, AH: Integer); reintroduce;
+      procedure Init; override;
       procedure Update(ADelta: Single); override;
       procedure Render; override;
    end;
@@ -34,6 +35,13 @@ begin
   FScreenH := AH;
 end;
 
+procedure THUDSystem.Init;
+begin
+   inherited;
+
+   RequireComponent(TPlayerComponent);
+end;
+
 procedure THUDSystem.Update(ADelta: Single);
 begin
 
@@ -46,8 +54,8 @@ var
    HUD: string;
 begin
    PC := nil;
-   for E in World.Entities.GetAll do
-      if E.Alive and E.HasComponent(TPlayerComponent) then
+   for E in GetMatchingEntities do
+      if E.Alive then
       begin
          PC := TPlayerComponent(E.GetComponent(TPlayerComponent));
          Break;

@@ -5,71 +5,86 @@ unit P2D.Systems.Render;
 interface
 
 uses
-  SysUtils, Math, raylib,
-  P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-  P2D.Components.Transform, P2D.Components.Sprite;
+   SysUtils, Math, raylib,
+   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Components.Transform, P2D.Components.Sprite;
 
 type
-  TRenderSystem = class(TSystem2D)
-  public
-    constructor Create(AWorld: TWorldBase); override;
-    procedure Update(ADelta: Single); override;
-    procedure Render; override;
-  end;
+   { TRenderSystem }
+   TRenderSystem = class(TSystem2D)
+   public
+      constructor Create(AWorld: TWorldBase); override;
+      procedure Init; override;
+      procedure Update(ADelta: Single); override;
+      procedure Render; override;
+   end;
 
 implementation
 
 constructor TRenderSystem.Create(AWorld: TWorldBase);
 begin
-  inherited Create(AWorld);
-  Priority := 100;
-  Name     := 'RenderSystem';
+   inherited Create(AWorld);
+
+   Priority := 100;
+   Name     := 'RenderSystem';
+end;
+
+procedure TRenderSystem.Init;
+begin
+   inherited;
+
+   RequireComponent(TSpriteComponent);
+   RequireComponent(TTransformComponent);
 end;
 
 procedure TRenderSystem.Update(ADelta: Single);
-begin end;
+begin
+
+end;
 
 procedure TRenderSystem.Render;
 var
-  E   : TEntity;
-  Tr  : TTransformComponent;
-  Spr : TSpriteComponent;
-  Src : TRectangle;
-  Dst : TRectangle;
-  Org : TVector2;
-  ScX : Single;
-  TexColor: TColor;
+   E   : TEntity;
+   Tr  : TTransformComponent;
+   Spr : TSpriteComponent;
+   Src : TRectangle;
+   Dst : TRectangle;
+   Org : TVector2;
+   ScX : Single;
+   TexColor: TColor;
 begin
-  for E in World.Entities.GetAll do
-  begin
-    if not E.Alive then Continue;
-    if not E.HasComponent(TSpriteComponent)    then Continue;
-    if not E.HasComponent(TTransformComponent) then Continue;
+   for E in GetMatchingEntities do
+   begin
+      if not E.Alive then
+         Continue;
 
-    Spr := TSpriteComponent(E.GetComponent(TSpriteComponent));
-    Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
+      Spr := TSpriteComponent(E.GetComponent(TSpriteComponent));
+      Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
 
-    if not (Spr.Enabled and Tr.Enabled and Spr.Visible) then Continue;
-    if Spr.Texture.Id = 0 then Continue;
+      if not (Spr.Enabled and Tr.Enabled and Spr.Visible) then
+         Continue;
+      if Spr.Texture.Id = 0 then
+         Continue;
 
-    Src := Spr.SourceRect;
+      Src := Spr.SourceRect;
 
-    // Apply flip
-    ScX := 1;
-    if Spr.Flip in [flHorizontal, flBoth] then ScX := -1;
-    Src.Width := Src.Width * ScX;
+      // Apply flip
+      ScX := 1;
+      if Spr.Flip in [flHorizontal, flBoth] then
+         ScX := -1;
+      Src.Width := Src.Width * ScX;
 
-    Dst.X      := Tr.Position.X;
-    Dst.Y      := Tr.Position.Y;
-    Dst.Width  := Abs(Src.Width)  * Tr.Scale.X;
-    Dst.Height := Abs(Src.Height) * Tr.Scale.Y;
+      Dst.X      := Tr.Position.X;
+      Dst.Y      := Tr.Position.Y;
+      Dst.Width  := Abs(Src.Width)  * Tr.Scale.X;
+      Dst.Height := Abs(Src.Height) * Tr.Scale.Y;
 
-    Org.X := Spr.Origin.X * Tr.Scale.X;
-    Org.Y := Spr.Origin.Y * Tr.Scale.Y;
+      Org.X := Spr.Origin.X * Tr.Scale.X;
+      Org.Y := Spr.Origin.Y * Tr.Scale.Y;
 
-    TexColor.Create(Spr.Tint.R, Spr.Tint.G, Spr.Tint.B, Spr.Tint.A);
-    DrawTexturePro(Spr.Texture, Src, Dst, Org, Tr.Rotation, TexColor);
-  end;
+      TexColor.Create(Spr.Tint.R, Spr.Tint.G, Spr.Tint.B, Spr.Tint.A);
+      DrawTexturePro(Spr.Texture, Src, Dst, Org, Tr.Rotation, TexColor);
+   end;
 end;
 
 end.

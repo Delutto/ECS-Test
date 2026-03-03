@@ -5,7 +5,8 @@ unit P2D.Core.World;
 interface
 
 uses
-   SysUtils, fgl, P2D.Core.Types, P2D.Core.Component, P2D.Core.Entity, P2D.Core.System;
+   SysUtils, fgl,
+   P2D.Core.Event, P2D.Core.Types, P2D.Core.Component, P2D.Core.Entity, P2D.Core.System;
 
 type
    TSystemList = specialize TFPGObjectList<TSystem2D>;
@@ -19,6 +20,7 @@ type
    private
       FEntities      : TEntityManager;
       FSystems       : TSystemList;
+      FEventBus  : TEventBus;
       FShutdownCalled: Boolean;
 
       procedure SortSystems;
@@ -27,6 +29,7 @@ type
    protected
       { Implementação dos métodos abstratos de TWorldBase. }
       function GetEntities: TEntityManager; override;
+      function GetEventBus: TEventBus; override;
    public
       constructor Create;
       destructor  Destroy; override;
@@ -61,6 +64,7 @@ type
 
       property Entities: TEntityManager read FEntities;
       property Systems : TSystemList    read FSystems;
+      property EventBus: TEventBus read FEventBus;
    end;
 
 function SystemCompare(const A, B: TSystem2D): Integer;
@@ -84,6 +88,7 @@ begin
 
    FEntities       := TEntityManager.Create;
    FSystems        := TSystemList.Create(True);
+   FEventBus       := TEventBus.Create;
    FShutdownCalled := False;
 end;
 
@@ -92,6 +97,7 @@ begin
   Shutdown;
   FSystems.Free;
   FEntities.Free;
+  FEventBus.Free;
 
   inherited;
 end;
@@ -99,6 +105,11 @@ end;
 function TWorld.GetEntities: TEntityManager;
 begin
    Result := FEntities;
+end;
+
+function TWorld.GetEventBus: TEventBus;
+begin
+   Result := FEventBus;
 end;
 
 procedure TWorld.SortSystems;
@@ -191,6 +202,7 @@ begin
  { Purga entidades marcadas como destruídas (Alive = False).
    Executado uma vez por frame, após todos os passos fixos e após Update. }
    FEntities.PurgeDestroyed;
+   FEventBus.Dispatch; // Processa fila após toda a lógica do frame
 end;
 
 procedure TWorld.Render;
@@ -220,7 +232,10 @@ var
 begin
    if FShutdownCalled then
       Exit;
+
    FShutdownCalled := True;
+   FEventBus.Clear;
+
    for S in FSystems do
       if S.Enabled then
          S.Shutdown;

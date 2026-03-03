@@ -39,9 +39,15 @@ procedure TCameraSystem.Init;
 var
    E: TEntity;
 begin
+   inherited;
+
+ { Define assinatura para que o cache saiba filtrar câmeras e players.
+   O Update usa FCamEntity/FTarget diretamente — GetMatchingEntities é usado apenas aqui no Init para localizar as entidades. }
+   RequireComponent(TTransformComponent);
+
    FCamEntity := nil;
    FTarget    := nil;
-   for E in World.Entities.GetAll do
+   for E in GetMatchingEntities do
    begin
       if E.Alive and E.HasComponent(TCamera2DComponent) then
       begin
@@ -49,7 +55,7 @@ begin
          Break;
       end;
    end;
-   for E in World.Entities.GetAll do
+   for E in GetMatchingEntities do
    begin
       if E.Alive and E.HasComponent(TPlayerTag) then
       begin
@@ -61,56 +67,63 @@ end;
 
 procedure TCameraSystem.Update(ADelta: Single);
 var
-   Cam    : TCamera2DComponent;
-   CamTr  : TTransformComponent;
-   TgtTr  : TTransformComponent;
-   TargetX: Single;
-   TargetY: Single;
-   HalfW  : Single;
-   HalfH  : Single;
+   Cam   : TCamera2DComponent;
+   CamTr : TTransformComponent;
+   TgtTr : TTransformComponent;
+   HalfW : Single;
+   HalfH : Single;
+   HalfWW: Single; // metade da viewport em unidades do MUNDO (HalfW / Zoom)
+   HalfHW: Single; // metade da viewport em unidades do MUNDO (HalfH / Zoom)
 begin
-  if not Assigned(FCamEntity) then
-     Exit;
-  Cam   := TCamera2DComponent(FCamEntity.GetComponent(TCamera2DComponent));
-  CamTr := TTransformComponent(FCamEntity.GetComponent(TTransformComponent));
-  if not Assigned(Cam) or not Assigned(CamTr) then
-     Exit;
+   if not Assigned(FCamEntity) then
+      Exit;
 
-  HalfW := FScreenW / 2;
-  HalfH := FScreenH / 2;
+   Cam   := TCamera2DComponent(FCamEntity.GetComponent(TCamera2DComponent));
+   CamTr := TTransformComponent(FCamEntity.GetComponent(TTransformComponent));
 
-  if Assigned(FTarget) and FTarget.Alive then
-  begin
-    TgtTr := TTransformComponent(FTarget.GetComponent(TTransformComponent));
-    if Assigned(TgtTr) then
-    begin
-      TargetX := TgtTr.Position.X;
-      TargetY := TgtTr.Position.Y;
+   if not Assigned(Cam) or not Assigned(CamTr) then
+      Exit;
 
-      // Smooth follow
-      CamTr.Position.X := CamTr.Position.X + (TargetX - CamTr.Position.X) * Cam.FollowSpeed * ADelta;
-      CamTr.Position.Y := CamTr.Position.Y + (TargetY - CamTr.Position.Y) * Cam.FollowSpeed * ADelta;
-    end;
-  end;
+   HalfW := FScreenW / 2;
+   HalfH := FScreenH / 2;
 
-  // Clamp camera to world bounds
-  if Cam.UseBounds then
-  begin
-    if CamTr.Position.X < Cam.Bounds.X + HalfW then
-      CamTr.Position.X := Cam.Bounds.X + HalfW;
-    if CamTr.Position.Y < Cam.Bounds.Y + HalfH then
-      CamTr.Position.Y := Cam.Bounds.Y + HalfH;
-    if CamTr.Position.X > Cam.Bounds.Right - HalfW then
-      CamTr.Position.X := Cam.Bounds.Right - HalfW;
-    if CamTr.Position.Y > Cam.Bounds.Bottom - HalfH then
-      CamTr.Position.Y := Cam.Bounds.Bottom - HalfH;
-  end;
+   { ── Smooth follow ──────────────────────────────────────────────────── }
+   if Assigned(FTarget) and FTarget.Alive then
+   begin
+      TgtTr := TTransformComponent(FTarget.GetComponent(TTransformComponent));
+      if Assigned(TgtTr) then
+      begin
+         CamTr.Position.X := CamTr.Position.X + (TgtTr.Position.X - CamTr.Position.X) * Cam.FollowSpeed * ADelta;
+         CamTr.Position.Y := CamTr.Position.Y + (TgtTr.Position.Y - CamTr.Position.Y) * Cam.FollowSpeed * ADelta;
+      end;
+   end;
 
-  Cam.RaylibCamera.Target.X := CamTr.Position.X;
-  Cam.RaylibCamera.Target.Y := CamTr.Position.Y;
-  Cam.RaylibCamera.Offset.X := HalfW;
-  Cam.RaylibCamera.Offset.Y := HalfH;
-  Cam.RaylibCamera.Zoom     := Cam.Zoom;
+   { ── Clamp nos limites do mundo ──────────────────────────────────────
+    HalfW e HalfH são pixels de TELA.
+    O target da câmera opera em coordenadas de MUNDO.
+    A metade visível em mundo = HalfScreen / Zoom.
+    Divide pelo Zoom para converter tela → mundo. }
+   if Cam.UseBounds then
+   begin
+      HalfWW := HalfW / Cam.Zoom; // ex: 400 / 3.0 ≈ 133 unidades de mundo
+      HalfHW := HalfH / Cam.Zoom; // ex: 240 / 3.0 =  80 unidades de mundo
+
+      if CamTr.Position.X < Cam.Bounds.X + HalfWW then
+         CamTr.Position.X := Cam.Bounds.X + HalfWW;
+      if CamTr.Position.Y < Cam.Bounds.Y + HalfHW then
+         CamTr.Position.Y := Cam.Bounds.Y + HalfHW;
+      if CamTr.Position.X > Cam.Bounds.Right  - HalfWW then
+         CamTr.Position.X := Cam.Bounds.Right  - HalfWW;
+      if CamTr.Position.Y > Cam.Bounds.Bottom - HalfHW then
+         CamTr.Position.Y := Cam.Bounds.Bottom - HalfHW;
+   end;
+
+   { ── Atualiza câmera raylib ──────────────────────────────────────────── }
+   Cam.RaylibCamera.Target.X := CamTr.Position.X;
+   Cam.RaylibCamera.Target.Y := CamTr.Position.Y;
+   Cam.RaylibCamera.Offset.X := HalfW;
+   Cam.RaylibCamera.Offset.Y := HalfH;
+   Cam.RaylibCamera.Zoom     := Cam.Zoom;
 end;
 
 procedure TCameraSystem.BeginCameraMode;

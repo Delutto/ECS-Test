@@ -17,6 +17,7 @@ type
   TPhysicsSystem = class(TSystem2D)
   public
     constructor Create(AWorld: TWorldBase); override;
+    procedure Init; override;
     procedure Update(ADelta: Single); override;
     procedure FixedUpdate(AFixedDelta: Single); override;
   end;
@@ -28,6 +29,16 @@ begin
   inherited Create(AWorld);
   Priority := 10;
   Name     := 'PhysicsSystem';
+end;
+
+procedure TPhysicsSystem.Init;
+begin
+   inherited;
+
+ { Cache cobre todas as entidades colidíveis (player, inimigos, moedas).
+   O loop de tile collision filtra adicionalmente por TRigidBodyComponent. }
+   RequireComponent(TTransformComponent);
+   RequireComponent(TRigidBodyComponent);
 end;
 
 { Update é vazio: toda a integração física acontece em FixedUpdate, garantindo que o comportamento seja independente do frame rate. }
@@ -44,44 +55,41 @@ end;
     4. Reseta Grounded — será restaurado pelo TCollisionSystem no mesmo passo. }
 procedure TPhysicsSystem.FixedUpdate(AFixedDelta: Single);
 var
-  E : TEntity;
-  Tr: TTransformComponent;
-  RB: TRigidBodyComponent;
+   E : TEntity;
+   Tr: TTransformComponent;
+   RB: TRigidBodyComponent;
 begin
-  for E in World.Entities.GetAll do
-  begin
-    if not E.Alive then
-      Continue;
-    if not E.HasComponent(TTransformComponent) then
-      Continue;
-    if not E.HasComponent(TRigidBodyComponent) then
-      Continue;
+   for E in GetMatchingEntities do
+   begin
+      if not E.Alive then
+         Continue;
 
-    Tr := TTransformComponent(E.GetComponent(TTransformComponent));
-    RB := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
+      Tr := TTransformComponent(E.GetComponent(TTransformComponent));
+      RB := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
 
-    if not (Tr.Enabled and RB.Enabled) then
-      Continue;
+      if not (Tr.Enabled and RB.Enabled) then
+         Continue;
 
-    // 1. Aplica gravidade (apenas se em queda livre)
-    if RB.UseGravity and not RB.Grounded then
-      RB.Velocity.Y := RB.Velocity.Y + GRAVITY * RB.GravityScale * AFixedDelta;
+      // 1. Aplica gravidade (apenas se em queda livre)
+      if RB.UseGravity and not RB.Grounded then
+         RB.Velocity.Y := RB.Velocity.Y + GRAVITY * RB.GravityScale * AFixedDelta;
 
-    // 2. Clamp de velocidade de queda máxima
-    if RB.Velocity.Y > RB.MaxFallSpeed then
-      RB.Velocity.Y := RB.MaxFallSpeed;
+      // 2. Clamp de velocidade de queda máxima
+      if RB.Velocity.Y > RB.MaxFallSpeed then
+         RB.Velocity.Y := RB.MaxFallSpeed;
 
-    // 3. Aplica aceleração extra (forças externas)
-    RB.Velocity.X := RB.Velocity.X + RB.Acceleration.X * AFixedDelta;
-    RB.Velocity.Y := RB.Velocity.Y + RB.Acceleration.Y * AFixedDelta;
+      // 3. Aplica aceleração extra (forças externas)
+      RB.Velocity.X := RB.Velocity.X + RB.Acceleration.X * AFixedDelta;
+      RB.Velocity.Y := RB.Velocity.Y + RB.Acceleration.Y * AFixedDelta;
 
-    // 4. Integra posição (semi-implícito: usa velocidade já atualizada)
-    Tr.Position.X := Tr.Position.X + RB.Velocity.X * AFixedDelta;
-    Tr.Position.Y := Tr.Position.Y + RB.Velocity.Y * AFixedDelta;
+      // 4. Integra posição (semi-implícito: usa velocidade já atualizada)
+      Tr.Position.X := Tr.Position.X + RB.Velocity.X * AFixedDelta;
+      Tr.Position.Y := Tr.Position.Y + RB.Velocity.Y * AFixedDelta;
 
-    // 5. Reseta estado por passo — TCollisionSystem restaura Grounded=True no mesmo FixedUpdate se houver contato com o chão
-    RB.Grounded := False;
-  end;
+      // 5. Reseta estado por passo — TCollisionSystem restaura Grounded=True no mesmo FixedUpdate se houver contato com o chão
+      RB.Grounded := False;
+      RB.OnWall   := False;
+   end;
 end;
 
 end.

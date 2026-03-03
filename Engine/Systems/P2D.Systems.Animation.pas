@@ -10,20 +10,30 @@ uses
    P2D.Components.Sprite, P2D.Components.Animation;
 
 type
-  TAnimationSystem = class(TSystem2D)
-  public
-    constructor Create(AWorld: TWorldBase); override;
-    procedure Update(ADelta: Single); override;
-  end;
+   { TAnimationSystem }
+   TAnimationSystem = class(TSystem2D)
+   public
+      constructor Create(AWorld: TWorldBase); override;
+      procedure Init; override;
+      procedure Update(ADelta: Single); override;
+   end;
 
 implementation
 
 constructor TAnimationSystem.Create(AWorld: TWorldBase);
 begin
-  inherited Create(AWorld);
+   inherited Create(AWorld);
 
-  Priority := 5;
-  Name     := 'AnimationSystem';
+   Priority := 5;
+   Name     := 'AnimationSystem';
+end;
+
+procedure TAnimationSystem.Init;
+begin
+   inherited;
+
+   RequireComponent(TAnimationComponent);
+   RequireComponent(TSpriteComponent);
 end;
 
 procedure TAnimationSystem.Update(ADelta: Single);
@@ -33,13 +43,9 @@ var
    Spr : TSpriteComponent;
    Rect: TRectangle;
 begin
-   for E in World.Entities.GetAll do
+   for E in GetMatchingEntities do
    begin
       if not E.Alive then
-         Continue;
-      if not E.HasComponent(TAnimationComponent) then
-         Continue;
-      if not E.HasComponent(TSpriteComponent) then
          Continue;
 
       Anim := TAnimationComponent(E.GetComponent(TAnimationComponent));

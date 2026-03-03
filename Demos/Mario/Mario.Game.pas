@@ -21,7 +21,8 @@ uses
 	Mario.Systems.Input,
 	Mario.Systems.Player,
 	Mario.Systems.Enemy,
-	Mario.Systems.HUD;
+	Mario.Systems.HUD,
+   Mario.Systems.GameRules;
 
 type
    { -------------------------------------------------------------------------
@@ -76,7 +77,9 @@ begin
    W.AddSystem(TAnimationSystem.Create(W));            //   5 — Avança frames de animação
    W.AddSystem(TPlayerAnimSystem.Create(W));           //   7 — Seleciona animação do player
    W.AddSystem(TPhysicsSystem.Create(W));              //  10 — Integração física (FixedUpdate)
+   W.AddSystem(TPlayerPhysicsSystem.Create(W));        //  11 — Aplica input em física
    W.AddSystem(TCollisionSystem.Create(W));            //  20 — Detecção e resolução (FixedUpdate)
+   W.AddSystem(TGameRulesSystem.Create(W));            //  25 - Detecção de eventos
 
    { rlWorld — Render }
    W.AddSystem(TTileMapSystem.Create(W));              //  30 — Desenha tiles

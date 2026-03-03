@@ -43,14 +43,16 @@ const
 // Axis-aligned bounding rectangle
 // ---------------------------------------------------------------------------
 type
-  TRectF = record
-    X, Y, W, H: Single;
-    class function Create(AX, AY, AW, AH: Single): TRectF; static; inline;
-    function Right: Single; inline;
-    function Bottom: Single; inline;
-    function Overlaps(const Other: TRectF): Boolean; inline;
-    function Contains(const P: TVector2): Boolean; inline;
-  end;
+   TColliderTag = (ctNone, ctPlayer, ctEnemy, ctGround, ctPlatform, ctCoin, ctPowerUp, ctHazard, ctGoal);
+
+   TRectF = record
+      X, Y, W, H: Single;
+      class function Create(AX, AY, AW, AH: Single): TRectF; static; inline;
+      function Right: Single; inline;
+      function Bottom: Single; inline;
+      function Overlaps(const Other: TRectF): Boolean; inline;
+      function Contains(const P: TVector2): Boolean; inline;
+   end;
 //
 //// ---------------------------------------------------------------------------
 //// Colour (RGBA bytes, matches raylib TColor)

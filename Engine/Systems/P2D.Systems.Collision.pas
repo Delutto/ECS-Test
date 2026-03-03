@@ -9,17 +9,17 @@ uses
    P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
    P2D.Components.Transform, P2D.Components.RigidBody,
    P2D.Components.Collider, P2D.Components.TileMap,
-   P2D.Components.Tags;
+   P2D.Core.Events, P2D.Components.Tags;
 
 type
    { TCollisionSystem }
-
    TCollisionSystem = class(TSystem2D)
    private
       procedure SolveTileCollision(ATr: TTransformComponent; ARB: TRigidBodyComponent; ACol: TColliderComponent; AMap: TTileMapComponent; AMapTr: TTransformComponent);
       procedure SolveEntityCollisions;
    public
       constructor Create(AWorld: TWorldBase); override;
+      procedure Init; override;
       procedure Update(ADelta: Single); override;
       procedure FixedUpdate(AFixedDelta: Single); override;
    end;
@@ -32,6 +32,16 @@ begin
 
    Priority := 20;
    Name     := 'CollisionSystem';
+end;
+
+procedure TCollisionSystem.Init;
+begin
+   inherited;
+
+ { Cache cobre todas as entidades colidíveis (player, inimigos, moedas).
+   O loop de tile collision filtra adicionalmente por TRigidBodyComponent. }
+   RequireComponent(TColliderComponent);
+   RequireComponent(TTransformComponent);
 end;
 
 procedure TCollisionSystem.SolveTileCollision(ATr: TTransformComponent; ARB: TRigidBodyComponent; ACol: TColliderComponent; AMap: TTileMapComponent; AMapTr: TTransformComponent);
@@ -75,7 +85,9 @@ begin
                ATr.Position.X := ATr.Position.X - OverX
             else
                ATr.Position.X := ATr.Position.X + OverX;
+
             ARB.Velocity.X := 0;
+            ARB.OnWall     := True;
          end
          else
          begin
@@ -115,28 +127,26 @@ var
    EntList       : array of TEntity;
    I, J, Count   : Integer;
 begin
-   // Coleta entidades elegíveis para colisão
+   { Coleta entidades elegíveis para colisão }
    Count := 0;
-   SetLength(EntList, World.Entities.GetAll.Count);
+   SetLength(EntList, GetMatchingEntities.Count);
 
-   for EA in World.Entities.GetAll do
-      if EA.Alive and EA.HasComponent(TColliderComponent) and EA.HasComponent(TTransformComponent) then
+   for EA in GetMatchingEntities do
+      if EA.Alive then
       begin
          EntList[Count] := EA;
          Inc(Count);
       end;
 
-   { ── Testa todos os pares (I, J) ─────────────────────────────────────── }
+   { Testa todos os pares (I, J) }
    for I := 0 to Count - 2 do
    begin
       EA := EntList[I];
-
       for J := I + 1 to Count - 1 do
       begin
          EB := EntList[J];
 
-         { CORREÇÃO 4: Ignora pares onde alguma entidade já foi destruída
-         durante esta mesma iteração (ex: moeda coletada em par anterior). }
+         { Ignora pares onde alguma entidade já foi destruída durante esta mesma iteração (ex: moeda coletada em par anterior). }
          if not EA.Alive or not EB.Alive then
             Continue;
 
@@ -150,86 +160,10 @@ begin
 
          if not RA.Overlaps(RB_) then
             Continue;
-
-         { ── Coleta de moeda ────────────────────────────────────────────── }
-         { Verifica os dois sentidos do par para garantir independência de ordem. }
-
-         if (CA.Tag = ctPlayer) and (CB.Tag = ctCoin) then
-         begin
-            PlayerComp := TPlayerComponent(EA.GetComponent(TPlayerComponent));
-            if Assigned(PlayerComp) then
-            begin
-               Inc(PlayerComp.Coins);
-               PlayerComp.Score := PlayerComp.Score + 200;
-            end;
-            World.DestroyEntity(EB.ID);
-            Continue; { par processado — avança para o próximo J }
-         end;
-
-         if (CA.Tag = ctCoin) and (CB.Tag = ctPlayer) then
-         begin
-            PlayerComp := TPlayerComponent(EB.GetComponent(TPlayerComponent));
-            if Assigned(PlayerComp) then
-            begin
-               Inc(PlayerComp.Coins);
-               PlayerComp.Score := PlayerComp.Score + 200;
-            end;
-            World.DestroyEntity(EA.ID);
-            Continue;
-         end;
-
-         { ── Colisão Jogador × Inimigo ─────────────────────────────────────
-           Identifica quem é o jogador e quem é o inimigo, independente da ordem do par (EA/EB). Corrige PROBLEMA 1 e PROBLEMA 3. }
-
-         PlayerEntity := nil;
-         EnemyEntity  := nil;
-
-         if (CA.Tag = ctPlayer) and (CB.Tag = ctEnemy) then
-         begin
-            PlayerEntity := EA; { CORREÇÃO 1: EA é o jogador, não EB }
-            EnemyEntity  := EB;
-         end
-         else
-            if (CA.Tag = ctEnemy) and (CB.Tag = ctPlayer) then
-            begin
-               PlayerEntity := EB; { CORREÇÃO 3: caso simétrico — EB é o jogador }
-               EnemyEntity  := EA;
-            end;
-
-         if Assigned(PlayerEntity) and Assigned(EnemyEntity) then
-         begin
-            PlayerComp := TPlayerComponent(PlayerEntity.GetComponent(TPlayerComponent));
-
-            if not Assigned(PlayerComp) then
-               Continue;
-
-            { Jogador invulnerável — ignora colisão. }
-            if PlayerComp.InvFrames > 0 then
-               Continue;
-
-            { Verifica se o jogador está caindo e pisando em cima do inimigo.
-            Condição: jogador desce (Velocity.Y > 0) e a borda inferior do
-            jogador está dentro da metade superior do sprite do inimigo. }
-            RBA := TRigidBodyComponent(PlayerEntity.GetComponent(TRigidBodyComponent));
-
-            if Assigned(RBA) and (RBA.Velocity.Y > 0) and (RA.Bottom <= RB_.Y + RB_.H * 0.5) then
-            begin
-               { ── Jogador pisou no inimigo: inimigo morre, jogador quica ── }
-               PlayerComp.Score := PlayerComp.Score + 100;
-               RBA.Velocity.Y   := -350.0; { quique de ricochete }
-               World.DestroyEntity(EnemyEntity.ID);
-            end
-            else
-            begin
-               { ── Inimigo atinge o jogador lateralmente / por baixo ──────── }
-               { CORREÇÃO 2: decrementa Lives em vez de subtrair Score. }
-               Dec(PlayerComp.Lives);
-               PlayerComp.InvFrames := 2.0; { 2 s de invulnerabilidade }
-
-               if PlayerComp.Lives <= 0 then
-                  PlayerComp.State := psDead;
-            end;
-         end;
+         { ── Sobreposição detectada ───────────────────────────────────────────
+           A engine publica o evento genérico e encerra sua responsabilidade.
+           O jogo decide o que fazer: coletar moeda, aplicar dano, etc. }
+         World.EventBus.Publish(TEntityOverlapEvent.Create(EA.ID, EB.ID, CA.Tag, CB.Tag, CA.IsTrigger, CB.IsTrigger));
       end;
    end;
 end;
@@ -263,15 +197,11 @@ begin
 
    // Solve tile collisions for all rigid bodies
    if Assigned(TileM) then
-      for E in World.Entities.GetAll do
+      for E in GetMatchingEntities do
       begin
          if not E.Alive then
             Continue;
-         if not E.HasComponent(TTransformComponent) then
-            Continue;
          if not E.HasComponent(TRigidBodyComponent) then
-            Continue;
-         if not E.HasComponent(TColliderComponent) then
             Continue;
 
          Tr  := TTransformComponent(E.GetComponent(TTransformComponent));

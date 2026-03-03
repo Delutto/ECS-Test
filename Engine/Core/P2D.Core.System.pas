@@ -6,6 +6,7 @@ interface
 
 uses
    SysUtils, fgl,
+   P2D.Core.Event,
    P2D.Core.Types,
    P2D.Core.Component,
    P2D.Core.Entity;
@@ -36,6 +37,7 @@ type
   protected
     { Getter abstrato exposto via propriedade Entities. }
     function GetEntities: TEntityManager; virtual; abstract;
+    function GetEventBus: TEventBus; virtual; abstract;
   public
     { Cria uma nova entidade no mundo. }
     function  CreateEntity(const AName: string = ''): TEntity; virtual; abstract;
@@ -54,6 +56,7 @@ type
 
     { Acesso ao gerenciador de entidades (GetAll, PurgeDestroyed, etc.). }
     property Entities: TEntityManager read GetEntities;
+    property EventBus : TEventBus      read GetEventBus;
   end;
 
   {---------------------------------------------------------------------------

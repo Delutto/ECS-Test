@@ -4,12 +4,10 @@ unit P2D.Components.Collider;
 
 interface
 
-uses P2D.Core.Component, P2D.Core.Types;
+uses
+   P2D.Core.Component, P2D.Core.Types;
 
 type
-  TColliderTag = (ctNone, ctPlayer, ctEnemy, ctGround, ctPlatform,
-                  ctCoin, ctPowerUp, ctHazard, ctGoal);
-
   TColliderComponent = class(TComponent2D)
   public
     Offset  : TVector2;     // relative to transform position

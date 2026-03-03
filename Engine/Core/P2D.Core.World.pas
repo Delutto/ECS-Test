@@ -80,11 +80,11 @@ end;
 
 constructor TWorld.Create;
 begin
-  inherited Create;
+   inherited Create;
 
-  FEntities       := TEntityManager.Create;
-  FSystems        := TSystemList.Create(True);
-  FShutdownCalled := False;
+   FEntities       := TEntityManager.Create;
+   FSystems        := TSystemList.Create(True);
+   FShutdownCalled := False;
 end;
 
 destructor TWorld.Destroy;
@@ -98,85 +98,86 @@ end;
 
 function TWorld.GetEntities: TEntityManager;
 begin
-  Result := FEntities;
+   Result := FEntities;
 end;
 
 procedure TWorld.SortSystems;
 begin
-  FSystems.Sort(@SystemCompare);
+   FSystems.Sort(@SystemCompare);
 end;
 
 procedure TWorld.InvalidateAllSystemCaches;
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  for S in FSystems do
-    S.InvalidateCache;
+   for S in FSystems do
+       S.InvalidateCache;
 end;
 
 function TWorld.CreateEntity(const AName: string): TEntity;
 begin
-  Result := FEntities.CreateEntity(AName);
-  InvalidateAllSystemCaches;
+   Result := FEntities.CreateEntity(AName);
+   InvalidateAllSystemCaches;
 end;
 
 procedure TWorld.DestroyEntity(AID: TEntityID);
 begin
-  FEntities.DestroyEntity(AID);
-  InvalidateAllSystemCaches;
+   FEntities.DestroyEntity(AID);
+   InvalidateAllSystemCaches;
 end;
 
 function TWorld.GetEntity(AID: TEntityID): TEntity;
 begin
-  Result := FEntities.GetEntity(AID);
+   Result := FEntities.GetEntity(AID);
 end;
 
 function TWorld.AddSystem(ASystem: TSystem2D): TSystem2D;
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  for S in FSystems do
-    if S = ASystem then
-      raise Exception.CreateFmt(
-        'TWorld.AddSystem: Sistema "%s" já registrado.', [ASystem.ClassName]);
-  FSystems.Add(ASystem);
-  SortSystems;
-  Result := ASystem;
+   for S in FSystems do
+      if S = ASystem then
+         raise Exception.CreateFmt('TWorld.AddSystem: Sistema "%s" já registrado.', [ASystem.ClassName]);
+   FSystems.Add(ASystem);
+   SortSystems;
+   Result := ASystem;
 end;
 
 function TWorld.GetSystem(AClass: TSystem2DClass): TSystem2D;
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  Result := nil;
-  for S in FSystems do
-    if S.ClassType = AClass then
-    begin
-      Result := S;
-      Exit;
-    end;
+   Result := nil;
+   for S in FSystems do
+      if S.ClassType = AClass then
+      begin
+         Result := S;
+         Exit;
+      end;
 end;
 
 procedure TWorld.Init;
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  SortSystems;
-  for S in FSystems do
-    if S.Enabled then S.Init;
+   SortSystems;
+   for S in FSystems do
+      if S.Enabled then
+         S.Init;
 end;
 
 procedure TWorld.FixedUpdate(AFixedDelta: Single);
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
-  { Itera por prioridade (já ordenado por SortSystems/Init).
-    Apenas sistemas com FixedUpdate sobrescrito são afetados — os demais executam a implementação vazia herdada de TSystem2D. }
-  for S in FSystems do
-    if S.Enabled then S.FixedUpdate(AFixedDelta);
+ { Itera por prioridade (já ordenado por SortSystems/Init).
+   Apenas sistemas com FixedUpdate sobrescrito são afetados — os demais executam a implementação vazia herdada de TSystem2D. }
+   for S in FSystems do
+      if S.Enabled then
+         S.FixedUpdate(AFixedDelta);
 
-  { IMPORTANTE: PurgeDestroyed NÃO é chamado aqui. FixedUpdate pode ser executado várias vezes por frame. Remover entidades durante o passo fixo enquanto o
-    acumulador ainda tem passos restantes causaria acesso a entidades já liberadas. A purga acontece em Update, uma única vez por frame, após todos os passos fixos. }
+ { IMPORTANTE: PurgeDestroyed NÃO é chamado aqui. FixedUpdate pode ser executado várias vezes por frame. Remover entidades durante o passo fixo enquanto o
+   acumulador ainda tem passos restantes causaria acesso a entidades já liberadas. A purga acontece em Update, uma única vez por frame, após todos os passos fixos. }
 end;
 
 procedure TWorld.Update(ADelta: Single);

@@ -4,25 +4,28 @@ unit P2D.Components.Transform;
 
 interface
 
-uses P2D.Core.Component, P2D.Core.Types;
+uses
+   raylib,
+   P2D.Core.Component;
 
 type
-  TTransformComponent = class(TComponent2D)
-  public
-    Position : TVector2;
-    Scale    : TVector2;
-    Rotation : Single;      // degrees
-    constructor Create; override;
-  end;
+   TTransformComponent = class(TComponent2D)
+   public
+      Position : TVector2;
+      Scale    : TVector2;
+      Rotation : Single;      // Degrees
+      constructor Create; override;
+   end;
 
 implementation
 
 constructor TTransformComponent.Create;
 begin
-  inherited Create;
-  Position.Create(0, 0);
-  Scale.Create(1, 1);
-  Rotation := 0;
+   inherited Create;
+
+   Position := Vector2Create(0, 0);
+   Scale    := Vector2Create(1, 1);
+   Rotation := 0;
 end;
 
 end.

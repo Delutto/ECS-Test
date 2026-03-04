@@ -139,10 +139,7 @@ end;
 
 function TTileMapComponent.GetTileWorldRect(ACol, ARow: Integer): TRectF;
 begin
-  Result.Create(ACol * TileWidth,
-                ARow * TileHeight,
-                TileWidth,
-                TileHeight);
+   Result := TRectF.Create(ACol * TileWidth, ARow * TileHeight, TileWidth, TileHeight);
 end;
 
 procedure TTileMapComponent.LoadTileSet(const APath: string; ACols: Integer);

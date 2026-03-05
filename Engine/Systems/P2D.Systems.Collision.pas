@@ -155,20 +155,22 @@ begin
    for I := 0 to Count - 2 do
    begin
       EA := FEntList[I];
+      if not EA.Alive then
+         Continue;
+
+      { Cache: Busca componentes da Entidade A APENAS UMA VEZ por frame! }
+      TA := TTransformComponent(EA.GetComponent(TTransformComponent));
+      CA := TColliderComponent(EA.GetComponent(TColliderComponent));
+      RA := CA.GetWorldRect(TA.Position);
+
       for J := I + 1 to Count - 1 do
       begin
          EB := FEntList[J];
+         if not EB.Alive then Continue;
 
-         { Ignora pares onde alguma entidade já foi destruída durante esta mesma iteração (ex: moeda coletada em par anterior). }
-         if not EA.Alive or not EB.Alive then
-            Continue;
-
-         TA := TTransformComponent(EA.GetComponent(TTransformComponent));
-         TB := TTransformComponent(EB.GetComponent(TTransformComponent));
-         CA := TColliderComponent(EA.GetComponent(TColliderComponent));
-         CB := TColliderComponent(EB.GetComponent(TColliderComponent));
-
-         RA  := CA.GetWorldRect(TA.Position);
+         { No loop interno, busca apenas os componentes da Entidade B }
+         TB  := TTransformComponent(EB.GetComponent(TTransformComponent));
+         CB  := TColliderComponent(EB.GetComponent(TColliderComponent));
          RB_ := CB.GetWorldRect(TB.Position);
 
          if not RA.Overlaps(RB_) then

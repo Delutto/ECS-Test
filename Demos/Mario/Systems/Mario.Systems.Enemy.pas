@@ -27,6 +27,9 @@ type
 
 implementation
 
+uses
+   Mario.Systems.Player;
+
 constructor TGoombaComponent.Create;
 begin
    inherited Create;
@@ -88,7 +91,7 @@ begin
       end;
 
       // Kill if fell off map
-      if Tr.Position.Y > 800 then
+      if Tr.Position.Y > PLAYER_KILL_ZONE then
          World.DestroyEntity(E.ID);
    end;
 end;

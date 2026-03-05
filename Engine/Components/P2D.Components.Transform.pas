@@ -12,6 +12,7 @@ type
    TTransformComponent = class(TComponent2D)
    public
       Position : TVector2;
+      PrevPosition : TVector2;
       Scale    : TVector2;
       Rotation : Single;      // Degrees
       constructor Create; override;
@@ -23,9 +24,10 @@ constructor TTransformComponent.Create;
 begin
    inherited Create;
 
-   Position := Vector2Create(0, 0);
-   Scale    := Vector2Create(1, 1);
-   Rotation := 0;
+   Position     := Vector2Create(0, 0);
+   PrevPosition := Vector2Create(0, 0);
+   Scale        := Vector2Create(1, 1);
+   Rotation     := 0;
 end;
 
 end.

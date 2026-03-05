@@ -112,12 +112,18 @@ begin
       if PC.WantsMoveLeft then
       begin
          RB.Velocity.X := ApproachF(RB.Velocity.X, -Speed, 600 * AFixedDelta);
-         PC.State := psWalking;
+         if PC.WantsRun then
+            PC.State := psRunning
+         else
+            PC.State := psWalking;
       end
       else if PC.WantsMoveRight then
       begin
          RB.Velocity.X := ApproachF(RB.Velocity.X, Speed, 600 * AFixedDelta);
-         PC.State := psWalking;
+         if PC.WantsRun then
+            PC.State := psRunning
+         else
+            PC.State := psWalking;
       end
       else
       begin

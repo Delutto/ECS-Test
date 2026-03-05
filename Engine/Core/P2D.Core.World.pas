@@ -75,11 +75,10 @@ function SystemCompare(const A, B: TSystem2D): Integer;
 begin
    if A.Priority < B.Priority then
       Result := -1
+   else if A.Priority > B.Priority then
+      Result := 1
    else
-      if A.Priority > B.Priority then
-         Result := 1
-      else
-         Result := 0;
+      Result := 0;
 end;
 
 constructor TWorld.Create;
@@ -94,12 +93,12 @@ end;
 
 destructor TWorld.Destroy;
 begin
-  Shutdown;
-  FSystems.Free;
-  FEntities.Free;
-  FEventBus.Free;
+   Shutdown;
+   FSystems.Free;
+   FEntities.Free;
+   FEventBus.Free;
 
-  inherited;
+   inherited;
 end;
 
 function TWorld.GetEntities: TEntityManager;

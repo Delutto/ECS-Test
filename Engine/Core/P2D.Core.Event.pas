@@ -53,7 +53,8 @@ type
    TEventBus = class
    private
       FHandlers    : THandlerMap;
-      FQueue       : TEventQueue;
+      FReadQueue   : TEventQueue;
+      FWriteQueue  : TEventQueue;
       FDispatching : Boolean;
    public
       constructor Create;
@@ -105,7 +106,11 @@ begin
 
    FHandlers    := THandlerMap.Create;
    FHandlers.Sorted := True;
-   FQueue       := TEventQueue.Create(True); { True = owns events → libera ao limpar }
+
+   { Instancia as filas uma ÚNICA vez na vida útil da Engine }
+   FReadQueue   := TEventQueue.Create(True); { True = owns events → libera ao limpar }
+   FWriteQueue  := TEventQueue.Create(True);
+
    FDispatching := False;
 end;
 
@@ -118,7 +123,9 @@ begin
    for I := 0 to FHandlers.Count - 1 do
       FHandlers.Data[I].Free;
    FHandlers.Free;
-   FQueue.Free;
+
+   FReadQueue.Free;
+   FWriteQueue.Free;
 
    inherited;
 end;
@@ -169,32 +176,35 @@ end;
 
 procedure TEventBus.Publish(AEvent: TEvent2D);
 begin
-  { Durante o Dispatch, novos eventos vão para a fila atual mas só serão processados no próximo ciclo de Dispatch. }
-   FQueue.Add(AEvent);
+   { Eventos chegam sempre na fila de escrita, mas só serão processados no próximo ciclo de Dispatch. }
+   FWriteQueue.Add(AEvent);
 end;
 
 procedure TEventBus.Dispatch;
 var
-   I, J    : Integer;
-   Event   : TEvent2D;
-   Snapshot: TEventQueue;
-   Key     : Pointer;
-   Idx     : Integer;
-   List    : TSubscriberList;
+   I, J      : Integer;
+   Event     : TEvent2D;
+   TempQueue : TEventQueue;
+   Key       : Pointer;
+   Idx       : Integer;
+   List      : TSubscriberList;
 begin
-   if FDispatching or (FQueue.Count = 0) then
+   if FDispatching or (FWriteQueue.Count = 0) then
       Exit;
    FDispatching := True;
 
-   { Move a fila atual para um snapshot e cria uma nova fila vazia.
-   Eventos publicados durante handlers vão para a nova fila (próximo ciclo). }
-   Snapshot := FQueue;
-   FQueue   := TEventQueue.Create(True);
+   { DOUBLE BUFFERING SWAP:
+     A fila que estava recebendo eventos vira a fila de leitura.
+     A fila de leitura (que está vazia) vira a nova fila de escrita.
+     Isso custa 0 alocações na memória (apenas troca de referências)! }
+   TempQueue   := FReadQueue;
+   FReadQueue  := FWriteQueue;
+   FWriteQueue := TempQueue;
 
    try
-      for I := 0 to Snapshot.Count - 1 do
+      for I := 0 to FReadQueue.Count - 1 do
       begin
-         Event := Snapshot[I];
+         Event := FReadQueue[I];
          Key   := Pointer(Event.ClassType);
          Idx   := FHandlers.IndexOf(Key);
 
@@ -204,19 +214,22 @@ begin
          List := FHandlers.Data[Idx];
          for J := 0 to List.Count - 1 do
          begin
-            if Event.Handled then Break; { evento consumido — para de notificar }
-               List[J].Callback(Event);
+            if Event.Handled then Break;
+            List[J].Callback(Event);
          end;
       end;
    finally
-      Snapshot.Free; { libera todos os TEvent2D do snapshot (OwnsObjects=True) }
+      { O .Clear esvazia a fila e (graças ao OwnsObjects=True) chama o .Free automaticamente em todos os TEvent2D iterados. }
+      FReadQueue.Clear;
       FDispatching := False;
    end;
 end;
 
 procedure TEventBus.Clear;
 begin
-   FQueue.Clear; { libera eventos pendentes (OwnsObjects=True) }
+   { Limpa os eventos pendentes sem destruir o objeto da Fila (OwnsObjects=True) }
+   FReadQueue.Clear;
+   FWriteQueue.Clear;
 end;
 
 end.

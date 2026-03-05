@@ -15,6 +15,7 @@ type
    { TCollisionSystem }
    TCollisionSystem = class(TSystem2D)
    private
+      FEntList: array of TEntity;
       procedure SolveTileCollision(ATr: TTransformComponent; ARB: TRigidBodyComponent; ACol: TColliderComponent; AMap: TTileMapComponent; AMapTr: TTransformComponent);
       procedure SolveEntityCollisions;
    public
@@ -52,13 +53,14 @@ var
    Tile : TTileData;
    TileR: TRectF;
    OverX, OverY: Single;
+   IsInternalEdgeX: Boolean; // Flag para ignorar quinas internas
 begin
    R := ACol.GetWorldRect(ATr.Position);
 
    ColL := Trunc((R.X - AMapTr.Position.X) / AMap.TileWidth);
-   ColR := Trunc((R.Right - AMapTr.Position.X - 1) / AMap.TileWidth);
+   ColR := Trunc((R.Right - AMapTr.Position.X) / AMap.TileWidth); // Removido o - 1
    RowT := Trunc((R.Y - AMapTr.Position.Y) / AMap.TileHeight);
-   RowB := Trunc((R.Bottom - AMapTr.Position.Y - 1) / AMap.TileHeight);
+   RowB := Trunc((R.Bottom - AMapTr.Position.Y) / AMap.TileHeight); // Removido o - 1
 
    for Row := RowT to RowB do
    begin
@@ -78,7 +80,18 @@ begin
          OverX := Min(R.Right, TileR.Right) - Max(R.X, TileR.X);
          OverY := Min(R.Bottom, TileR.Bottom) - Max(R.Y, TileR.Y);
 
+         { Verifica se é uma colisão horizontal fantasma (borda interna) }
+         IsInternalEdgeX := False;
          if OverX < OverY then
+         begin
+            if ATr.Position.X < TileR.X then
+               IsInternalEdgeX := AMap.GetTile(C - 1, Row).Solid // Verifica tile da esquerda
+            else
+               IsInternalEdgeX := AMap.GetTile(C + 1, Row).Solid; // Verifica tile da direita
+         end;
+
+         { Só resolve no eixo X se NÃO for uma borda interna }
+         if (OverX < OverY) and not IsInternalEdgeX then
          begin
             // Horizontal resolve
             if ATr.Position.X < TileR.X then
@@ -91,7 +104,7 @@ begin
          end
          else
          begin
-            // Vertical resolve
+            // Vertical resolve (usado inclusive como fallback se for borda interna no X)
             if ATr.Position.Y < TileR.Y then
             begin
                ATr.Position.Y := ATr.Position.Y - OverY;
@@ -107,7 +120,7 @@ begin
             end;
          end;
 
-         // Update R after resolve
+         // Update R after resolve (Atualiza a caixa de colisão para o próximo tile do loop)
          R := ACol.GetWorldRect(ATr.Position);
       end;
    end;
@@ -124,27 +137,27 @@ var
    PlayerEntity  : TEntity;
    EnemyEntity   : TEntity;
    CoinEntity    : TEntity;
-   EntList       : array of TEntity;
    I, J, Count   : Integer;
 begin
    { Coleta entidades elegíveis para colisão }
    Count := 0;
-   SetLength(EntList, GetMatchingEntities.Count);
+   if Length(FEntList) < GetMatchingEntities.Count then
+      SetLength(FEntList, GetMatchingEntities.Count);
 
    for EA in GetMatchingEntities do
       if EA.Alive then
       begin
-         EntList[Count] := EA;
+         FEntList[Count] := EA;
          Inc(Count);
       end;
 
    { Testa todos os pares (I, J) }
    for I := 0 to Count - 2 do
    begin
-      EA := EntList[I];
+      EA := FEntList[I];
       for J := I + 1 to Count - 1 do
       begin
-         EB := EntList[J];
+         EB := FEntList[J];
 
          { Ignora pares onde alguma entidade já foi destruída durante esta mesma iteração (ex: moeda coletada em par anterior). }
          if not EA.Alive or not EB.Alive then

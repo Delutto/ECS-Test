@@ -8,18 +8,19 @@ unit Mario.ProceduralArt;
 
 interface
 
-uses raylib, P2D.Core.Types;
+uses
+   raylib, P2D.Core.Types;
 
 procedure GenerateAssets;
 procedure UnloadAssets;
 
 // Textures accessible by the rest of the demo
 var
-  TexPlayer    : TTexture2D;   // spritesheet: 8 frames x 2 rows (small/big)
-  TexEnemy     : TTexture2D;   // goomba: 2 frames
-  TexTiles     : TTexture2D;   // tileset: 4 tiles (ground,brick,block,coin)
-  TexCoin      : TTexture2D;   // coin spin: 4 frames
-  TexBackground: TTexture2D;   // sky gradient with hills
+   TexPlayer    : TTexture2D;   // spritesheet: 8 frames x 2 rows (small/big)
+   TexEnemy     : TTexture2D;   // goomba: 2 frames
+   TexTiles     : TTexture2D;   // tileset: 4 tiles (ground,brick,block,coin)
+   TexCoin      : TTexture2D;   // coin spin: 4 frames
+   TexBackground: TTexture2D;   // sky gradient with hills
 
 implementation
 
@@ -256,11 +257,16 @@ end;
 
 procedure UnloadAssets;
 begin
-   if TexPlayer.Id > 0     then UnloadTexture(TexPlayer);
-   if TexEnemy.Id > 0      then UnloadTexture(TexEnemy);
-   if TexTiles.Id > 0      then UnloadTexture(TexTiles);
-   if TexCoin.Id > 0       then UnloadTexture(TexCoin);
-   if TexBackground.Id > 0 then UnloadTexture(TexBackground);
+   if TexPlayer.Id > 0 then
+      UnloadTexture(TexPlayer);
+   if TexEnemy.Id > 0 then
+      UnloadTexture(TexEnemy);
+   if TexTiles.Id > 0 then
+      UnloadTexture(TexTiles);
+   if TexCoin.Id > 0 then
+      UnloadTexture(TexCoin);
+   if TexBackground.Id > 0 then
+      UnloadTexture(TexBackground);
 end;
 
 end.

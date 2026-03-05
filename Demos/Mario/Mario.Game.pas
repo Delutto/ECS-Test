@@ -115,6 +115,9 @@ var
    IDs: array of TEntityID;
    I  : Integer;
 begin
+   { Descarta eventos pendentes ANTES de qualquer outra operacao, garantindo que o primeiro Dispatch pos-restart opere com fila limpa. }
+   World.EventBus.Clear;
+
    { Coleta IDs antes de destruir para evitar modificar a lista durante iteração. }
    SetLength(IDs, World.Entities.GetAll.Count);
    for I := 0 to World.Entities.GetAll.Count - 1 do

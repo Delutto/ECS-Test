@@ -63,7 +63,7 @@ constructor TPlayerPhysicsSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
 
-   Priority := 11;
+   Priority := 9;
    Name     := 'PlayerPhysicsSystem';
 end;
 
@@ -139,10 +139,11 @@ begin
             RB.Velocity.Y := PC.JumpForce;
             RB.Grounded   := False;
             PC.State      := psJumping;
+
+            { Consome a flag APENAS quando o pulo de fato ocorrer. }
+            PC.WantsJump := False;
          end;
-         { Consome a flag mesmo se não pulou (não estava no chão).
-         Evita que FixedUpdate seguinte processe o mesmo pressionamento. }
-         PC.WantsJump := False;
+         { Se ele apertou 1 frame antes de cair no chão, a flag sobrevive e ele pula no frame seguinte automaticamente (Jump Buffer natural). }
       end;
 
       { ── Corte de pulo: reduz altura ao soltar o botão cedo ─────────────── }

@@ -30,33 +30,57 @@ type
    TRenderLayer = (rlWorld, rlScreen);
 
    {---------------------------------------------------------------------------
+   Component Signature - Otimização de Queries
+   ---------------------------------------------------------------------------
+   Cada tipo de componente recebe um ID único (0-63).
+   A assinatura de uma entidade é um conjunto de bits indicando quais
+   componentes ela possui. Comparação O(1) ao invés de O(n).
+   ---------------------------------------------------------------------------}
+   TComponentSignature = set of 0..63;
+
+   {---------------------------------------------------------------------------
+   Cache Statistics
+   ---------------------------------------------------------------------------}
+   TCacheStats = record
+      HitCount: Int64;
+      MissCount: Int64;
+      RefreshCount: Int64;
+      LastRefreshTime: Double;
+      AverageRefreshTime: Double;
+      EntityCount: Integer;
+   end;
+
+   {---------------------------------------------------------------------------
    TWorldBase — interface mínima que TSystem2D precisa do World.
    TWorld (em P2D.Core.World) herda desta classe e implementa tudo.
    ---------------------------------------------------------------------------}
-  TWorldBase = class
-  protected
-    { Getter abstrato exposto via propriedade Entities. }
-    function GetEntities: TEntityManager; virtual; abstract;
-    function GetEventBus: TEventBus; virtual; abstract;
-  public
-    { Cria uma nova entidade no mundo. }
-    function  CreateEntity(const AName: string = ''): TEntity; virtual; abstract;
+   TWorldBase = class
+   protected
+      { Getter abstrato exposto via propriedade Entities. }
+      function GetEntities: TEntityManager; virtual; abstract;
+      function GetEventBus: TEventBus; virtual; abstract;
+   public
+      { Cria uma nova entidade no mundo. }
+      function  CreateEntity(const AName: string = ''): TEntity; virtual; abstract;
 
-    { Marca a entidade para destruição ao final do frame. }
-    procedure DestroyEntity(AID: TEntityID); virtual; abstract;
+      { Marca a entidade para destruição ao final do frame. }
+      procedure DestroyEntity(AID: TEntityID); virtual; abstract;
 
-    { Busca uma entidade pelo ID. Retorna nil se não encontrada. }
-    function  GetEntity(AID: TEntityID): TEntity; virtual; abstract;
+      { Busca uma entidade pelo ID. Retorna nil se não encontrada. }
+      function  GetEntity(AID: TEntityID): TEntity; virtual; abstract;
 
-    { Renderiza apenas os sistemas cuja RenderLayer = ALayer. }
-    procedure RenderByLayer(ALayer: TRenderLayer); virtual; abstract;
+      { Renderiza apenas os sistemas cuja RenderLayer = ALayer. }
+      procedure RenderByLayer(ALayer: TRenderLayer); virtual; abstract;
 
-    { Executa sistemas de passo fixo (física, colisão). }
-    procedure FixedUpdate(AFixedDelta: Single); virtual; abstract;
+      { Executa sistemas de passo fixo (física, colisão). }
+      procedure FixedUpdate(AFixedDelta: Single); virtual; abstract;
 
-    { Acesso ao gerenciador de entidades (GetAll, PurgeDestroyed, etc.). }
-    property Entities: TEntityManager read GetEntities;
-    property EventBus : TEventBus      read GetEventBus;
+      { Obtém a assinatura de componentes de uma entidade }
+      function GetEntitySignature(AEntity: TEntity): TComponentSignature; virtual; abstract;
+
+      { Acesso ao gerenciador de entidades (GetAll, PurgeDestroyed, etc.). }
+      property Entities: TEntityManager read GetEntities;
+      property EventBus: TEventBus read GetEventBus;
   end;
 
   {---------------------------------------------------------------------------
@@ -64,64 +88,84 @@ type
    Lista não-proprietária de metaclasses de componentes.
    Define a "assinatura" (quais componentes) de um sistema.
    ---------------------------------------------------------------------------}
-  TComponentClassList = specialize TFPGList<TComponent2DClass>;
+   TComponentClassList = specialize TFPGList<TComponent2DClass>;
 
   {---------------------------------------------------------------------------
    TEntityRefList
    Lista não-proprietária de referências a TEntity.
    Resultado de query — entidades pertencem ao TEntityManager.
    ---------------------------------------------------------------------------}
-  TEntityRefList = specialize TFPGList<TEntity>;
+   TEntityRefList = specialize TFPGList<TEntity>;
 
   {---------------------------------------------------------------------------
    TSystem2D — classe base para todos os sistemas ECS
    ---------------------------------------------------------------------------}
-  TSystem2D = class
-  private
-    FWorld          : TWorldBase;
-    FPriority       : TSystemPriority;
-    FEnabled        : Boolean;
-    FName           : string;
-    FRenderLayer    : TRenderLayer;
-    FRequiredClasses: TComponentClassList;
-    FMatchCache     : TEntityRefList;
-    FCacheDirty     : Boolean;
 
-  protected
-    { Registra um tipo de componente como obrigatório para este sistema. Chamado na implementação de Init pelas subclasses. Idempotente: duplicatas são ignoradas silenciosamente. }
-    procedure RequireComponent(AClass: TComponent2DClass);
-    { Reconstrói FMatchCache com as entidades que satisfazem FRequiredClasses. Chamado automaticamente por GetMatchingEntities quando FCacheDirty=True. }
-    procedure RefreshCache;
-  public
-    constructor Create(AWorld: TWorldBase); virtual;
-    destructor  Destroy; override;
+   { TSystem2D }
 
-    procedure Init; virtual;
-    procedure Update(ADelta: Single); virtual; abstract;
-    procedure FixedUpdate(AFixedDelta: Single); virtual;
-    procedure Render; virtual;
-    procedure Shutdown; virtual;
+   TSystem2D = class
+   private
+      FWorld          : TWorldBase;
+      FPriority       : TSystemPriority;
+      FEnabled        : Boolean;
+      FName           : String;
+      FRenderLayer    : TRenderLayer;
+      FRequiredClasses: TComponentClassList;
+      FMatchCache     : TEntityRefList;
+      FCacheDirty     : Boolean;
 
-    { Retorna entidades vivas que possuem TODOS os componentes requeridos. Cache O(1) na maioria dos frames; O(n·m) após invalidação estrutural. }
-    function GetMatchingEntities: TEntityRefList;
-    { Verifica pontualmente se AEntity satisfaz os requisitos do sistema. }
-    function EntityMatches(AEntity: TEntity): Boolean;
-    { Invalida o cache. Chamado pelo TWorld após mudanças estruturais(CreateEntity, DestroyEntity, AddComponent, RemoveComponent). }
-    procedure InvalidateCache;
+      { Otimizações de Query }
+      FRequiredSignature: TComponentSignature;
+      FSignatureDirty   : Boolean;
+      FCacheStats       : TCacheStats;
+      FLastCacheSize    : Integer;
+   protected
+      { Registra um tipo de componente como obrigatório para este sistema. Chamado na implementação de Init pelas subclasses. Idempotente: duplicatas são ignoradas silenciosamente. }
+      procedure RequireComponent(AClass: TComponent2DClass);
+      { Reconstrói FMatchCache com as entidades que satisfazem FRequiredClasses. Chamado automaticamente por GetMatchingEntities quando FCacheDirty=True. }
+      procedure RefreshCache;
+      procedure UpdateRequiredSignature;
+      procedure RecordCacheHit; inline;
+      procedure RecordCacheMiss; inline;
+   public
+      constructor Create(AWorld: TWorldBase); virtual;
+      destructor  Destroy; override;
 
-    property World    : TWorldBase      read FWorld;
-    property Priority : TSystemPriority read FPriority write FPriority;
-    property Enabled  : Boolean         read FEnabled  write FEnabled;
-    property Name     : string          read FName     write FName;
-    { Camada de render deste sistema.
+      procedure Init; virtual;
+      procedure Update(ADelta: Single); virtual; abstract;
+      procedure FixedUpdate(AFixedDelta: Single); virtual;
+      procedure Render; virtual;
+      procedure Shutdown; virtual;
+
+      { Retorna entidades vivas que possuem TODOS os componentes requeridos. Cache O(1) na maioria dos frames; O(n·m) após invalidação estrutural. }
+      function GetMatchingEntities: TEntityRefList;
+      { Verifica pontualmente se AEntity satisfaz os requisitos do sistema. }
+      function EntityMatches(AEntity: TEntity): Boolean;
+      function EntityMatchesFast(AEntity: TEntity): Boolean;
+      { Invalida o cache. Chamado pelo TWorld após mudanças estruturais(CreateEntity, DestroyEntity, AddComponent, RemoveComponent). }
+      procedure InvalidateCache;
+
+      { Debug & Stats }
+      function GetCacheStats: TCacheStats;
+      procedure ResetCacheStats;
+      procedure PrintCacheStats;
+
+      property World: TWorldBase read FWorld;
+      property Priority: TSystemPriority read FPriority write FPriority;
+      property Enabled: Boolean read FEnabled write FEnabled;
+      property Name: string read FName write FName;
+      { Camada de render deste sistema.
       Padrão: rlWorld — a grande maioria dos sistemas opera no espaço do mundo.
       Sistemas de UI/overlay devem sobrescrever para rlScreen. }
-    property RenderLayer : TRenderLayer    read FRenderLayer write FRenderLayer;
-  end;
+      property RenderLayer: TRenderLayer read FRenderLayer write FRenderLayer;
+   end;
 
-  TSystem2DClass = class of TSystem2D;
+   TSystem2DClass = class of TSystem2D;
 
 implementation
+
+uses
+   P2D.Utils.Logger, DateUtils;
 
 constructor TSystem2D.Create(AWorld: TWorldBase);
 begin
@@ -135,10 +179,20 @@ begin
    FRequiredClasses := TComponentClassList.Create;
    FMatchCache      := TEntityRefList.Create;
    FCacheDirty      := True;
+   FSignatureDirty  := True;
+   FRequiredSignature := [];
+   FLastCacheSize   := 0;
+
+   // Inicializa estatísticas
+   FillChar(FCacheStats, SizeOf(FCacheStats), 0);
 end;
 
 destructor TSystem2D.Destroy;
 begin
+   {$IFDEF DEBUG}
+   PrintCacheStats;
+   {$ENDIF}
+
    FMatchCache.Free;      { não-proprietário: libera apenas a lista }
    FRequiredClasses.Free; { não-proprietário: metaclasses pertencem ao compilador }
 
@@ -153,13 +207,61 @@ begin
    if FRequiredClasses.IndexOf(AClass) >= 0 then
       Exit; { idempotente }
    FRequiredClasses.Add(AClass);
+   FSignatureDirty := True;
    InvalidateCache;
+
+   {$IFDEF DEBUG}
+   Logger.Debug(Format('[System %s] Component required: %s (Total: %d)', [Self.ClassName, AClass.ClassName, FRequiredClasses.Count]));
+   {$ENDIF}
 end;
 
 // -----------------------------------------------------------------------------
 procedure TSystem2D.InvalidateCache;
 begin
-  FCacheDirty := True;
+   FCacheDirty := True;
+
+   {$IFDEF DEBUG}
+   Logger.Debug(Format('[System %s] Cache invalidated', [Self.ClassName]));
+   {$ENDIF}
+end;
+
+function TSystem2D.GetCacheStats: TCacheStats;
+begin
+   Result := FCacheStats;
+end;
+
+procedure TSystem2D.ResetCacheStats;
+begin
+   FillChar(FCacheStats, SizeOf(FCacheStats), 0);
+   FCacheStats.EntityCount := FMatchCache.Count;
+
+   {$IFDEF DEBUG}
+   Logger.Info(Format('[System %s] Cache stats reset', [Self.ClassName]));
+   {$ENDIF}
+end;
+
+procedure TSystem2D.PrintCacheStats;
+var
+   HitRate: Double;
+   TotalAccess: Int64;
+begin
+   TotalAccess := FCacheStats.HitCount + FCacheStats.MissCount;
+
+   if TotalAccess > 0 then
+      HitRate := (FCacheStats.HitCount / TotalAccess) * 100.0
+   else
+      HitRate := 0.0;
+
+   Logger.Info(Format('=== Cache Stats: %s ===', [Self.ClassName]));
+   Logger.Info(Format('  Cached Entities: %d', [FCacheStats.EntityCount]));
+   Logger.Info(Format('  Cache Hits: %d', [FCacheStats.HitCount]));
+   Logger.Info(Format('  Cache Misses: %d', [FCacheStats.MissCount]));
+   Logger.Info(Format('  Hit Rate: %.2f%%', [HitRate]));
+   Logger.Info(Format('  Refresh Count: %d', [FCacheStats.RefreshCount]));
+   Logger.Info(Format('  Last Refresh: %.2fms', [FCacheStats.LastRefreshTime]));
+   Logger.Info(Format('  Avg Refresh: %.2fms', [FCacheStats.AverageRefreshTime]));
+   Logger.Info(Format('  Required Components: %d', [FRequiredClasses.Count]));
+   Logger.Info('===========================');
 end;
 
 // -----------------------------------------------------------------------------
@@ -189,38 +291,113 @@ begin
     end;
 end;
 
+function TSystem2D.EntityMatchesFast(AEntity: TEntity): Boolean;
+var
+   EntitySig: TComponentSignature;
+begin
+   // Versão otimizada usando assinaturas
+   { ToDo: Implementar quando TWorld tiver suporte a assinaturas }
+
+   // Por enquanto, delega para método tradicional
+   Result := EntityMatches(AEntity);
+end;
+
 // -----------------------------------------------------------------------------
 procedure TSystem2D.RefreshCache;
 var
-  AllEntities: TEntityList;
-  E: TEntity;
+   AllEntities: TEntityList;
+   E: TEntity;
+   StartTime: TDateTime;
+   ElapsedMs: Double;
+   OldCount, NewCount: Integer;
 begin
+   StartTime := Now;
+   OldCount := FMatchCache.Count;
+
    FMatchCache.Clear;
-   AllEntities := FWorld.Entities.GetAll; { via TWorldBase.Entities }
+   AllEntities := FWorld.Entities.GetAll;
+
+   // Atualiza assinatura se necessário
+   UpdateRequiredSignature;
+
+   // Popula cache
    for E in AllEntities do
+   begin
       if EntityMatches(E) then
          FMatchCache.Add(E);
+   end;
+
+   NewCount := FMatchCache.Count;
    FCacheDirty := False;
+
+   // Atualiza estatísticas
+   Inc(FCacheStats.RefreshCount);
+   ElapsedMs := MilliSecondsBetween(Now, StartTime);
+   FCacheStats.LastRefreshTime := ElapsedMs;
+   FCacheStats.EntityCount := NewCount;
+
+   // Calcula média móvel do tempo de refresh
+   if FCacheStats.RefreshCount = 1 then
+      FCacheStats.AverageRefreshTime := ElapsedMs
+   else
+      FCacheStats.AverageRefreshTime :=
+         (FCacheStats.AverageRefreshTime * 0.9) + (ElapsedMs * 0.1);
+
+   {$IFDEF DEBUG}
+   if OldCount <> NewCount then
+      Logger.Debug(Format('[System %s] Cache refreshed: %d -> %d entities (%.2fms)', [Self.ClassName, OldCount, NewCount, ElapsedMs]));
+   {$ENDIF}
+end;
+
+procedure TSystem2D.UpdateRequiredSignature;
+var
+   ComponentClass: TComponent2DClass;
+   // Nota: Precisa de um sistema global de registro de componentes
+   // Por enquanto, vamos manter compatibilidade com sistema antigo
+begin
+   if not FSignatureDirty then
+      Exit;
+
+   FRequiredSignature := [];
+
+   // TODO: Implementar quando TWorld tiver registro de componentes
+   // Por enquanto, usa o método antigo EntityMatches
+
+   FSignatureDirty := False;
+end;
+
+procedure TSystem2D.RecordCacheHit;
+begin
+   Inc(FCacheStats.HitCount);
+end;
+
+procedure TSystem2D.RecordCacheMiss;
+begin
+   Inc(FCacheStats.MissCount);
 end;
 
 // -----------------------------------------------------------------------------
 function TSystem2D.GetMatchingEntities: TEntityRefList;
 begin
    if FCacheDirty then
+   begin
+      RecordCacheMiss;
       RefreshCache;
+   end
+   else
+      RecordCacheHit;
+
    Result := FMatchCache;
 end;
 
-{ Subclasses chamam RequireComponent() aqui. }
 procedure TSystem2D.Init;
 begin
-
+   { Subclasses chamam RequireComponent() aqui. }
 end;
 
-{ Implementação padrão vazia. Sistemas de física e colisão sobrescrevem este método. }
 procedure TSystem2D.FixedUpdate(AFixedDelta: Single);
 begin
-
+   { Implementação padrão vazia. Sistemas de física e colisão sobrescrevem este método. }
 end;
 
 procedure TSystem2D.Render;

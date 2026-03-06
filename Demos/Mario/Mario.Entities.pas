@@ -5,13 +5,13 @@ unit Mario.Entities;
 interface
 
 uses
-  SysUtils, raylib,
-  P2D.Core.Types, P2D.Core.Entity, P2D.Core.World,
-  P2D.Components.Transform, P2D.Components.RigidBody,
-  P2D.Components.Sprite, P2D.Components.Animation,
-  P2D.Components.Collider, P2D.Components.Tags,
-  P2D.Components.TileMap, P2D.Components.Camera2D,
-  Mario.ProceduralArt, Mario.Systems.Enemy;
+   SysUtils, raylib,
+   P2D.Core.Types, P2D.Core.Entity, P2D.Core.World,
+   P2D.Components.Transform, P2D.Components.RigidBody,
+   P2D.Components.Sprite, P2D.Components.Animation,
+   P2D.Components.Collider, P2D.Components.Tags,
+   P2D.Components.TileMap, P2D.Components.Camera2D,
+   Mario.ProceduralArt, Mario.Systems.Enemy;
 
 // Entity factories
 function CreatePlayer(AWorld: TWorld; AX, AY: Single): TEntity;
@@ -87,66 +87,66 @@ end;
 // ---------------------------------------------------------------------------
 function CreateGoomba(AWorld: TWorld; AX, AY: Single): TEntity;
 var
-  E   : TEntity;
-  Tr  : TTransformComponent;
-  RB  : TRigidBodyComponent;
-  Spr : TSpriteComponent;
-  Col : TColliderComponent;
-  G   : TGoombaComponent;
+   E   : TEntity;
+   Tr  : TTransformComponent;
+   RB  : TRigidBodyComponent;
+   Spr : TSpriteComponent;
+   Col : TColliderComponent;
+   G   : TGoombaComponent;
 begin
-  E := AWorld.CreateEntity('Goomba');
+   E := AWorld.CreateEntity('Goomba');
 
-  Tr := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := Vector2Create(AX, AY);
+   Tr := TTransformComponent(E.AddComponent(TTransformComponent.Create));
+   Tr.Position := Vector2Create(AX, AY);
 
-  RB := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
+   RB := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
 
-  Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
-  Spr.Texture    := TexEnemy;
-  Spr.OwnsTexture := False;
-  Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
+   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
+   Spr.Texture    := TexEnemy;
+   Spr.OwnsTexture := False;
+   Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
 
-  Col        := TColliderComponent(E.AddComponent(TColliderComponent.Create));
-  Col.Tag    := ctEnemy;
-  Col.Offset := Vector2Create(1, 0);
-  Col.Size   := Vector2Create(14, 16);
+   Col        := TColliderComponent(E.AddComponent(TColliderComponent.Create));
+   Col.Tag    := ctEnemy;
+   Col.Offset := Vector2Create(1, 0);
+   Col.Size   := Vector2Create(14, 16);
 
-  E.AddComponent(TEnemyTag.Create);
-  G := TGoombaComponent.Create;
-  G.Speed     := 60;
-  G.Direction := -1;
+   E.AddComponent(TEnemyTag.Create);
+   G := TGoombaComponent.Create;
+   G.Speed     := 60;
+   G.Direction := -1;
 
-  E.AddComponent(G);
+   E.AddComponent(G);
 
-  Result := E;
+   Result := E;
 end;
 
 // ---------------------------------------------------------------------------
 function CreateCoin(AWorld: TWorld; AX, AY: Single): TEntity;
 var
-  E   : TEntity;
-  Tr  : TTransformComponent;
-  Spr : TSpriteComponent;
-  Col : TColliderComponent;
+   E   : TEntity;
+   Tr  : TTransformComponent;
+   Spr : TSpriteComponent;
+   Col : TColliderComponent;
 begin
-  E := AWorld.CreateEntity('Coin');
+   E := AWorld.CreateEntity('Coin');
 
-  Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-  Tr.Position := Vector2Create(AX, AY);
+   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
+   Tr.Position := Vector2Create(AX, AY);
 
-  Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
-  Spr.Texture     := TexCoin;
-  Spr.OwnsTexture := False;
-  Spr.SourceRect  := RectangleCreate(0, 0, 16, 16);
+   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
+   Spr.Texture     := TexCoin;
+   Spr.OwnsTexture := False;
+   Spr.SourceRect  := RectangleCreate(0, 0, 16, 16);
 
-  Col           := TColliderComponent(E.AddComponent(TColliderComponent.Create));
-  Col.Tag       := ctCoin;
-  Col.IsTrigger := True;
-  Col.Size      := Vector2Create(12, 12);
-  Col.Offset    := Vector2Create(2, 2);
+   Col           := TColliderComponent(E.AddComponent(TColliderComponent.Create));
+   Col.Tag       := ctCoin;
+   Col.IsTrigger := True;
+   Col.Size      := Vector2Create(12, 12);
+   Col.Offset    := Vector2Create(2, 2);
 
-  E.AddComponent(TCoinTag.Create);
-  Result := E;
+   E.AddComponent(TCoinTag.Create);
+   Result := E;
 end;
 
 {---------------------------------------------------------------------------
@@ -167,8 +167,8 @@ const
    '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
    '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
    '1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+   '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
+   '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
    '1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1');
 
 function CreateTileMap(AWorld: TWorld): TEntity;

@@ -11,33 +11,37 @@ uses
 type
    TSystemList = specialize TFPGObjectList<TSystem2D>;
 
-  {---------------------------------------------------------------------------
-   TWorld — implementação concreta de TWorldBase
-   Estende TWorldBase (definida em P2D.Core.System) com a orquestração completa do ECS: lista de sistemas, loop de update/render e purga de entidades destruídas.
-   A herança de TWorldBase é o que quebra a dependência circular: P2D.Core.System não precisa mais de P2D.Core.World na interface.
-   ---------------------------------------------------------------------------}
    TWorld = class(TWorldBase)
    private
       FEntities      : TEntityManager;
       FSystems       : TSystemList;
-      FEventBus  : TEventBus;
+      FEventBus      : TEventBus;
       FShutdownCalled: Boolean;
 
       procedure SortSystems;
       procedure InvalidateAllSystemCaches;
 
    protected
-      { Implementação dos métodos abstratos de TWorldBase. }
       function GetEntities: TEntityManager; override;
       function GetEventBus: TEventBus; override;
+
    public
       constructor Create;
       destructor  Destroy; override;
 
       { --- Entidades --------------------------------------------------------- }
       function  CreateEntity(const AName: string = ''): TEntity; override;
+
+      { Nova API: Criação com pooling }
+      function  CreatePooledEntity(const ATag: string; const AName: string = ''): TEntity;
+
       procedure DestroyEntity(AID: TEntityID); override;
       function  GetEntity(AID: TEntityID): TEntity; override;
+
+      { Pool Management }
+      procedure ConfigureEntityPool(const ATag: string; AInitialSize, AMaxSize: Integer);
+      procedure PreallocateEntityPool(const ATag: string; ACount: Integer);
+      procedure ClearEntityPool(const ATag: string);
 
       { --- Sistemas ---------------------------------------------------------- }
       function  AddSystem(ASystem: TSystem2D): TSystem2D;
@@ -45,31 +49,28 @@ type
 
       { --- Loop principal ---------------------------------------------------- }
       procedure Init;
-     {-------------------------------------------------------------------------
-      Executa todos os sistemas habilitados em passo de tempo fixo.
-      Chamado múltiplas vezes por frame pelo acumulador em TEngine2D.Run.
-      NÃO chama PurgeDestroyed — isso é responsabilidade de Update, pois FixedUpdate pode rodar mais de uma vez antes do próximo render.
-      -------------------------------------------------------------------------}
       procedure FixedUpdate(AFixedDelta: Single); override;
       procedure Update(ADelta: Single);
-    { Renderiza TODOS os sistemas habilitados (sem distinção de camada).
-      Usado por TEngine2D.Run quando não há separação de câmera. }
       procedure Render;
-    { Renderiza apenas os sistemas com RenderLayer = ALayer.
-      Chamado pelo loop do demo para separar world-space de screen-space:
-         RenderByLayer(rlWorld)  → dentro de BeginMode2D/EndMode2D
-         RenderByLayer(rlScreen) → fora de BeginMode2D/EndMode2D }
       procedure RenderByLayer(ALayer: TRenderLayer); override;
       procedure Shutdown;
 
+      { Debug }
+      {$IFDEF DEBUG}
+      procedure PrintEntityPoolStats;
+      {$ENDIF}
+
       property Entities: TEntityManager read FEntities;
       property Systems : TSystemList    read FSystems;
-      property EventBus: TEventBus read FEventBus;
+      property EventBus: TEventBus      read FEventBus;
    end;
 
 function SystemCompare(const A, B: TSystem2D): Integer;
 
 implementation
+
+uses
+   P2D.Utils.Logger;
 
 function SystemCompare(const A, B: TSystem2D): Integer;
 begin
@@ -89,6 +90,8 @@ begin
    FSystems        := TSystemList.Create(True);
    FEventBus       := TEventBus.Create;
    FShutdownCalled := False;
+
+   Logger.Info('[World] Created with entity pooling support');
 end;
 
 destructor TWorld.Destroy;
@@ -130,6 +133,16 @@ begin
    InvalidateAllSystemCaches;
 end;
 
+function TWorld.CreatePooledEntity(const ATag: string; const AName: string): TEntity;
+begin
+   Result := FEntities.CreatePooledEntity(ATag, AName);
+   InvalidateAllSystemCaches;
+
+   {$IFDEF DEBUG}
+   Logger.Debug(Format('[World] Pooled entity created: Tag="%s", Name="%s"', [ATag, AName]));
+   {$ENDIF}
+end;
+
 procedure TWorld.DestroyEntity(AID: TEntityID);
 begin
    FEntities.DestroyEntity(AID);
@@ -139,6 +152,21 @@ end;
 function TWorld.GetEntity(AID: TEntityID): TEntity;
 begin
    Result := FEntities.GetEntity(AID);
+end;
+
+procedure TWorld.ConfigureEntityPool(const ATag: string; AInitialSize, AMaxSize: Integer);
+begin
+   FEntities.ConfigurePool(ATag, AInitialSize, AMaxSize);
+end;
+
+procedure TWorld.PreallocateEntityPool(const ATag: string; ACount: Integer);
+begin
+   FEntities.PreallocatePool(ATag, ACount);
+end;
+
+procedure TWorld.ClearEntityPool(const ATag: string);
+begin
+   FEntities.ClearPool(ATag);
 end;
 
 function TWorld.AddSystem(ASystem: TSystem2D): TSystem2D;
@@ -180,14 +208,9 @@ procedure TWorld.FixedUpdate(AFixedDelta: Single);
 var
    S: TSystem2D;
 begin
- { Itera por prioridade (já ordenado por SortSystems/Init).
-   Apenas sistemas com FixedUpdate sobrescrito são afetados — os demais executam a implementação vazia herdada de TSystem2D. }
    for S in FSystems do
       if S.Enabled then
          S.FixedUpdate(AFixedDelta);
-
- { IMPORTANTE: PurgeDestroyed NÃO é chamado aqui. FixedUpdate pode ser executado várias vezes por frame. Remover entidades durante o passo fixo enquanto o
-   acumulador ainda tem passos restantes causaria acesso a entidades já liberadas. A purga acontece em Update, uma única vez por frame, após todos os passos fixos. }
 end;
 
 procedure TWorld.Update(ADelta: Single);
@@ -198,18 +221,14 @@ begin
       if S.Enabled then
          S.Update(ADelta);
 
- { Purga entidades marcadas como destruídas (Alive = False).
-   Executado uma vez por frame, após todos os passos fixos e após Update. }
    FEntities.PurgeDestroyed;
-   FEventBus.Dispatch; // Processa fila após toda a lógica do frame
+   FEventBus.Dispatch;
 end;
 
 procedure TWorld.Render;
 var
   S: TSystem2D;
 begin
-  {Renderiza todos os sistemas sem distinção de camada.
-   Mantido para compatibilidade com TEngine2D.Run. }
    for S in FSystems do
       if S.Enabled then
          S.Render;
@@ -219,7 +238,6 @@ procedure TWorld.RenderByLayer(ALayer: TRenderLayer);
 var
    S: TSystem2D;
 begin
- { Itera todos os sistemas em ordem de prioridade (já ordenados) e chama Render apenas nos que pertencem à camada solicitada. }
    for S in FSystems do
       if S.Enabled and (S.RenderLayer = ALayer) then
          S.Render;
@@ -239,5 +257,12 @@ begin
       if S.Enabled then
          S.Shutdown;
 end;
+
+{$IFDEF DEBUG}
+procedure TWorld.PrintEntityPoolStats;
+begin
+   FEntities.PrintPoolStats;
+end;
+{$ENDIF}
 
 end.

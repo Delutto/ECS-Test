@@ -8,8 +8,9 @@ uses
    SysUtils, fgl,
    P2D.Core.Event,
    P2D.Core.Types,
+   P2D.Core.Entity,
    P2D.Core.Component,
-   P2D.Core.Entity;
+   P2D.Core.ComponentRegistry;
 
 type
    {---------------------------------------------------------------------------
@@ -295,11 +296,27 @@ function TSystem2D.EntityMatchesFast(AEntity: TEntity): Boolean;
 var
    EntitySig: TComponentSignature;
 begin
-   // Versão otimizada usando assinaturas
-   { ToDo: Implementar quando TWorld tiver suporte a assinaturas }
+   if not Assigned(AEntity) or not AEntity.Alive then
+   begin
+      Result := False;
+      Exit;
+   end;
 
-   // Por enquanto, delega para método tradicional
-   Result := EntityMatches(AEntity);
+   { Sistema sem requisitos recebe TODAS as entidades vivas }
+   if FRequiredClasses.Count = 0 then
+   begin
+      Result := True;
+      Exit;
+   end;
+
+   { Atualizar signature se necessário }
+   UpdateRequiredSignature;
+
+   { Obter signature da entidade }
+   EntitySig := AEntity.GetSignature;
+
+   { Verificar se entidade tem TODOS os componentes requeridos }
+   Result := TComponentRegistry.SignatureMatches(EntitySig, FRequiredSignature);
 end;
 
 // -----------------------------------------------------------------------------
@@ -323,7 +340,7 @@ begin
    // Popula cache
    for E in AllEntities do
    begin
-      if EntityMatches(E) then
+      if EntityMatchesFast(E) then
          FMatchCache.Add(E);
    end;
 
@@ -352,18 +369,34 @@ end;
 procedure TSystem2D.UpdateRequiredSignature;
 var
    ComponentClass: TComponent2DClass;
-   // Nota: Precisa de um sistema global de registro de componentes
-   // Por enquanto, vamos manter compatibilidade com sistema antigo
+   ComponentID: Integer;
 begin
    if not FSignatureDirty then
       Exit;
 
+   // ═══════════════════════════════════════════════════════════════
+   // Criar signature a partir das classes requeridas
+   // ═══════════════════════════════════════════════════════════════
    FRequiredSignature := [];
 
-   // TODO: Implementar quando TWorld tiver registro de componentes
-   // Por enquanto, usa o método antigo EntityMatches
+   for ComponentClass in FRequiredClasses do
+   begin
+      ComponentID := ComponentRegistry.GetComponentID(ComponentClass);
+      if ComponentID >= 0 then
+         Include(FRequiredSignature, ComponentID)
+      else
+      begin
+         ComponentID := ComponentRegistry.Register(ComponentClass);
+         Include(FRequiredSignature, ComponentID);
+      end;
+   end;
 
    FSignatureDirty := False;
+
+   {$IFDEF DEBUG}
+   Logger.Debug(Format('[System %s] Required signature updated (%d components)',
+      [Self.ClassName, FRequiredClasses.Count]));
+   {$ENDIF}
 end;
 
 procedure TSystem2D.RecordCacheHit;

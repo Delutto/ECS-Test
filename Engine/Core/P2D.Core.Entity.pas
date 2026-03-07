@@ -5,7 +5,10 @@ unit P2D.Core.Entity;
 interface
 
 uses
-   SysUtils, fgl, P2D.Core.Types, P2D.Core.Component;
+   SysUtils, fgl,
+   P2D.Core.Types,
+   P2D.Core.Component,
+   P2D.Core.ComponentRegistry;
 
 type
    { -------------------------------------------------------------------------
@@ -16,6 +19,9 @@ type
    { -------------------------------------------------------------------------
    TEntity - Entidade base do ECS
    -------------------------------------------------------------------------}
+
+   { TEntity }
+
    TEntity = class
    private
       FID        : TEntityID;
@@ -24,6 +30,7 @@ type
       FComponents: TComponentMap;
       FPooled    : Boolean;  // Indica se está no pool
       FTag       : string;   // Tag para identificação (ex: "Projectile", "Enemy")
+      FSignature : TComponentSignature;
 
       {$IFDEF DEBUG}
       FComponentAddCount   : Integer;
@@ -38,6 +45,9 @@ type
       function  GetComponent(AClass: TComponent2DClass): TComponent2D;
       function  HasComponent(AClass: TComponent2DClass): Boolean;
       procedure RemoveComponent(AClass: TComponent2DClass);
+
+      { Component Signature - para queries O(1) }
+      function GetSignature: TComponentSignature;
 
       { Pool Management }
       procedure ResetForPool; virtual;
@@ -154,6 +164,7 @@ begin
    FAlive      := True;
    FPooled     := False;
    FTag        := '';
+   FSignature  := [];
    FComponents := TComponentMap.Create;
    FComponents.Sorted := True;
 
@@ -211,7 +222,8 @@ function TEntity.AddComponent(AComp: TComponent2D): TComponent2D;
 var
    Idx: Integer;
    OldComp: TComponent2D;
-   CompClassName: string;
+   CompClassName: String;
+   ComponentID: Integer;
 begin
    if not Assigned(AComp) then
    begin
@@ -251,6 +263,17 @@ begin
    end;
 
    FComponents[Pointer(AComp.ClassType)] := AComp;
+
+   ComponentID := ComponentRegistry.GetComponentID(TComponent2DClass(AComp.ClassType));
+   if ComponentID >= 0 then
+      Include(FSignature, ComponentID)
+   else
+   begin
+      // Componente não registrado - registrar automaticamente
+      ComponentID := ComponentRegistry.Register(TComponent2DClass(AComp.ClassType));
+      Include(FSignature, ComponentID);
+   end;
+
    Result := AComp;
 end;
 
@@ -284,6 +307,7 @@ var
    Idx: Integer;
    Comp: TComponent2D;
    CompClassName: string;
+   ComponentID: Integer;
 begin
    if not Assigned(AClass) then
       Exit;
@@ -305,6 +329,11 @@ begin
          try
             FComponents.Delete(Idx);
             FreeAndNil(Comp);
+
+            ComponentID := ComponentRegistry.GetComponentID(AClass);
+            if ComponentID >= 0 then
+               Exclude(FSignature, ComponentID);
+
          except
             on E: Exception do
             begin
@@ -316,6 +345,11 @@ begin
       else
          FComponents.Delete(Idx);
    end;
+end;
+
+function TEntity.GetSignature: TComponentSignature;
+begin
+   Result := FSignature;
 end;
 
 procedure TEntity.ResetForPool;
@@ -333,6 +367,8 @@ begin
          FComponents.Data[I].Free;
    end;
    FComponents.Clear;
+
+   FSignature := [];  // ← ADICIONAR (resetar signature)
 
    FAlive := False;
    FPooled := True;

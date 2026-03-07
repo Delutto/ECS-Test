@@ -216,6 +216,10 @@
         <Filename Value="../../Engine/Core/P2D.Core.EntityPool.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="../../Engine/Core/P2D.Core.ComponentRegistry.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

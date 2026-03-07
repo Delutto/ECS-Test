@@ -6,10 +6,13 @@ interface
 
 uses
    SysUtils, fgl,
-   P2D.Core.Event, P2D.Core.Types, P2D.Core.Component, P2D.Core.Entity, P2D.Core.System;
+   P2D.Core.Component, P2D.Core.ComponentRegistry,
+   P2D.Core.Event, P2D.Core.Types, P2D.Core.Entity, P2D.Core.System;
 
 type
    TSystemList = specialize TFPGObjectList<TSystem2D>;
+
+   { TWorld }
 
    TWorld = class(TWorldBase)
    private
@@ -50,6 +53,7 @@ type
       { --- Loop principal ---------------------------------------------------- }
       procedure Init;
       procedure FixedUpdate(AFixedDelta: Single); override;
+      function GetEntitySignature(AEntity: TEntity): TComponentSignature; override;
       procedure Update(ADelta: Single);
       procedure Render;
       procedure RenderByLayer(ALayer: TRenderLayer); override;
@@ -211,6 +215,17 @@ begin
    for S in FSystems do
       if S.Enabled then
          S.FixedUpdate(AFixedDelta);
+end;
+
+function TWorld.GetEntitySignature(AEntity: TEntity): TComponentSignature;
+begin
+   if not Assigned(AEntity) then
+   begin
+      Result := [];
+      Exit;
+   end;
+
+   Result := AEntity.GetSignature;
 end;
 
 procedure TWorld.Update(ADelta: Single);

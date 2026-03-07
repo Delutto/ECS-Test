@@ -7,11 +7,9 @@ interface
 uses
    SysUtils, raylib,
    P2D.Core.Types, P2D.Core.Entity, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.RigidBody,
-   P2D.Components.Sprite, P2D.Components.Animation,
-   P2D.Components.Collider, P2D.Components.Tags,
-   P2D.Components.TileMap, P2D.Components.Camera2D,
-   Mario.ProceduralArt, Mario.Systems.Enemy;
+   P2D.Components.Transform, P2D.Components.RigidBody, P2D.Components.Sprite, P2D.Components.Animation,
+   P2D.Components.Collider, P2D.Components.TileMap, P2D.Components.Camera2D, P2D.Components.InputMap, P2D.Components.Tags,
+   Mario.ProceduralArt, Mario.Systems.Enemy,  Mario.InputSetup;
 
 // Entity factories
 function CreatePlayer(AWorld: TWorld; AX, AY: Single): TEntity;
@@ -46,6 +44,7 @@ var
    Anim: TAnimationComponent;
    Col : TColliderComponent;
    A   : TAnimation;
+   IM  : TInputMapComponent;
 begin
    E := AWorld.CreateEntity('Player');
 
@@ -80,6 +79,9 @@ begin
 
    E.AddComponent(TPlayerTag.Create);
    E.AddComponent(TPlayerComponent.Create);
+
+   IM := TInputMapComponent(E.AddComponent(TInputMapComponent.Create));
+   IM.MapName := PLAYER_MAP;
 
    Result := E;
 end;

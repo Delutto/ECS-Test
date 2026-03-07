@@ -6,7 +6,7 @@ interface
 
 uses
    SysUtils, Math, raylib,
-   P2D.Core.Types, P2D.Core.World;
+   P2D.Core.InputManager, P2D.Core.Types, P2D.Core.World;
 
 type
    { -------------------------------------------------------------------------
@@ -149,6 +149,8 @@ begin
        { Lógica variável (1× por frame): Input, Animação, Câmera.
          PurgeDestroyed é chamado internamente ao final de FWorld.Update. }
          FWorld.Update(Delta);
+
+         InputManager.Poll;
 
        { Hook de update extra: lógica de meta-jogo (restart, pause, etc.)
          Rodado após FWorld.Update para que entidades já estejam purgadas. }

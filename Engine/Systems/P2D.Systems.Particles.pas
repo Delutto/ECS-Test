@@ -30,7 +30,10 @@ end;
 
 procedure TParticleSystem.Init;
 begin
-   inherited Init;
+   inherited;
+
+   RequireComponent(TParticleEmitterComponent);
+   RequireComponent(TTransformComponent);
 end;
 
 { TP2DParticleSystem }

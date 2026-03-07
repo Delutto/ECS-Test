@@ -368,7 +368,7 @@ begin
    end;
    FComponents.Clear;
 
-   FSignature := [];  // ← ADICIONAR (resetar signature)
+   FSignature := [];
 
    FAlive := False;
    FPooled := True;

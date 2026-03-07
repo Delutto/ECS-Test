@@ -19,6 +19,7 @@ uses
 	P2D.Components.Tags,
 	Mario.ProceduralArt,
 	Mario.Level,
+   Mario.InputSetup,
 	Mario.Systems.Input,
 	Mario.Systems.Player,
 	Mario.Systems.Enemy,
@@ -98,14 +99,17 @@ end;
   O contexto OpenGL já está ativo, então GenerateAssets pode ser chamado. }
 procedure TMarioGame.OnInit;
 begin
-   { 1. Gera todas as texturas proceduralmente (requer OpenGL ativo). }
+   { Registra bindings ANTES de criar entidades }
+   SetupPlayerInput;
+
+   { Gera todas as texturas proceduralmente (requer OpenGL ativo). }
    GenerateAssets;
 
-   { 2. Registra sistemas no World (sem entidades ainda — caches vazios). }
+   { Registra sistemas no World (sem entidades ainda — caches vazios). }
    RegisterSystems;
 
-   { 3. Cria entidades do level (Player, Goombas, Moedas, TileMap, Câmera).
-       Após LoadLevel, TWorld.Init (chamado por TEngine2D.Run logo depois) invocará TCameraSystem.Init, que localizará câmera e player. }
+   { Cria entidades do level (Player, Goombas, Moedas, TileMap, Câmera).
+     Após LoadLevel, TWorld.Init (chamado por TEngine2D.Run logo depois) invocará TCameraSystem.Init, que localizará câmera e player. }
    LoadLevel(World);
 end;
 

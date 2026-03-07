@@ -5,63 +5,71 @@ unit P2D.Systems.Particles;
 interface
 
 uses
-   Classes, SysUtils, P2D.Core.System, P2D.Core.Entity,
+   Classes, SysUtils,
+   P2D.Core.System, P2D.Core.Entity,
    P2D.Components.ParticleEmitter, P2D.Components.Transform;
 
 type
-   { TP2DParticleSystem }
-   TP2DParticleSystem = class(TP2DSystem)
+   { TParticleSystem }
+   TParticleSystem = class(TSystem2D)
    public
-      procedure Update(DeltaTime: Double); override;
+      constructor Create(AWorld: TWorldBase); override;
+      procedure Init; override;
+      procedure FixedUpdate(AFixedDelta: Single); override;
       procedure Render; override;
    end;
 
 implementation
 
-{ TP2DParticleSystem }
-procedure TP2DParticleSystem.Update(DeltaTime: Double);
-var
-   Entities: TArray<TP2DEntity>;
-   i: Integer;
-   Emitter: TP2DParticleEmitter;
-   Transform: TP2DTransform;
+constructor TParticleSystem.Create(AWorld: TWorldBase);
 begin
-   Entities := World.GetEntitiesWithComponent(TP2DParticleEmitter);
+   inherited Create(AWorld);
 
-   for i := 0 to High(Entities) do
+
+end;
+
+procedure TParticleSystem.Init;
+begin
+   inherited Init;
+end;
+
+{ TP2DParticleSystem }
+procedure TParticleSystem.FixedUpdate(AFixedDelta: Single);
+var
+   E: TEntity;
+   Emitter: TParticleEmitterComponent;
+   Transform: TTransformComponent;
+begin
+   for E in GetMatchingEntities do
    begin
-      if not Entities[i].Active then
+      if not E.Alive then
          Continue;
 
-      Emitter := Entities[i].GetComponent(TP2DParticleEmitter) as TP2DParticleEmitter;
-      Transform := Entities[i].GetComponent(TP2DTransform) as TP2DTransform;
+      Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
+      Transform := TTransformComponent(E.GetComponent(TTransformComponent));
 
       if Assigned(Emitter) then
-         Emitter.Update(DeltaTime);
+         Emitter.Update(AFixedDelta);
    end;
 end;
 
-procedure TP2DParticleSystem.Render;
+procedure TParticleSystem.Render;
 var
-   Entities: TArray<TP2DEntity>;
-   i: Integer;
-   Emitter: TP2DParticleEmitter;
-   Transform: TP2DTransform;
+   E: TEntity;
+   Emitter: TParticleEmitterComponent;
+   Transform: TTransformComponent;
 begin
-   Entities := World.GetEntitiesWithComponent(TP2DParticleEmitter);
-
-   for i := 0 to High(Entities) do
+   for E in GetMatchingEntities do
    begin
-      if not Entities[i].Active then
+      if not E.Alive then
          Continue;
 
-      Emitter := Entities[i].GetComponent(TP2DParticleEmitter) as TP2DParticleEmitter;
-      Transform := Entities[i].GetComponent(TP2DTransform) as TP2DTransform;
+      Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
+      Transform := TTransformComponent(E.GetComponent(TTransformComponent));
 
       if Assigned(Emitter) and Assigned(Transform) then
       begin
-         // Aplica transformação da entidade
-         // Renderiza partículas relativas à posição da entidade
+         // Aplica transformação da entidade e renderiza partículas relativas à posição da entidade
          Emitter.Render;
       end;
    end;

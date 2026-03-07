@@ -12,6 +12,7 @@ uses
 	P2D.Systems.Physics,
 	P2D.Systems.Collision,
 	P2D.Systems.Animation,
+   P2D.Systems.Particles,
 	P2D.Systems.Render,
 	P2D.Systems.Camera,
 	P2D.Systems.TileMap,

@@ -29,7 +29,7 @@ type
       FAlive     : Boolean;
       FComponents: TComponentMap;
       FPooled    : Boolean;  // Indica se está no pool
-      FTag       : string;   // Tag para identificação (ex: "Projectile", "Enemy")
+      FTag       : String;   // Tag para identificação (ex: "Projectile", "Enemy")
       FSignature : TComponentSignature;
 
       {$IFDEF DEBUG}

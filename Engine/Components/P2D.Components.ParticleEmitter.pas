@@ -5,11 +5,12 @@ unit P2D.Components.ParticleEmitter;
 interface
 
 uses
-   Classes, SysUtils, raylib, P2D.Core.Component, P2D.Core.Types;
+   Classes, SysUtils, raylib, raymath,
+   P2D.Core.Component, P2D.Core.Types;
 
 type
    { TP2DParticle }
-   TP2DParticle = record
+   TParticle2D = record
       Position: TVector2;
       Velocity: TVector2;
       Acceleration: TVector2;
@@ -22,17 +23,17 @@ type
       Active: Boolean;
    end;
 
-   { TP2DEmitterShape }
-   TP2DEmitterShape = (esPoint, esCircle, esRectangle, esCone);
+   { TEmitterShape2D }
+   TEmitterShape2D = (esPoint, esCircle, esRectangle, esCone);
 
-   { TP2DParticleEmitter }
-   TP2DParticleEmitter = class(TP2DComponent)
+   { TParticleEmitterComponent }
+   TParticleEmitterComponent = class(TComponent2D)
    private
-      FParticles: array of TP2DParticle;
+      FParticles: array of TParticle2D;
       FMaxParticles: Integer;
       FEmissionRate: Single;
       FEmissionTimer: Single;
-      FEmitterShape: TP2DEmitterShape;
+      FEmitterShape: TEmitterShape2D;
       FEmitterSize: TVector2;
       FEmitterAngle: Single;
       FEmitterSpread: Single;
@@ -67,7 +68,7 @@ type
 
       property MaxParticles: Integer read FMaxParticles write FMaxParticles;
       property EmissionRate: Single read FEmissionRate write FEmissionRate;
-      property EmitterShape: TP2DEmitterShape read FEmitterShape write FEmitterShape;
+      property EmitterShape: TEmitterShape2D read FEmitterShape write FEmitterShape;
       property EmitterSize: TVector2 read FEmitterSize write FEmitterSize;
       property EmitterAngle: Single read FEmitterAngle write FEmitterAngle;
       property EmitterSpread: Single read FEmitterSpread write FEmitterSpread;
@@ -93,7 +94,7 @@ uses
 
 { TP2DParticleEmitter }
 
-constructor TP2DParticleEmitter.Create;
+constructor TParticleEmitterComponent.Create;
 begin
    inherited Create;
 
@@ -128,14 +129,14 @@ begin
       Play;
 end;
 
-destructor TP2DParticleEmitter.Destroy;
+destructor TParticleEmitterComponent.Destroy;
 begin
-   SetLength(FParticles, 0);,
+   SetLength(FParticles, 0);
 
    inherited;
 end;
 
-function TP2DParticleEmitter.FindInactiveParticle: Integer;
+function TParticleEmitterComponent.FindInactiveParticle: Integer;
 var
    i: Integer;
 begin
@@ -150,7 +151,7 @@ begin
    end;
 end;
 
-procedure TP2DParticleEmitter.EmitParticle;
+procedure TParticleEmitterComponent.EmitParticle;
 var
    Index: Integer;
    Angle: Single;
@@ -212,7 +213,7 @@ begin
    end;
 end;
 
-procedure TP2DParticleEmitter.Update(DeltaTime: Double);
+procedure TParticleEmitterComponent.Update(DeltaTime: Double);
 var
    i: Integer;
    LifeRatio: Single;
@@ -273,7 +274,7 @@ begin
    end;
 end;
 
-procedure TP2DParticleEmitter.Render;
+procedure TParticleEmitterComponent.Render;
 var
    i: Integer;
 begin
@@ -289,23 +290,23 @@ begin
    end;
 end;
 
-procedure TP2DParticleEmitter.Play;
+procedure TParticleEmitterComponent.Play;
 begin
    FIsEmitting := True;
 end;
 
-procedure TP2DParticleEmitter.Stop;
+procedure TParticleEmitterComponent.Stop;
 begin
    FIsEmitting := False;
    Reset;
 end;
 
-procedure TP2DParticleEmitter.Pause;
+procedure TParticleEmitterComponent.Pause;
 begin
    FIsEmitting := False;
 end;
 
-procedure TP2DParticleEmitter.Reset;
+procedure TParticleEmitterComponent.Reset;
 var
    i: Integer;
 begin
@@ -314,7 +315,7 @@ begin
    FEmissionTimer := 0.0;
 end;
 
-procedure TP2DParticleEmitter.Emit(ACount: Integer);
+procedure TParticleEmitterComponent.Emit(ACount: Integer);
 var
    i: Integer;
 begin

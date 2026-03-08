@@ -57,8 +57,10 @@ type
 
 implementation
 
-{ TPlayerPhysicsSystem }
+uses
+   Mario.Events;
 
+{ TPlayerPhysicsSystem }
 constructor TPlayerPhysicsSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
@@ -148,6 +150,9 @@ begin
 
             { Consome a flag APENAS quando o pulo de fato ocorrer. }
             PC.WantsJump := False;
+            { Notifica o EventBus para que o AudioSystem toque o som de pulo.
+              Publicado ANTES do EventBus.Dispatch (chamado em World.Update), portanto o som é reproduzido no fim do mesmo frame do pulo. }
+            World.EventBus.Publish(TPlayerJumpEvent.Create);
          end;
          { Se ele apertou 1 frame antes de cair no chão, a flag sobrevive e ele pula no frame seguinte automaticamente (Jump Buffer natural). }
       end;

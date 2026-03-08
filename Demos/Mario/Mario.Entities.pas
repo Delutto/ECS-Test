@@ -1,109 +1,140 @@
 unit Mario.Entities;
 
-{$mode objfpc}{$H+}
+{$mode ObjFPC}{$H+}
 
 interface
 
 uses
-   SysUtils, raylib,
-   P2D.Core.Types, P2D.Core.Entity, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.RigidBody, P2D.Components.Sprite, P2D.Components.Animation,
-   P2D.Components.Collider, P2D.Components.TileMap, P2D.Components.Camera2D, P2D.Components.InputMap, P2D.Components.Tags,
-   Mario.ProceduralArt, Mario.Systems.Enemy,  Mario.InputSetup;
+   Classes, SysUtils, raylib,
+   P2D.Core.Types,
+   P2D.Core.Entity,
+   P2D.Core.World,
+   P2D.Core.ResourceManager,
+   P2D.Components.Transform,
+   P2D.Components.RigidBody,
+   P2D.Components.Sprite,
+   P2D.Components.Animation,
+   P2D.Components.Collider,
+   P2D.Components.Tags,
+   P2D.Components.TileMap,
+   P2D.Components.Camera2D,
+   P2D.Components.InputMap,
+   P2D.Components.MusicPlayer,
+   Mario.Systems.Enemy,
+   Mario.InputSetup;
 
-// Entity factories
-function CreatePlayer(AWorld: TWorld; AX, AY: Single): TEntity;
-function CreateGoomba(AWorld: TWorld; AX, AY: Single): TEntity;
-function CreateCoin(AWorld: TWorld; AX, AY: Single): TEntity;
-function CreateTileMap(AWorld: TWorld): TEntity;
-function CreateCamera(AWorld: TWorld): TEntity;
+{ Factories de entidades }
+function  CreatePlayer    (AWorld: TWorld; AX, AY: Single): TEntity;
+function  CreateGoomba    (AWorld: TWorld; AX, AY: Single): TEntity;
+function  CreateCoin      (AWorld: TWorld; AX, AY: Single): TEntity;
+function  CreateTileMap   (AWorld: TWorld): TEntity;
+function  CreateCamera    (AWorld: TWorld): TEntity;
+{ Nova factory: entidade exclusiva de música de fundo }
+function  CreateMusicPlayer(AWorld: TWorld; const AFileName: string; AVolume: Single = 1.0; AAutoPlay: Boolean = True): TEntity;
 
 implementation
 
-{---------------------------------------------------------------------------
-Helper – adds a frame rectangle to an animation (columns-based spritesheet)
----------------------------------------------------------------------------}
+uses
+   Mario.ProceduralArt;
+
+{ ── Helper de frames de animação ─────────────────────────────────────────── }
+
 procedure AddFrame(AAnim: TAnimation; ACol: Integer; ARow: Integer = 0; AFrameW: Integer = 16; AFrameH: Integer = 16; ADur: Single = 0.12);
 var
-   R: TRectangle;
+   Rect: TRectangle;
 begin
-   R.X := ACol * AFrameW;
-   R.Y := ARow * AFrameH;
-   R.Width  := AFrameW;
-   R.Height := AFrameH;
-   AAnim.AddFrame(R, ADur);
+   Rect.X      := ACol * AFrameW;
+   Rect.Y      := ARow * AFrameH;
+   Rect.Width  := AFrameW;
+   Rect.Height := AFrameH;
+   AAnim.AddFrame(Rect, ADur);
 end;
 
-// ---------------------------------------------------------------------------
+{ ── CreatePlayer ─────────────────────────────────────────────────────────── }
+
 function CreatePlayer(AWorld: TWorld; AX, AY: Single): TEntity;
 var
-   E   : TEntity;
-   Tr  : TTransformComponent;
-   RB  : TRigidBodyComponent;
-   Spr : TSpriteComponent;
-   Anim: TAnimationComponent;
-   Col : TColliderComponent;
-   A   : TAnimation;
-   IM  : TInputMapComponent;
+   E    : TEntity;
+   Tr   : TTransformComponent;
+   RB   : TRigidBodyComponent;
+   Spr  : TSpriteComponent;
+   Col  : TColliderComponent;
+   Anim : TAnimationComponent;
+   Clip : TAnimation;
+   IM   : TInputMapComponent;
 begin
    E := AWorld.CreateEntity('Player');
 
    Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
    Tr.Position := Vector2Create(AX, AY);
-   Tr.Scale    := Vector2Create(1, 1);;
+   Tr.Scale    := Vector2Create(1, 1);
 
-   RB := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
+   RB              := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
    RB.GravityScale := 1.2;
 
-   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
-   Spr.Texture     := TexPlayer;
+   Spr            := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
+   Spr.Texture    := TexPlayer;
    Spr.OwnsTexture := False;
-   Spr.SourceRect  := RectangleCreate(0, 0, 16, 16);
-   Spr.Origin      := Vector2Create(0, 0);
+   Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
+   Spr.Origin     := Vector2Create(0, 0);
 
-   // Collider
    Col        := TColliderComponent(E.AddComponent(TColliderComponent.Create));
    Col.Tag    := ctPlayer;
    Col.Offset := Vector2Create(1, 0);
    Col.Size   := Vector2Create(14, 16);
 
-   // Animations (row 0 = small Mario)
    Anim := TAnimationComponent(E.AddComponent(TAnimationComponent.Create));
 
-   A := TAnimation.Create('idle'); AddFrame(A, 0); Anim.AddAnimation(A);
-   A := TAnimation.Create('walk'); AddFrame(A,1); AddFrame(A,2); AddFrame(A,3); Anim.AddAnimation(A);
-   A := TAnimation.Create('run');  AddFrame(A,5,0,16,16,0.08); AddFrame(A,6,0,16,16,0.08); Anim.AddAnimation(A);
-   A := TAnimation.Create('jump',False); AddFrame(A,4,0,16,16,0.5); Anim.AddAnimation(A);
-   A := TAnimation.Create('dead',False); AddFrame(A,7,0,16,16,0.5); Anim.AddAnimation(A);
+   Clip := TAnimation.Create('idle', True);
+   AddFrame(Clip, 0);
+   Anim.AddAnimation(Clip);
+
+   Clip := TAnimation.Create('walk', True);
+   AddFrame(Clip, 1); AddFrame(Clip, 2); AddFrame(Clip, 3);
+   Anim.AddAnimation(Clip);
+
+   Clip := TAnimation.Create('run', True);
+   AddFrame(Clip, 5, 0, 16, 16, 0.08);
+   AddFrame(Clip, 6, 0, 16, 16, 0.08);
+   Anim.AddAnimation(Clip);
+
+   Clip := TAnimation.Create('jump', False);
+   AddFrame(Clip, 4, 0, 16, 16, 0.5);
+   Anim.AddAnimation(Clip);
+
+   Clip := TAnimation.Create('dead', False);
+   AddFrame(Clip, 7, 0, 16, 16, 0.5);
+   Anim.AddAnimation(Clip);
+
    Anim.Play('idle');
 
    E.AddComponent(TPlayerTag.Create);
    E.AddComponent(TPlayerComponent.Create);
 
-   IM := TInputMapComponent(E.AddComponent(TInputMapComponent.Create));
+   IM         := TInputMapComponent(E.AddComponent(TInputMapComponent.Create));
    IM.MapName := PLAYER_MAP;
 
    Result := E;
 end;
 
-// ---------------------------------------------------------------------------
+{ ── CreateGoomba ─────────────────────────────────────────────────────────── }
+
 function CreateGoomba(AWorld: TWorld; AX, AY: Single): TEntity;
 var
    E   : TEntity;
    Tr  : TTransformComponent;
-   RB  : TRigidBodyComponent;
    Spr : TSpriteComponent;
    Col : TColliderComponent;
    G   : TGoombaComponent;
 begin
    E := AWorld.CreateEntity('Goomba');
 
-   Tr := TTransformComponent(E.AddComponent(TTransformComponent.Create));
+   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
    Tr.Position := Vector2Create(AX, AY);
 
-   RB := TRigidBodyComponent(E.AddComponent(TRigidBodyComponent.Create));
+   E.AddComponent(TRigidBodyComponent.Create);
 
-   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
+   Spr            := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
    Spr.Texture    := TexEnemy;
    Spr.OwnsTexture := False;
    Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
@@ -114,16 +145,16 @@ begin
    Col.Size   := Vector2Create(14, 16);
 
    E.AddComponent(TEnemyTag.Create);
-   G := TGoombaComponent.Create;
+
+   G           := TGoombaComponent(E.AddComponent(TGoombaComponent.Create));
    G.Speed     := 60;
    G.Direction := -1;
-
-   E.AddComponent(G);
 
    Result := E;
 end;
 
-// ---------------------------------------------------------------------------
+{ ── CreateCoin ───────────────────────────────────────────────────────────── }
+
 function CreateCoin(AWorld: TWorld; AX, AY: Single): TEntity;
 var
    E   : TEntity;
@@ -136,10 +167,10 @@ begin
    Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
    Tr.Position := Vector2Create(AX, AY);
 
-   Spr := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
-   Spr.Texture     := TexCoin;
+   Spr            := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
+   Spr.Texture    := TexCoin;
    Spr.OwnsTexture := False;
-   Spr.SourceRect  := RectangleCreate(0, 0, 16, 16);
+   Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
 
    Col           := TColliderComponent(E.AddComponent(TColliderComponent.Create));
    Col.Tag       := ctCoin;
@@ -148,75 +179,79 @@ begin
    Col.Offset    := Vector2Create(2, 2);
 
    E.AddComponent(TCoinTag.Create);
+
    Result := E;
 end;
 
-{---------------------------------------------------------------------------
-Level map – 40 columns x 15 rows, 16x16 tiles
-Tile values: 0=air, 1=ground, 2=brick, 3=question-block, 4=coin-tile
----------------------------------------------------------------------------}
-const
-   LEVEL_MAP: array[0..14] of string = (
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-   '1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1',
-   '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
-   '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
-   '1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1');
+{ ── CreateTileMap ────────────────────────────────────────────────────────── }
 
 function CreateTileMap(AWorld: TWorld): TEntity;
+const
+   LEVEL_MAP: array[0..14] of string = (
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+            '1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1',
+            '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
+            '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
+            '1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1');
 var
-   E  : TEntity;
-   TM : TTileMapComponent;
-   Tr : TTransformComponent;
-   R, C: Integer;
-   Parts: TStringArray;
-   Val, TTyp: Integer;
+   E    : TEntity;
+   Tr   : TTransformComponent;
+   TM   : TTileMapComponent;
+   R, C : Integer;
+   Row  : TStringList;
+   Val  : Integer;
+   TTyp : Integer;
 begin
    E := AWorld.CreateEntity('TileMap');
 
-   Tr := TTransformComponent(E.AddComponent(TTransformComponent.Create));
+   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
    Tr.Position := Vector2Create(0, 0);
 
-   TM := TTileMapComponent(E.AddComponent(TTileMapComponent.Create));
-   TM.TileWidth   := 16;
-   TM.TileHeight  := 16;
-   TM.TileSet     := TexTiles;
-   TM.OwnsTexture := False;
-   TM.TileSetCols := 4;
+   TM              := TTileMapComponent(E.AddComponent(TTileMapComponent.Create));
+   TM.TileWidth    := 16;
+   TM.TileHeight   := 16;
+   TM.TileSet      := TexTiles;
+   TM.OwnsTexture  := False;
+   TM.TileSetCols  := 4;
    TM.SetSize(40, 15);
 
-   for R := 0 to 14 do
-   begin
-      Parts := LEVEL_MAP[R].Split([',']);
-      for C := 0 to High(Parts) do
+   Row := TStringList.Create;
+   try
+      Row.Delimiter       := ',';
+      Row.StrictDelimiter := True;
+      for R := 0 to 14 do
       begin
-         if C >= 40 then
-            Break;
-         Val := StrToIntDef(Trim(Parts[C]), 0);
-         case Val of
-            1: TTyp := TILE_SOLID;
-            2: TTyp := TILE_SOLID;
-            3: TTyp := TILE_SOLID;
-            else TTyp := TILE_NONE;
+         Row.DelimitedText := LEVEL_MAP[R];
+         for C := 0 to 39 do
+         begin
+            Val := StrToIntDef(Trim(Row[C]), 0);
+            if Val in [1, 2, 3] then
+               TTyp := TILE_SOLID
+            else
+               TTyp := TILE_NONE;
+
+            TM.SetTile(C, R, Val, TTyp);
          end;
-         TM.SetTile(C, R, Val, TTyp);
       end;
+   finally
+      Row.Free;
    end;
 
    Result := E;
 end;
 
-// ---------------------------------------------------------------------------
+{ ── CreateCamera ─────────────────────────────────────────────────────────── }
+
 function CreateCamera(AWorld: TWorld): TEntity;
 var
    E   : TEntity;
@@ -229,10 +264,28 @@ begin
    Tr.Position := Vector2Create(0, 0);
 
    Cam             := TCamera2DComponent(E.AddComponent(TCamera2DComponent.Create));
-   Cam.Zoom        := 3.0;   // pixel-perfect scale for 16px tiles on 800px screen
+   Cam.Zoom        := 3.0;
    Cam.FollowSpeed := 6.0;
    Cam.UseBounds   := True;
-   Cam.Bounds      := TRectF.Create(0, 0, 40*16, 15*16);
+   Cam.Bounds      := TRectF.Create(0, 0, 40 * 16, 15 * 16);
+
+   Result := E;
+end;
+
+{ ── CreateMusicPlayer ────────────────────────────────────────────────────── }
+
+function CreateMusicPlayer(AWorld: TWorld; const AFileName: string; AVolume: Single; AAutoPlay: Boolean): TEntity;
+var
+   E  : TEntity;
+   MP : TMusicPlayerComponent;
+begin
+   E := AWorld.CreateEntity('MusicPlayer');
+
+   MP          := TMusicPlayerComponent(E.AddComponent(TMusicPlayerComponent.Create));
+   MP.Music    := TResourceManager2D.Instance.LoadMusic(AFileName);
+   MP.Volume   := AVolume;
+   MP.AutoPlay := AAutoPlay;
+   MP.Loop     := True;
 
    Result := E;
 end;

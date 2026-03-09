@@ -24,7 +24,6 @@ uses
    Mario.Systems.Enemy,
    Mario.Systems.HUD,
    Mario.Systems.GameRules,
-   Mario.Systems.Input,
    Mario.Systems.Audio,
    Mario.InputSetup;
 
@@ -62,7 +61,7 @@ begin
   W := World;
 
   { ── Sistemas de gameplay (Update) ──────────────────────────────────────── }
-  W.AddSystem(TPlayerInputSystem.Create(W));    // prioridade 1
+  //W.AddSystem(TPlayerInputSystem.Create(W));    // prioridade 1
   W.AddSystem(TEnemySystem.Create(W));          // prioridade 3
   W.AddSystem(TAnimationSystem.Create(W));      // prioridade 5
   W.AddSystem(TPlayerAnimSystem.Create(W));     // prioridade 7

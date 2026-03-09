@@ -1,5 +1,4 @@
 unit Mario.Systems.Enemy;
-
 {$mode objfpc}{$H+}
 
 interface
@@ -10,11 +9,17 @@ uses
    P2D.Components.Transform, P2D.Components.RigidBody, P2D.Core.Component,
    P2D.Components.Sprite, P2D.Components.Tags, P2D.Utils.Math;
 
+const
+   { Minimum time (seconds) before the Goomba is allowed to flip direction again after hitting a wall. Prevents rapid
+   oscillation when the physics solver keeps the collider touching the tile surface for more than one Update frame. }
+   GOOMBA_WALL_COOLDOWN = 0.25;
+
 type
    TGoombaComponent = class(TComponent2D)
    public
-      Speed    : Single;
-      Direction: Single;  // -1 left, +1 right
+      Speed        : Single;
+      Direction    : Single;  // -1 = left,  +1 = right
+      WallCooldown : Single;  // seconds remaining before another wall-flip is allowed
       constructor Create; override;
    end;
 
@@ -28,72 +33,90 @@ type
 implementation
 
 uses
-   Mario.Systems.Player;
+  Mario.Systems.Player;
+
+{ TGoombaComponent }
 
 constructor TGoombaComponent.Create;
 begin
    inherited Create;
 
-   Speed     := 60;
-   Direction := -1;
+   Speed        := 60;
+   Direction    := -1;
+   WallCooldown := 0.0;
 end;
+
+{ TEnemySystem }
 
 constructor TEnemySystem.Create(AWorld: TWorldBase);
 begin
-   inherited Create(AWorld);
-
-   Priority := 3;
-   Name     := 'EnemySystem';
+  inherited Create(AWorld);
+  Priority := 3;
+  Name     := 'EnemySystem';
 end;
 
 procedure TEnemySystem.Init;
 begin
-   inherited;
-
-   RequireComponent(TEnemyTag);
-   RequireComponent(TTransformComponent);
-   RequireComponent(TRigidBodyComponent);
-   RequireComponent(TGoombaComponent);
+  inherited;
+  RequireComponent(TEnemyTag);
+  RequireComponent(TTransformComponent);
+  RequireComponent(TRigidBodyComponent);
+  RequireComponent(TGoombaComponent);
 end;
 
 procedure TEnemySystem.Update(ADelta: Single);
 var
-   E   : TEntity;
-   Tr  : TTransformComponent;
-   RB  : TRigidBodyComponent;
-   G   : TGoombaComponent;
-   Spr : TSpriteComponent;
+  E   : TEntity;
+  Tr  : TTransformComponent;
+  RB  : TRigidBodyComponent;
+  G   : TGoombaComponent;
+  Spr : TSpriteComponent;
 begin
-   for E in GetMatchingEntities do
-   begin
-      if not E.Alive then
-         Continue;
+  for E in GetMatchingEntities do
+  begin
+    if not E.Alive then Continue;
 
-      Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
-      RB  := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
-      G   := TGoombaComponent(E.GetComponent(TGoombaComponent));
-      Spr := TSpriteComponent(E.GetComponent(TSpriteComponent));
+    Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
+    RB  := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
+    G   := TGoombaComponent(E.GetComponent(TGoombaComponent));
+    Spr := TSpriteComponent(E.GetComponent(TSpriteComponent));
 
-      // Walk
-      RB.Velocity.X := G.Speed * G.Direction;
+    { --- 1. Advance the wall-flip cooldown timer -------------------------- }
+    if G.WallCooldown > 0 then
+      G.WallCooldown := G.WallCooldown - ADelta;
 
-      // Flip direction at edges
-      if RB.OnWall then
-         G.Direction := -G.Direction;
+    { --- 2. Reverse direction on wall contact ----------------------------
+      OnWall is set by TCollisionSystem (FixedUpdate, priority 20) whenever
+      a horizontal tile resolution is applied, and is reset to False by
+      TPhysicsSystem at the START of each FixedUpdate step (priority 10).
 
-      // Flip sprite
-      if Assigned(Spr) then
-      begin
-         if G.Direction < 0 then
-            Spr.Flip := flHorizontal
-         else
-            Spr.Flip := flNone;
-      end;
+      The cooldown guard prevents rapid oscillation in the frames where
+      the physics solver has not yet moved the collider far enough from the
+      tile surface to avoid triggering another horizontal resolution.
 
-      // Kill if fell off map
-      if Tr.Position.Y > PLAYER_KILL_ZONE then
-         World.DestroyEntity(E.ID);
-   end;
+      The check runs BEFORE the velocity assignment so that the corrected
+      direction is applied immediately in the same Update frame.             }
+    if RB.OnWall and (G.WallCooldown <= 0) then
+    begin
+      G.Direction    := -G.Direction;
+      G.WallCooldown := GOOMBA_WALL_COOLDOWN;
+    end;
+
+    { --- 3. Apply walking velocity (uses the already-corrected direction) - }
+    RB.Velocity.X := G.Speed * G.Direction;
+
+    { --- 4. Sync sprite flip with current direction ----------------------- }
+    if Assigned(Spr) then
+    begin
+      if G.Direction < 0 then Spr.Flip := flHorizontal
+                          else Spr.Flip := flNone;
+    end;
+
+    { --- 5. Destroy if fell below the kill zone -------------------------- }
+    if Tr.Position.Y > PLAYER_KILL_ZONE then
+      World.DestroyEntity(E.ID);
+  end;
 end;
 
 end.
+

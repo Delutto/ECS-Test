@@ -161,10 +161,6 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Systems/Mario.Systems.Input.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
         <Filename Value="Systems/Mario.Systems.Player.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>

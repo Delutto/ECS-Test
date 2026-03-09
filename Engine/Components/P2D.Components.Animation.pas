@@ -102,14 +102,19 @@ end;
 
 procedure TAnimationComponent.Play(const AName: string; const AForceRestart: Boolean = False);
 begin
-  if (not AForceRestart) and SameText(FCurrentName, AName) and (not FAnimations.TryGetData(AName, FCurrent)) then
-    Exit;
+   if (not AForceRestart) and SameText(FCurrentName, AName) then
+      Exit;
 
-  FCurrent     := FAnimations[AName];
-  FCurrentName := AName;
-  FFrameIndex  := 0;
-  FTimer       := 0;
-  FFinished    := False;
+   // Tenta buscar a nova animação no mapa
+   if FAnimations.TryGetData(AName, FCurrent) then
+   begin
+      // Se encontrou, configura como atual e reseta os contadores
+      FCurrentName := AName;
+      FFrameIndex  := 0;
+      FTimer       := 0;
+      FFinished    := False;
+   end;
+   // Se não encontrou a animação, FCurrent permanece o anterior ou nil, e nada acontece.
 end;
 
 procedure TAnimationComponent.Tick(ADelta: Single; out ARect: TRectangle);

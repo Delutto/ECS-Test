@@ -126,6 +126,8 @@ var
    Spr : TSpriteComponent;
    Col : TColliderComponent;
    G   : TGoombaComponent;
+   Anim : TAnimationComponent;
+   Clip : TAnimation;
 begin
    E := AWorld.CreateEntity('Goomba');
 
@@ -134,15 +136,22 @@ begin
 
    E.AddComponent(TRigidBodyComponent.Create);
 
-   Spr            := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
-   Spr.Texture    := TexEnemy;
+   Spr             := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
+   Spr.Texture     := TexEnemy;
    Spr.OwnsTexture := False;
-   Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
+   Spr.SourceRect  := RectangleCreate(0, 0, 16, 16);
 
    Col        := TColliderComponent(E.AddComponent(TColliderComponent.Create));
    Col.Tag    := ctEnemy;
    Col.Offset := Vector2Create(1, 0);
    Col.Size   := Vector2Create(14, 16);
+
+   Anim := TAnimationComponent(E.AddComponent(TAnimationComponent.Create));
+   Clip := TAnimation.Create('walk', True);
+   AddFrame(Clip, 0, 0, 16, 16, 0.20); // frame esquerdo
+   AddFrame(Clip, 1, 0, 16, 16, 0.20); // frame direito
+   Anim.AddAnimation(Clip);
+   Anim.Play('walk');
 
    E.AddComponent(TEnemyTag.Create);
 
@@ -161,6 +170,8 @@ var
    Tr  : TTransformComponent;
    Spr : TSpriteComponent;
    Col : TColliderComponent;
+   Anim : TAnimationComponent;
+   Clip : TAnimation;
 begin
    E := AWorld.CreateEntity('Coin');
 
@@ -177,6 +188,15 @@ begin
    Col.IsTrigger := True;
    Col.Size      := Vector2Create(12, 12);
    Col.Offset    := Vector2Create(2, 2);
+
+   Anim := TAnimationComponent(E.AddComponent(TAnimationComponent.Create));
+   Clip := TAnimation.Create('spin', True);
+   AddFrame(Clip, 0, 0, 16, 16, 0.12); // face cheia
+   AddFrame(Clip, 1, 0, 16, 16, 0.12); // semi-aberta
+   AddFrame(Clip, 2, 0, 16, 16, 0.12); // fio (borda)
+   AddFrame(Clip, 3, 0, 16, 16, 0.12); // semi-aberta (volta)
+   Anim.AddAnimation(Clip);
+   Anim.Play('spin');
 
    E.AddComponent(TCoinTag.Create);
 

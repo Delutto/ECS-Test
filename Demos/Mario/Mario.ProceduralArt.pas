@@ -1,10 +1,19 @@
 unit Mario.ProceduralArt;
 
 {$mode objfpc}{$H+}
-{
-  Generates all demo assets programmatically using raylib drawing primitives,
-  so the demo runs without external image files.
-}
+
+{ Geração procedural de todos os assets visuais da demo Mario.
+  Nenhum arquivo de imagem externo é necessário.
+
+  Spritesheet do player (128x32) — 8 colunas × 2 linhas (small / big):
+    Col 0 : idle
+    Col 1 : walk A  (pé direito à frente)
+    Col 2 : walk B  (cruzamento de passada)
+    Col 3 : walk C  (pé esquerdo à frente)
+    Col 4 : jump    (pernas recolhidas, braços levantados)
+    Col 5 : run A   (passada larga – perna dir. muito à frente)
+    Col 6 : run B   (passada larga – perna esq. muito à frente)
+    Col 7 : dead    (pernas e braços abertos) }
 
 interface
 
@@ -61,39 +70,93 @@ const
 var
    img: TImage;
    F, R, BX, BY: Integer;
+   LegOffset: Integer;
 begin
-   img := GenImageColor(W, H, ColorCreate(0,0,0,0));
+   img := GenImageColor(W, H, Blank); // Usar Blank ou ColorCreate(0,0,0,0)
 
-   // Skin / hat / shoe / overall colours
    for R := 0 to ROWS - 1 do
    begin
       for F := 0 to COLS - 1 do
       begin
          BX := F * FW;
          BY := R * FH;
+
+         // Lógica simples de animação baseada no frame F
+         // 0=Idle, 1-3=Walk, 4=Jump, 5-6=Run, 7=Dead
+         LegOffset := 0;
+
+         // Animação das pernas
+         if (F >= 1) and (F <= 3) then // Walk
+         begin
+            if F = 1 then LegOffset := -2
+            else if F = 2 then LegOffset := 0
+            else if F = 3 then LegOffset := 2;
+         end
+         else if (F >= 5) and (F <= 6) then // Run
+         begin
+            if F = 5 then LegOffset := -3
+            else LegOffset := 3;
+         end
+         else if F = 4 then // Jump
+            LegOffset := -4; // Pernas encolhidas
+
+         // --- Desenho do Mario ---
+
+         // Cabeça/Chapéu (sempre igual)
          // Hat (red)
-         FillRect(@img, BX+3, BY+0, 10, 3, ColorCreate(200,30,30, 255));
+         FillRect(@img, BX+2, BY+2, 12, 3, RED);
+         FillRect(@img, BX+10, BY+2, 4, 3, RED); // Aba do boné
+
          // Face (skin)
-         FillRect(@img, BX+2, BY+3, 12, 5, ColorCreate(255,200,140, 255));
+         FillRect(@img, BX+2, BY+5, 10, 4, BEIGE);
          // Eyes
-         FillRect(@img, BX+4, BY+4, 2, 2, ColorCreate(10,10,10, 255));
-         FillRect(@img, BX+10,BY+4, 2, 2, ColorCreate(10,10,10, 255));
+         FillRect(@img, BX+8, BY+5, 2, 2, BLACK);
          // Moustache
-         FillRect(@img, BX+3, BY+7, 10, 2, ColorCreate(80,40,0, 255));
-         // Overall (blue)
-         FillRect(@img, BX+2, BY+8, 12, 5, ColorCreate(30,60,200, 255));
-         // Buttons
-         FillRect(@img, BX+5, BY+9, 2, 2, ColorCreate(255,255,80, 255));
-         FillRect(@img, BX+9, BY+9, 2, 2, ColorCreate(255,255,80, 255));
-         // Shoes (brown)
-         FillRect(@img, BX+2, BY+13, 5, 3, ColorCreate(100,60,20, 255));
-         FillRect(@img, BX+9, BY+13, 5, 3, ColorCreate(100,60,20, 255));
+         FillRect(@img, BX+9, BY+7, 4, 1, BLACK);
+         // Sideburns / Hair
+         FillRect(@img, BX+2, BY+6, 2, 2, BROWN);
+
+         // Corpo / Macacão (Blue)
+         FillRect(@img, BX+4, BY+9, 6, 4, BLUE);
+
+         // Braços (Red) - variam levemente com walk
+         if (F = 1) or (F = 3) or (F = 5) or (F = 6) then
+         begin
+             // Braços balançando
+             FillRect(@img, BX+2, BY+9, 2, 3, RED);
+             FillRect(@img, BX+10, BY+9, 2, 3, RED);
+         end
+         else
+         begin
+             // Braços parados
+             FillRect(@img, BX+1, BY+9, 3, 3, RED);
+             FillRect(@img, BX+10, BY+9, 3, 3, RED);
+         end;
+
+         // Botões do macacão
+         FillRect(@img, BX+4, BY+10, 1, 1, YELLOW);
+         FillRect(@img, BX+9, BY+10, 1, 1, YELLOW);
+
+         // Pernas / Sapatos (Brown)
+         // Perna esquerda
+         FillRect(@img, BX+3 + LegOffset, BY+13, 3, 3, BROWN);
+         // Perna direita
+         FillRect(@img, BX+8 - LegOffset, BY+13, 3, 3, BROWN);
+
+         // Frame de Morte (Dead) - vira de cabeça para baixo ou olhos em X
+         if F = 7 then
+         begin
+            // Olhos em X
+            FillRect(@img, BX+8, BY+5, 3, 1, BLACK);
+            FillRect(@img, BX+9, BY+4, 1, 3, BLACK);
+         end;
       end;
    end;
 
    TexPlayer := LoadTextureFromImage(img);
    UnloadImage(img);
 end;
+
 
 // ---------------------------------------------------------------------------
 // Goomba – 16x16, 2 frames

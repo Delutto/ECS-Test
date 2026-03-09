@@ -101,8 +101,11 @@ begin
 end;
 
 procedure TAnimationComponent.Play(const AName: string; const AForceRestart: Boolean = False);
+var
+   ACurrent: TAnimation;
 begin
-   if (not AForceRestart) and SameText(FCurrentName, AName) then
+   ACurrent := FCurrent;
+   if (not AForceRestart) and SameText(FCurrentName, AName) and not FAnimations.TryGetData(AName, FCurrent) then
       Exit;
 
    // Tenta buscar a nova animação no mapa
@@ -113,7 +116,9 @@ begin
       FFrameIndex  := 0;
       FTimer       := 0;
       FFinished    := False;
-   end;
+   end
+   else
+      FCurrent := ACurrent;
    // Se não encontrou a animação, FCurrent permanece o anterior ou nil, e nada acontece.
 end;
 

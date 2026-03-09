@@ -14,12 +14,8 @@ unit Mario.InputSetup;
 interface
 
 uses
-  P2D.Core.InputAction,
-  P2D.Core.InputManager;
-
-const
-  { Nome do mapa — referenciado ao criar a entidade Player }
-  PLAYER_MAP = 'Player1';
+   P2D.Core.InputAction,
+   P2D.Core.InputManager;
 
 { Cria o mapa 'Player1' no InputManager e registra todos os bindings padrão. }
 procedure SetupPlayerInput;
@@ -27,46 +23,60 @@ procedure SetupPlayerInput;
 implementation
 
 uses
-  raylib; // KEY_* e MOUSE_BUTTON_*
+   raylib, // KEY_* e MOUSE_BUTTON_*
+   Mario.Common;
 
 procedure SetupPlayerInput;
 var
-  Map     : TInputActionMap;
-  Action  : TInputAction;
+   Map     : TInputActionMap;
+   Action  : TInputAction;
 begin
-  Map := InputManager.AddMap(PLAYER_MAP);
+   Map := InputManager.AddMap(PLAYER_MAP);
 
-  { ── MoveLeft ──────────────────────────────────────────────────────────── }
-  Action := Map.AddAction('MoveLeft');
-  Action.AddBinding(TInputBinding.FromKey(KEY_LEFT));
-  Action.AddBinding(TInputBinding.FromKey(KEY_A));
-  // Gamepad: eixo X esquerdo negativo (analógico)
-  Action.AddBinding(TInputBinding.FromGamepadAxis(0, GAMEPAD_AXIS_LEFT_X, False));
+   { ── MoveLeft ──────────────────────────────────────────────────────────── }
+   Action := Map.AddAction('MoveLeft');
+   Action.AddBinding(TInputBinding.FromKey(KEY_LEFT));
+   Action.AddBinding(TInputBinding.FromKey(KEY_A));
+   // Gamepad: eixo X esquerdo negativo (analógico)
+   Action.AddBinding(TInputBinding.FromGamepadAxis(0, GAMEPAD_AXIS_LEFT_X, False));
 
-  { ── MoveRight ─────────────────────────────────────────────────────────── }
-  Action := Map.AddAction('MoveRight');
-  Action.AddBinding(TInputBinding.FromKey(KEY_RIGHT));
-  Action.AddBinding(TInputBinding.FromKey(KEY_D));
-  Action.AddBinding(TInputBinding.FromGamepadAxis(0, GAMEPAD_AXIS_LEFT_X, True));
+   { ── MoveRight ─────────────────────────────────────────────────────────── }
+   Action := Map.AddAction('MoveRight');
+   Action.AddBinding(TInputBinding.FromKey(KEY_RIGHT));
+   Action.AddBinding(TInputBinding.FromKey(KEY_D));
+   // Gamepad: eixo X esquerdo postivo (analógico)
+   Action.AddBinding(TInputBinding.FromGamepadAxis(0, GAMEPAD_AXIS_LEFT_X, True));
 
-  { ── Jump ──────────────────────────────────────────────────────────────── }
-  Action := Map.AddAction('Jump');
-  Action.AddBinding(TInputBinding.FromKey(KEY_SPACE));
-  Action.AddBinding(TInputBinding.FromKey(KEY_UP));
-  Action.AddBinding(TInputBinding.FromKey(KEY_W));
-  Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)); // A (Xbox) / X (PS)
+   { ── Duck ──────────────────────────────────────────────────────────────── }
+   Action := Map.AddAction('Duck');
+   Action.AddBinding(TInputBinding.FromKey(KEY_UP));
+   Action.AddBinding(TInputBinding.FromKey(KEY_S));
+   // Gamepad: eixo Y esquerdo negativo (analógico)
+   Action.AddBinding(TInputBinding.FromGamepadAxis(0, GAMEPAD_AXIS_LEFT_Y, False));
 
-  { ── Run ───────────────────────────────────────────────────────────────── }
-  Action := Map.AddAction('Run');
-  Action.AddBinding(TInputBinding.FromKey(KEY_LEFT_SHIFT));
-  Action.AddBinding(TInputBinding.FromKey(KEY_Z));
-  Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT)); // X (Xbox) / Square (PS)
+   { ── Spin ──────────────────────────────────────────────────────────────── }
+   Action := Map.AddAction('Spin');
+   Action.AddBinding(TInputBinding.FromKey(KEY_LEFT_CONTROL));
+   Action.AddBinding(TInputBinding.FromKey(KEY_C));
 
-  { ── Pause (reservado para uso futuro) ────────────────────────────────── }
-  Action := Map.AddAction('Pause');
-  Action.AddBinding(TInputBinding.FromKey(KEY_ESCAPE));
-  Action.AddBinding(TInputBinding.FromKey(KEY_P));
-  Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)); // Start
+   { ── Jump ──────────────────────────────────────────────────────────────── }
+   Action := Map.AddAction('Jump');
+   Action.AddBinding(TInputBinding.FromKey(KEY_SPACE));
+   Action.AddBinding(TInputBinding.FromKey(KEY_UP));
+   Action.AddBinding(TInputBinding.FromKey(KEY_X));
+   Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)); // A (Xbox) / X (PS)
+
+   { ── Run ───────────────────────────────────────────────────────────────── }
+   Action := Map.AddAction('Run');
+   Action.AddBinding(TInputBinding.FromKey(KEY_LEFT_SHIFT));
+   Action.AddBinding(TInputBinding.FromKey(KEY_Z));
+   Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT)); // X (Xbox) / Square (PS)
+
+   { ── Pause (reservado para uso futuro) ────────────────────────────────── }
+   Action := Map.AddAction('Pause');
+   Action.AddBinding(TInputBinding.FromKey(KEY_ESCAPE));
+   Action.AddBinding(TInputBinding.FromKey(KEY_P));
+   Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)); // Start
 end;
 
 end.

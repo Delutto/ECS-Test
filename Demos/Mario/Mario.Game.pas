@@ -58,33 +58,33 @@ procedure TMarioGame.RegisterSystems;
 var
   W: TWorld;
 begin
-  W := World;
+     W := World;
 
-  { ── Sistemas de gameplay (Update) ──────────────────────────────────────── }
-  //W.AddSystem(TPlayerInputSystem.Create(W));    // prioridade 1
-  W.AddSystem(TEnemySystem.Create(W));          // prioridade 3
-  W.AddSystem(TAnimationSystem.Create(W));      // prioridade 5
-  W.AddSystem(TPlayerAnimSystem.Create(W));     // prioridade 7
+     { ── Sistemas de gameplay (Update) ──────────────────────────────────────── }
+     //W.AddSystem(TPlayerInputSystem.Create(W));    // prioridade 1
+     W.AddSystem(TEnemySystem.Create(W));          // prioridade 3
+     W.AddSystem(TAnimationSystem.Create(W));      // prioridade 5
+     W.AddSystem(TPlayerAnimSystem.Create(W));     // prioridade 7
 
-  { ── Sistemas de física (FixedUpdate) ───────────────────────────────────── }
-  W.AddSystem(TPlayerPhysicsSystem.Create(W));  // prioridade 9
-  W.AddSystem(TPhysicsSystem.Create(W));        // prioridade 10
-  W.AddSystem(TCollisionSystem.Create(W));      // prioridade 20
+     { ── Sistemas de física (FixedUpdate) ───────────────────────────────────── }
+     W.AddSystem(TPlayerPhysicsSystem.Create(W));  // prioridade 9
+     W.AddSystem(TPhysicsSystem.Create(W));        // prioridade 10
+     W.AddSystem(TCollisionSystem.Create(W));      // prioridade 20
 
-  { ── Regras de jogo (eventos de overlap) ────────────────────────────────── }
-  W.AddSystem(TGameRulesSystem.Create(W));      // prioridade 25
+     { ── Regras de jogo (eventos de overlap) ────────────────────────────────── }
+     W.AddSystem(TGameRulesSystem.Create(W));      // prioridade 25
 
-  { ── Áudio (reage a eventos de gameplay) ────────────────────────────────── }
-  W.AddSystem(TMarioAudioSystem.Create(W));     // prioridade 50
+     { ── Áudio (reage a eventos de gameplay) ────────────────────────────────── }
+     W.AddSystem(TMarioAudioSystem.Create(W));     // prioridade 50
 
-  { ── Render: tilemap → sprites → câmera → HUD ───────────────────────────── }
-  W.AddSystem(TTileMapSystem.Create(W));        // prioridade 30
-  W.AddSystem(TRenderSystem.Create(W));         // prioridade 100
+     { ── Render: tilemap → sprites → câmera → HUD ───────────────────────────── }
+     W.AddSystem(TTileMapSystem.Create(W));        // prioridade 30
+     W.AddSystem(TRenderSystem.Create(W));         // prioridade 100
 
-  FCamSys := TCameraSystem.Create(W, ScreenW, ScreenH);
-  W.AddSystem(FCamSys);                         // prioridade 15
+     FCamSys := TCameraSystem.Create(W, ScreenW, ScreenH);
+     W.AddSystem(FCamSys);                         // prioridade 15
 
-  W.AddSystem(THUDSystem.Create(W, ScreenW, ScreenH)); // prioridade 200
+     W.AddSystem(THUDSystem.Create(W, ScreenW, ScreenH)); // prioridade 200
 end;
 
 procedure TMarioGame.OnInit;

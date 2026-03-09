@@ -244,6 +244,10 @@
         <Filename Value="../../Engine/Systems/P2D.Systems.Audio.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="Mario.Common.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -25,6 +25,7 @@ implementation
 constructor TRigidBodyComponent.Create;
 begin
   inherited Create;
+
   Velocity.Create(0, 0);
   Acceleration.Create(0, 0);
   Mass         := 1.0;

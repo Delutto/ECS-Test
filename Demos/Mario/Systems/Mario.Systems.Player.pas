@@ -7,17 +7,9 @@ interface
 uses
    SysUtils, raylib,
    P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.RigidBody,
-   P2D.Components.Sprite, P2D.Components.Animation,
-   P2D.Components.Tags, P2D.Components.InputMap,
-   P2D.Components.Collider, P2D.Components.TileMap,
-   P2D.Utils.Math;
-
-const
-   PLAYER_SPAWN_X   : Single = 48.0;
-   PLAYER_SPAWN_Y   : Single = 100.0;
-   PLAYER_KILL_ZONE : Single = 400.0;
-   RESPAWN_INV_TIME : Single = 2.5;
+   P2D.Components.Transform, P2D.Components.RigidBody, P2D.Components.Sprite, P2D.Components.Animation,
+   P2D.Components.Tags, P2D.Components.InputMap, P2D.Components.Collider, P2D.Components.TileMap,
+   P2D.Utils.Math, Mario.Common;
 
 type
    TPlayerPhysicsSystem = class(TSystem2D)
@@ -49,13 +41,14 @@ uses
 constructor TPlayerPhysicsSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
-   Priority := 9;
+
+   Priority := 7;
    Name     := 'PlayerPhysicsSystem';
 end;
 
 procedure TPlayerPhysicsSystem.Init;
 var
-  E: TEntity;
+   E: TEntity;
 begin
    inherited;
    RequireComponent(TPlayerTag);
@@ -67,41 +60,39 @@ begin
 
    // Encontrar o tilemap
    for E in World.Entities.GetAll do
-     if E.Alive and E.HasComponent(TTileMapComponent) then
-     begin
-       FTileMap := TTileMapComponent(E.GetComponent(TTileMapComponent));
-       FTileMapTr := TTransformComponent(E.GetComponent(TTransformComponent));
-       Break;
-     end;
+      if E.Alive and E.HasComponent(TTileMapComponent) then
+      begin
+         FTileMap := TTileMapComponent(E.GetComponent(TTileMapComponent));
+         FTileMapTr := TTransformComponent(E.GetComponent(TTransformComponent));
+         Break;
+      end;
 end;
 
 function TPlayerPhysicsSystem.IsGrounded(RB: TRigidBodyComponent; Tr: TTransformComponent; Col: TColliderComponent): Boolean;
-const
-  CHECK_DIST = 2.0;
 var
-  R: TRectF;
-  TileX, TileY: Integer;
-  Tile: TTileData;
-  WorldY: Single;
+   R: TRectF;
+   TileX, TileY: Integer;
+   Tile: TTileData;
+   WorldY: Single;
 begin
-  if RB.Grounded then
-    Exit(True);
-
-  if not Assigned(FTileMap) or not Assigned(FTileMapTr) then
-    Exit(False);
-
-  R := Col.GetWorldRect(Tr.Position);
-  TileX := Trunc((R.X + R.W / 2 - FTileMapTr.Position.X) / FTileMap.TileWidth);
-  TileY := Trunc((R.Y + R.H - FTileMapTr.Position.Y) / FTileMap.TileHeight);
-
-  Tile := FTileMap.GetTile(TileX, TileY);
-  if Tile.Solid then
-  begin
-    WorldY := FTileMapTr.Position.Y + TileY * FTileMap.TileHeight;
-    if Abs(R.Y + R.H - WorldY) < CHECK_DIST then
+   if RB.Grounded then
       Exit(True);
-  end;
-  Result := False;
+
+   if not Assigned(FTileMap) or not Assigned(FTileMapTr) then
+      Exit(False);
+
+   R := Col.GetWorldRect(Tr.Position);
+   TileX := Trunc((R.X + R.W / 2 - FTileMapTr.Position.X) / FTileMap.TileWidth);
+   TileY := Trunc((R.Y + R.H - FTileMapTr.Position.Y) / FTileMap.TileHeight);
+
+   Tile := FTileMap.GetTile(TileX, TileY);
+   if Tile.Solid then
+   begin
+      WorldY := FTileMapTr.Position.Y + TileY * FTileMap.TileHeight;
+      if Abs(R.Y + R.H - WorldY) < CHECK_DIST then
+         Exit(True);
+   end;
+   Result := False;
 end;
 
 procedure TPlayerPhysicsSystem.Update(ADelta: Single);
@@ -122,7 +113,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then Continue;
+      if not E.Alive then
+         Continue;
 
       Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
       RB  := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
@@ -130,7 +122,8 @@ begin
       IM  := TInputMapComponent(E.GetComponent(TInputMapComponent));
       Col := TColliderComponent(E.GetComponent(TColliderComponent));
 
-      if PC.State = psDead then Continue;
+      if PC.State = psDead then
+         Continue;
 
       // --- Leitura direta do input ---
       PC.WantsRun       := IM.IsDown('Run');
@@ -148,20 +141,27 @@ begin
       if PC.WantsMoveLeft then
       begin
          RB.Velocity.X := ApproachF(RB.Velocity.X, -Speed, 600 * AFixedDelta);
-         if PC.WantsRun then PC.State := psRunning else PC.State := psWalking;
+         if PC.WantsRun then
+            PC.State := psRunning
+         else
+            PC.State := psWalking;
       end
       else if PC.WantsMoveRight then
       begin
          RB.Velocity.X := ApproachF(RB.Velocity.X, Speed, 600 * AFixedDelta);
-         if PC.WantsRun then PC.State := psRunning else PC.State := psWalking;
+         if PC.WantsRun then
+            PC.State := psRunning
+         else
+            PC.State := psWalking;
       end
       else
       begin
          RB.Velocity.X := ApproachF(RB.Velocity.X, 0, 400 * AFixedDelta);
-         if Abs(RB.Velocity.X) < 1.0 then
+         if RB.Velocity.X < 1.0 then
          begin
             RB.Velocity.X := 0.0;
-            if RB.Grounded then PC.State := psIdle;
+            if RB.Grounded then
+               PC.State := psIdle;
          end;
       end;
 
@@ -177,15 +177,18 @@ begin
       // --- Corte de pulo ---
       if PC.WantsJumpCut then
       begin
-         if RB.Velocity.Y < -200 then RB.Velocity.Y := -200;
+         if RB.Velocity.Y < -200 then
+            RB.Velocity.Y := -200;
          PC.WantsJumpCut := False;
       end;
 
       // --- Estado aéreo ---
       if not RB.Grounded then
       begin
-         if RB.Velocity.Y < 0 then PC.State := psJumping
-         else PC.State := psFalling;
+         if RB.Velocity.Y < 0 then
+            PC.State := psJumping
+         else
+            PC.State := psFalling;
       end;
 
       // --- Kill zone ---
@@ -248,12 +251,14 @@ begin
          Spr.Flip := flNone;
 
       case PC.State of
-         psIdle    : Anim.Play('idle');
-         psWalking : Anim.Play('walk');
-         psRunning : Anim.Play('run');
-         psJumping,
-         psFalling : Anim.Play('jump');
-         psDead    : Anim.Play('dead');
+         psIdle      : Anim.Play('idle');
+         psWalking   : Anim.Play('walk');
+         psRunning   : Anim.Play('run');
+         psJumping   : Anim.Play('jump');
+         psRunJumping: Anim.Play('run_jump');
+         psFalling   : Anim.Play('fall'); // ToDo: VERIFICAR A FÍSICA POIS ESSE STATE ESTÁ SEMPRE SENDO SETADO, MESMO QUE O STATE DEVERIA SER OUTRO
+         psCrouching : Anim.Play('duck');
+         psDead      : Anim.Play('dead');
       end;
    end;
 end;

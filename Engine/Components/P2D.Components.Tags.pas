@@ -17,7 +17,7 @@ type
    TGoalTag      = class(TComponent2D) end;
 
    // Player state
-   TPlayerState = (psIdle, psWalking, psRunning, psJumping, psFalling, psCrouching, psDead, psWin);
+   TPlayerState = (psIdle, psWalking, psRunning, psJumping, psRunJumping, psFalling, psCrouching, psDead, psWin);
 
    TPlayerComponent = class(TComponent2D)
    public

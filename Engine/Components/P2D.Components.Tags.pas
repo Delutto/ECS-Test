@@ -55,8 +55,8 @@ begin
    Score          := 0;
    Coins          := 0;
    JumpForce      := -520.0;
-   RunSpeed       := 200.0;
-   WalkSpeed      := 120.0;
+   RunSpeed       := 150.0;
+   WalkSpeed      := 80.0;
    IsBig          := False;
    HasFireFlower  := False;
    InvFrames      := 0;

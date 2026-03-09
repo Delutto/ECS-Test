@@ -42,7 +42,7 @@ constructor TPlayerPhysicsSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
 
-   Priority := 7;
+   Priority := 9;
    Name     := 'PlayerPhysicsSystem';
 end;
 

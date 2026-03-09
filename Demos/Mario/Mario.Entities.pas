@@ -110,16 +110,16 @@ begin
 
    // Walk: Cols 2, 3, 4
    Clip := TAnimation.Create('walk', True);
-   AddFrame(Clip, 2, 0, FRAME_W, FRAME_H, 1.12);
-   AddFrame(Clip, 3, 0, FRAME_W, FRAME_H, 1.12);
-   AddFrame(Clip, 4, 0, FRAME_W, FRAME_H, 1.12);
+   AddFrame(Clip, 2, 0, FRAME_W, FRAME_H, 0.05);
+   AddFrame(Clip, 3, 0, FRAME_W, FRAME_H, 0.05);
+   AddFrame(Clip, 4, 0, FRAME_W, FRAME_H, 0.05);
    Anim.AddAnimation(Clip);
 
    // Run: Cols 5, 6, 7
    Clip := TAnimation.Create('run', True);
-   AddFrame(Clip, 5, 0, FRAME_W, FRAME_H, 0.5);
-   AddFrame(Clip, 6, 0, FRAME_W, FRAME_H, 0.5);
-   AddFrame(Clip, 7, 0, FRAME_W, FRAME_H, 0.5);
+   AddFrame(Clip, 5, 0, FRAME_W, FRAME_H, 0.02);
+   AddFrame(Clip, 6, 0, FRAME_W, FRAME_H, 0.02);
+   AddFrame(Clip, 7, 0, FRAME_W, FRAME_H, 0.02);
    Anim.AddAnimation(Clip);
 
    // Skid: Col 8

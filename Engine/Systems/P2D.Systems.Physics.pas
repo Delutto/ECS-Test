@@ -70,28 +70,31 @@ begin
       if not (Tr.Enabled and RB.Enabled) then
          Continue;
 
-      // 1. Aplica gravidade (apenas se em queda livre)
-      if RB.UseGravity and not RB.Grounded then
+      // 1. Reset ground/wall contact state BEFORE any integration.
+      //    TCollisionSystem (priority 20) runs after this system and will
+      //    restore Grounded := True if the entity overlaps a solid tile.
+      RB.Grounded := False;
+      RB.OnWall   := False;
+
+      // 2. Apply gravity unconditionally (no 'not RB.Grounded' guard).
+      //    This guarantees the entity always penetrates the tile surface by
+      //    a small amount each step, so TCollisionSystem always detects the
+      //    overlap and sets Grounded := True + zeroes Velocity.Y.
+      if RB.UseGravity then
          RB.Velocity.Y := RB.Velocity.Y + GRAVITY * RB.GravityScale * AFixedDelta;
 
-      // 2. Clamp de velocidade de queda máxima
+      // 3. Clamp max fall speed.
       if RB.Velocity.Y > RB.MaxFallSpeed then
          RB.Velocity.Y := RB.MaxFallSpeed;
 
-      // 3. Aplica aceleração extra (forças externas)
+      // 4. Apply external acceleration forces.
       RB.Velocity.X := RB.Velocity.X + RB.Acceleration.X * AFixedDelta;
       RB.Velocity.Y := RB.Velocity.Y + RB.Acceleration.Y * AFixedDelta;
 
-      // 4. Integra posição (semi-implícito: usa velocidade já atualizada)
+      // 5. Integrate position (semi-implicit Euler).
       Tr.Position.X := Tr.Position.X + RB.Velocity.X * AFixedDelta;
       Tr.Position.Y := Tr.Position.Y + RB.Velocity.Y * AFixedDelta;
-
-      // 5. Reseta estado por passo — TCollisionSystem restaura Grounded=True no mesmo FixedUpdate se houver contato com o chão
-      RB.Grounded := False;
-      RB.OnWall   := False;
    end;
 end;
 
 end.
-
-

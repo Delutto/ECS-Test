@@ -151,14 +151,14 @@ begin
 
    // Spin Jump: Cols 3, 4, 5
    Clip := TAnimation.Create('spin', True);
-   AddFrame(Clip, 3, 1, FRAME_W, FRAME_H, 0.06);
-   AddFrame(Clip, 4, 1, FRAME_W, FRAME_H, 0.06);
-   AddFrame(Clip, 5, 1, FRAME_W, FRAME_H, 0.06);
+   AddFrame(Clip, 3, 1, FRAME_W, FRAME_H, 0.03);
+   AddFrame(Clip, 4, 1, FRAME_W, FRAME_H, 0.03);
+   AddFrame(Clip, 5, 1, FRAME_W, FRAME_H, 0.03);
    Anim.AddAnimation(Clip);
 
    // Slide: Col 6
    Clip := TAnimation.Create('slide', False);
-   AddFrame(Clip, 6, 1, FRAME_W, FRAME_H, 0.12);
+   AddFrame(Clip, 6, 1, FRAME_W, FRAME_H, 0.8);
    Anim.AddAnimation(Clip);
 
    // Kick: Col 7
@@ -172,7 +172,7 @@ begin
    Anim.AddAnimation(Clip);
 
    // "Dead" animation (usando Fall frame por enquanto, ou outro se preferir)
-   Clip := TAnimation.Create('dead', False);
+   Clip := TAnimation.Create('dead', True);
    AddFrame(Clip, 1, 1, FRAME_W, FRAME_H, 0.5);
    Anim.AddAnimation(Clip);
 

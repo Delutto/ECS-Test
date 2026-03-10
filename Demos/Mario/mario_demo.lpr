@@ -5,7 +5,7 @@ program mario_demo;
 uses
    {$IFDEF UNIX}cthreads,{$ENDIF}
    SysUtils,
-   Mario.Game in 'Mario.Game.pas';
+   Mario.Game in 'Mario.Game.pas', Mario.Systems.Input;
 
 var
    Game: TMarioGame;

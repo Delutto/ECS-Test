@@ -127,39 +127,41 @@ end;
 
 constructor TAudioSystem.Create(AWorld: TWorldBase);
 begin
-  inherited Create(AWorld);
-  Priority    := 50;           // após física e colisão, antes de render
-  Name        := 'AudioSystem';
-  RenderLayer := rlScreen;     // não renderiza nada, mas pertence ao loop de tela
+   inherited Create(AWorld);
+
+   Priority    := 50;           // após física e colisão, antes de render
+   Name        := 'AudioSystem';
+   RenderLayer := rlScreen;     // não renderiza nada, mas pertence ao loop de tela
 end;
 
 procedure TAudioSystem.Init;
 var
-  E  : TEntity;
-  MP : TMusicPlayerComponent;
+   E  : TEntity;
+   MP : TMusicPlayerComponent;
 begin
-  inherited;
-  RequireComponent(TMusicPlayerComponent);
+   inherited;
 
-  { Inicia músicas marcadas como AutoPlay }
-  for E in GetMatchingEntities do
-  begin
-    if not E.Alive then
-       Continue;
-    MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
-    if Assigned(MP) and MP.AutoPlay then
-      StartMusic(MP);
-  end;
+   RequireComponent(TMusicPlayerComponent);
 
-  { Subscreve eventos de áudio no EventBus global da World }
-  World.EventBus.Subscribe(TAudioPlaySoundEvent, @OnPlaySound);
-  World.EventBus.Subscribe(TAudioPlayMusicEvent, @OnPlayMusic);
-  World.EventBus.Subscribe(TAudioStopMusicEvent, @OnStopMusic);
-  World.EventBus.Subscribe(TAudioSetVolumeEvent, @OnSetVolume);
-	
-  {$IFDEF DEBUG}
-	Logger.Info('[AudioSystem] Initialized');
-  {$ENDIF}
+   { Inicia músicas marcadas como AutoPlay }
+   for E in GetMatchingEntities do
+   begin
+      if not E.Alive then
+         Continue;
+      MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
+      if Assigned(MP) and MP.AutoPlay then
+         StartMusic(MP);
+   end;
+
+   { Subscreve eventos de áudio no EventBus global da World }
+   World.EventBus.Subscribe(TAudioPlaySoundEvent, @OnPlaySound);
+   World.EventBus.Subscribe(TAudioPlayMusicEvent, @OnPlayMusic);
+   World.EventBus.Subscribe(TAudioStopMusicEvent, @OnStopMusic);
+   World.EventBus.Subscribe(TAudioSetVolumeEvent, @OnSetVolume);
+
+   {$IFDEF DEBUG}
+   Logger.Info('[AudioSystem] Initialized');
+   {$ENDIF}
 end;
 
 procedure TAudioSystem.Update(ADelta: Single);

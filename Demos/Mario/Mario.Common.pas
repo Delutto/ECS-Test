@@ -6,12 +6,13 @@ interface
 
 const
    { Áudios do demo }
-   SFX_COIN     = 'assets/audio/sfx/coin.wav';
-   SFX_STOMP    = 'assets/audio/sfx/stomp.wav';
-   SFX_DAMAGE   = 'assets/audio/sfx/damage.wav';
-   SFX_GAMEOVER = 'assets/audio/sfx/gameover.wav';
-   SFX_JUMP     = 'assets/audio/sfx/jump.wav';
-   BGM_OVERWORLD = 'assets/audio/bgm/Overworld.mp3';
+   SFX_COIN      = 'assets/audio/sfx/coin.wav';
+   SFX_STOMP     = 'assets/audio/sfx/stomp.wav';
+   SFX_DAMAGE    = 'assets/audio/sfx/damage.wav';
+   SFX_GAMEOVER  = 'assets/audio/sfx/gameover.wav';
+   SFX_JUMP      = 'assets/audio/sfx/jump.wav';
+   SFX_SPIN      = 'assets/audio/sfx/spinjump.wav';
+   BGM_OVERWORLD = 'assets/audio/bgm/overworld.mp3';
 
    { Player Sprite sheet }
    PLAYER_SHEET_PATH = 'assets/graphics/mario.png';
@@ -21,19 +22,14 @@ const
 
    { Nome do mapa — referenciado ao criar a entidade Player }
    PLAYER_MAP = 'Player1';
-  
-   MOVE_SPEED = 120.0;
-   RUN_SPEED  = 200.0;
-   JUMP_FORCE = -350.0;
 
-   // Increased tolerance to prevent flickering when on ground
-   // Gravity is constantly pushing down, so Y might be small positive number.
-   VEL_EPSILON_X = 5.0;
-   VEL_EPSILON_Y = 10.0;
-
-   // How long (in seconds) Y velocity must be non-zero to consider "Airborne"
-   // 0.05s is about 3 frames at 60fps. Filters out 1-frame glitches.
-   COYOTE_TIME = 0.05;
+   ACCEL_WALK     = 400.0;
+   ACCEL_RUN      = 600.0;
+   ACCEL_AIR      = 300.0;
+   FRICTION_GND   = 500.0;
+   FRICTION_SKID  = 1000.0; // Friction when turning around
+   FRICTION_AIR   = 50.0;
+   SKID_THRESHOLD = 50.0;   // Min speed to trigger skid state
 
    // !!! Check ground !!!
    CHECK_DIST = 10.0;

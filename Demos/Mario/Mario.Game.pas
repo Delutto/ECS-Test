@@ -20,6 +20,7 @@ uses
    P2D.Components.Tags,
    Mario.ProceduralArt,
    Mario.Level,
+   Mario.Systems.Input,
    Mario.Systems.Player,
    Mario.Systems.Enemy,
    Mario.Systems.HUD,
@@ -61,7 +62,7 @@ begin
      W := World;
 
      { ── Sistemas de gameplay (Update) ──────────────────────────────────────── }
-     //W.AddSystem(TPlayerInputSystem.Create(W));    // prioridade 1
+     W.AddSystem(TPlayerInputSystem.Create(W));    // prioridade 1
      W.AddSystem(TEnemySystem.Create(W));          // prioridade 3
      W.AddSystem(TAnimationSystem.Create(W));      // prioridade 5
      W.AddSystem(TPlayerAnimSystem.Create(W));     // prioridade 7

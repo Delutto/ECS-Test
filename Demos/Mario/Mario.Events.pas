@@ -12,87 +12,96 @@ unit Mario.Events;
 interface
 
 uses
-  P2D.Core.Event;
+   P2D.Core.Event;
 
 type
-  { ── Eventos de gameplay ─────────────────────────────────────────────── }
+   { ── Eventos de gameplay ─────────────────────────────────────────────── }
+   TCoinCollectedEvent = class(TEvent2D)
+   public
+      NewCoins : Integer;
+      NewScore : Integer;
+      constructor Create(ACoins, AScore: Integer);
+   end;
 
-  TCoinCollectedEvent = class(TEvent2D)
-  public
-    NewCoins : Integer;
-    NewScore : Integer;
-    constructor Create(ACoins, AScore: Integer);
-  end;
+   TPlayerDamagedEvent = class(TEvent2D)
+   public
+      LivesRemaining : Integer;
+      constructor Create(ALives: Integer);
+   end;
 
-  TPlayerDamagedEvent = class(TEvent2D)
-  public
-    LivesRemaining : Integer;
-    constructor Create(ALives: Integer);
-  end;
+   TPlayerJumpEvent = class(TEvent2D)
+   public
+      constructor Create;
+   end;
 
-  { TPlayerJumpEvent }
+   TPlayerSpinEvent = class(TEvent2D)
+   public
+      constructor Create;
+   end;
 
-  TPlayerJumpEvent = class(TEvent2D)
-  public
-    constructor Create;
-  end;
+   TEnemyStompedEvent = class(TEvent2D)
+   public
+      ScoreGained : Integer;
+      NewScore    : Integer;
+      constructor Create(AScoreGained, ANewScore: Integer);
+   end;
 
-  TEnemyStompedEvent = class(TEvent2D)
-  public
-    ScoreGained : Integer;
-    NewScore    : Integer;
-    constructor Create(AScoreGained, ANewScore: Integer);
-  end;
+   TPlayerDiedEvent = class(TEvent2D)
+   public
+      constructor Create;
+   end;
 
-  TPlayerDiedEvent = class(TEvent2D)
-  public
-    constructor Create;
-  end;
-
-  TPlayerRespawnedEvent = class(TEvent2D)
-  public
-    LivesRemaining : Integer;
-    constructor Create(ALives: Integer);
-  end;
+   TPlayerRespawnedEvent = class(TEvent2D)
+   public
+      LivesRemaining : Integer;
+      constructor Create(ALives: Integer);
+   end;
 
 implementation
 
 constructor TCoinCollectedEvent.Create(ACoins, AScore: Integer);
 begin
-  inherited Create;
-  NewCoins := ACoins;
-  NewScore := AScore;
+   inherited Create;
+
+   NewCoins := ACoins;
+   NewScore := AScore;
 end;
 
 constructor TPlayerDamagedEvent.Create(ALives: Integer);
 begin
-  inherited Create;
-  LivesRemaining := ALives;
-end;
+   inherited Create;
 
-{ TPlayerJumpEvent }
+   LivesRemaining := ALives;
+end;
 
 constructor TPlayerJumpEvent.Create;
 begin
    inherited Create;
 end;
 
+constructor TPlayerSpinEvent.Create;
+begin
+   inherited Create;
+end;
+
 constructor TEnemyStompedEvent.Create(AScoreGained, ANewScore: Integer);
 begin
-  inherited Create;
-  ScoreGained := AScoreGained;
-  NewScore    := ANewScore;
+   inherited Create;
+
+   ScoreGained := AScoreGained;
+   NewScore    := ANewScore;
 end;
 
 constructor TPlayerDiedEvent.Create;
 begin
-  inherited Create;
+   inherited Create;
 end;
 
 constructor TPlayerRespawnedEvent.Create(ALives: Integer);
 begin
-  inherited Create;
-  LivesRemaining := ALives;
+   inherited Create;
+
+   LivesRemaining := ALives;
 end;
 
 end.

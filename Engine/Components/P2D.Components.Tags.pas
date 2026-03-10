@@ -17,7 +17,20 @@ type
    TGoalTag      = class(TComponent2D) end;
 
    // Player state
-   TPlayerState = (psIdle, psWalking, psRunning, psJumping, psRunJumping, psFalling, psCrouching, psDead, psWin);
+   TPlayerState = (
+                  psIdle,
+                  psWalking,
+                  psRunning,
+                  psSkid,         // Turning around while moving fast
+                  psCrouching,    // Ducking
+                  psJumping,
+                  psRunJumping,
+                  psSpinJump,     // Spin jump (destroys blocks)
+                  psFalling,
+                  psPipe,         // Entering/Exiting pipe
+                  psDead,
+                  psVictory       // Level clear
+                  );
 
    TPlayerComponent = class(TComponent2D)
    public
@@ -34,12 +47,14 @@ type
 
       { ── Flags de intenção ──────────────────────────────────────────────────
       Escritas pelo TPlayerInputSystem (Update) com base no input bruto.
-      Lidas e consumidas pelo TPlayerPhysicsSystem (FixedUpdate). Nunca modifique Velocity diretamente no Input — use estas flags. }
+      Lidas e consumidas pelo TPlayerPhysicsSystem (FixedUpdate). }
       WantsMoveLeft : Boolean;
       WantsMoveRight: Boolean;
       WantsRun      : Boolean;
       WantsJump     : Boolean; // true no frame em que o botão foi pressionado
       WantsJumpCut  : Boolean; // true no frame em que o botão foi solto cedo
+      WantsDuck     : Boolean; // true enquanto botão Down está pressionado
+      WantsSpin     : Boolean; // true se botão de Spin Jump foi pressionado
 
       constructor Create; override;
    end;
@@ -54,17 +69,20 @@ begin
    Lives          := 3;
    Score          := 0;
    Coins          := 0;
-   JumpForce      := -520.0;
+   JumpForce      := -420.0;
    RunSpeed       := 150.0;
    WalkSpeed      := 80.0;
    IsBig          := False;
    HasFireFlower  := False;
    InvFrames      := 0;
+
    WantsMoveLeft  := False;
    WantsMoveRight := False;
    WantsRun       := False;
    WantsJump      := False;
    WantsJumpCut   := False;
+   WantsDuck      := False;
+   WantsSpin      := False;
 end;
 
 end.

@@ -30,7 +30,8 @@ uses
    P2D.Core.World,
    P2D.Core.Event,
    P2D.Systems.Audio,    // TAudioSystem + TAudioPlaySoundEvent, TAudioPlayMusicEvent
-   Mario.Events;         // TCoinCollectedEvent, TEnemyStompedEvent, etc.
+   Mario.Events,         // TCoinCollectedEvent, TEnemyStompedEvent, etc.
+   Mario.Common;
 
    type
 
@@ -41,6 +42,7 @@ uses
       procedure OnCoinCollected (AEvent: TEvent2D);
       procedure OnEnemyStomped  (AEvent: TEvent2D);
       procedure OnPlayerJump    (AEvent: TEvent2D);
+      procedure OnPlayerSpin    (AEvent: TEvent2D);
       procedure OnPlayerDamaged (AEvent: TEvent2D);
       procedure OnPlayerDied    (AEvent: TEvent2D);
    public
@@ -51,15 +53,6 @@ uses
 
 implementation
 
-{ Caminhos relativos ao executável — estrutura de assets do demo }
-const
-   SFX_COIN     = 'assets/audio/sfx/coin.wav';
-   SFX_STOMP    = 'assets/audio/sfx/stomp.wav';
-   SFX_DAMAGE   = 'assets/audio/sfx/damage.wav';
-   SFX_GAMEOVER = 'assets/audio/sfx/gameover.wav';
-   SFX_JUMP     = 'assets/audio/sfx/jump.wav';
-   //BGM_OVERWORLD = 'assets/audio/bgm/Overworld.mp3';
-
 constructor TMarioAudioSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
@@ -69,13 +62,13 @@ end;
 
 procedure TMarioAudioSystem.Init;
 begin
-   { Init do pai: RequireComponent(TMusicPlayerComponent) + AutoPlay + subscreve eventos de áudio }
    inherited;
 
    { Subscreve eventos de gameplay do Mario }
    World.EventBus.Subscribe(TCoinCollectedEvent, @OnCoinCollected);
    World.EventBus.Subscribe(TEnemyStompedEvent,  @OnEnemyStomped);
    World.EventBus.Subscribe(TPlayerJumpEvent,    @OnPlayerJump);
+   World.EventBus.Subscribe(TPlayerSpinEvent,    @OnPlayerSpin);
    World.EventBus.Subscribe(TPlayerDamagedEvent, @OnPlayerDamaged);
    World.EventBus.Subscribe(TPlayerDiedEvent,    @OnPlayerDied);
 end;
@@ -85,6 +78,7 @@ begin
    World.EventBus.Unsubscribe(TCoinCollectedEvent, @OnCoinCollected);
    World.EventBus.Unsubscribe(TEnemyStompedEvent,  @OnEnemyStomped);
    World.EventBus.Unsubscribe(TPlayerJumpEvent,    @OnPlayerJump);
+   World.EventBus.Unsubscribe(TPlayerSpinEvent,    @OnPlayerSpin);
    World.EventBus.Unsubscribe(TPlayerDamagedEvent, @OnPlayerDamaged);
    World.EventBus.Unsubscribe(TPlayerDiedEvent,    @OnPlayerDied);
    { Pai cancela subscrições de áudio e para músicas }
@@ -106,6 +100,11 @@ end;
 procedure TMarioAudioSystem.OnPlayerJump(AEvent: TEvent2D);
 begin
    World.EventBus.Publish(TAudioPlaySoundEvent.Create(SFX_JUMP, 1.0));
+end;
+
+procedure TMarioAudioSystem.OnPlayerSpin(AEvent: TEvent2D);
+begin
+   World.EventBus.Publish(TAudioPlaySoundEvent.Create(SFX_SPIN, 1.0));
 end;
 
 procedure TMarioAudioSystem.OnPlayerDamaged(AEvent: TEvent2D);

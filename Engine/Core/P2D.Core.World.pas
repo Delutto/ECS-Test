@@ -53,11 +53,30 @@ type
       { --- Loop principal ---------------------------------------------------- }
       procedure Init;
       procedure FixedUpdate(AFixedDelta: Single); override;
-      function GetEntitySignature(AEntity: TEntity): TComponentSignature; override;
+      function  GetEntitySignature(AEntity: TEntity): TComponentSignature; override;
       procedure Update(ADelta: Single);
       procedure Render;
       procedure RenderByLayer(ALayer: TRenderLayer); override;
+
+      { Shutdown FINAL — chamado uma única vez ao encerrar o programa.
+        Protegido por FShutdownCalled para evitar dupla execução.
+        NÃO use para reinício de nível; use ShutdownSystems para isso. }
       procedure Shutdown;
+
+      { Shutdown PARCIAL para reinício de nível / restart de jogo.
+        Diferente de Shutdown():
+          - Chama S.Shutdown em todos os sistemas (cancela subscrições,
+            libera referências a entidades, reseta estado interno).
+          - Limpa a fila de eventos do EventBus.
+          - Invalida todos os caches de queries dos sistemas.
+          - Reseta FShutdownCalled para False, permitindo que Init()
+            seja chamado novamente sem bloqueio.
+        Uso correto em DoRestart:
+          1. ShutdownSystems   — reseta sistemas
+          2. Destruir entidades
+          3. LoadLevel         — recria entidades
+          4. Init              — reinicializa sistemas com as novas entidades }
+      procedure ShutdownSystems;
 
       { Debug }
       {$IFDEF DEBUG}
@@ -128,7 +147,7 @@ var
    S: TSystem2D;
 begin
    for S in FSystems do
-       S.InvalidateCache;
+      S.InvalidateCache;
 end;
 
 function TWorld.CreateEntity(const AName: string): TEntity;
@@ -224,7 +243,6 @@ begin
       Result := [];
       Exit;
    end;
-
    Result := AEntity.GetSignature;
 end;
 
@@ -242,7 +260,7 @@ end;
 
 procedure TWorld.Render;
 var
-  S: TSystem2D;
+   S: TSystem2D;
 begin
    for S in FSystems do
       if S.Enabled then
@@ -258,6 +276,7 @@ begin
          S.Render;
 end;
 
+{ Shutdown FINAL — usado apenas no encerramento do programa. }
 procedure TWorld.Shutdown;
 var
    S: TSystem2D;
@@ -271,6 +290,53 @@ begin
    for S in FSystems do
       if S.Enabled then
          S.Shutdown;
+end;
+
+{ ShutdownSystems — Shutdown parcial para reinício de nível/jogo.
+  ─────────────────────────────────────────────────────────────────────────────
+  Por que este método existe em vez de reusar Shutdown()?
+
+  Shutdown() possui a guarda FShutdownCalled que garante execução única.
+  Isso é correto para o encerramento final do programa, mas impede que o
+  World seja reinicializado durante o jogo (DoRestart, troca de cena, etc.).
+
+  ShutdownSystems() executa a mesma sequência de limpeza MAS:
+    1. Não verifica nem seta FShutdownCalled antes de rodar.
+    2. Reseta FShutdownCalled := False ao final, deixando o World pronto
+       para receber um novo Init() sem que o Shutdown() final seja impedido.
+
+  Fluxo de uso correto para reinício de nível:
+    ShutdownSystems  →  destruir entidades  →  LoadLevel  →  Init
+  ───────────────────────────────────────────────────────────────────────────── }
+procedure TWorld.ShutdownSystems;
+var
+   S: TSystem2D;
+begin
+   { 1. Chama Shutdown em cada sistema na ordem inversa de prioridade.
+        Cada sistema cancela suas subscrições no EventBus, libera quaisquer referências diretas a entidades (ex: FCamEntity, FTarget em
+        TCameraSystem) e reseta flags de estado interno. }
+   for S in FSystems do
+      if S.Enabled then
+         S.Shutdown;
+
+   { 2. Descarta todos os eventos acumulados na fila de leitura e de escrita.
+        Eventos publicados durante o Shutdown dos sistemas (ex: TAudioStopMusic publicado por TMarioAudioSystem.Shutdown) não devem ser processados
+        com entidades que estão prestes a ser destruídas. }
+   FEventBus.Clear;
+
+   { 3. Invalida os caches de queries de todos os sistemas.
+        As entidades atuais serão destruídas e novas serão criadas em seguida.
+        Forçar FCacheDirty := True garante que cada sistema reconstrua sua lista de entidades correspondentes ao chamar GetMatchingEntities() dentro do próximo Init(). }
+   InvalidateAllSystemCaches;
+
+   { 4. Reseta a guarda de shutdown único.
+        Sem este reset, o método Init() subsequente funcionaria, mas o Shutdown() final (chamado por TEngine2D.Run ao encerrar o programa)
+        encontraria FShutdownCalled = True e sairia sem fazer nada — vazando subscrições de eventos e estado de sistemas. }
+   FShutdownCalled := False;
+
+   {$IFDEF DEBUG}
+   Logger.Info('[World] ShutdownSystems concluído — pronto para re-Init.');
+   {$ENDIF}
 end;
 
 {$IFDEF DEBUG}

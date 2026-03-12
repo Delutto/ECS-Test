@@ -46,8 +46,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
 
       Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
       Transform := TTransformComponent(E.GetComponent(TTransformComponent));
@@ -65,8 +65,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
 
       Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
       Transform := TTransformComponent(E.GetComponent(TTransformComponent));

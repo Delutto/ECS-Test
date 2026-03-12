@@ -45,8 +45,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
 
       Anim := TAnimationComponent(E.GetComponent(TAnimationComponent));
       Spr  := TSpriteComponent(E.GetComponent(TSpriteComponent));

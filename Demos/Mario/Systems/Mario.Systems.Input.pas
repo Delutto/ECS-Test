@@ -49,8 +49,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
 
       PC := TPlayerComponent(E.GetComponent(TPlayerComponent));
       IM := TInputMapComponent(E.GetComponent(TInputMapComponent));

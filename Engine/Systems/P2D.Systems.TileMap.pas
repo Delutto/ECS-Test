@@ -88,7 +88,7 @@ begin
    FCamEntity := nil;
    for E in World.Entities.GetAll do
    begin
-      if E.Alive and E.HasComponent(TCamera2DComponent) then
+      if {E.Alive and }E.HasComponent(TCamera2DComponent) then
       begin
          FCamEntity := E;
          Exit;
@@ -187,8 +187,8 @@ begin
    { ── Step 2 + 3: Render each tilemap with culled tile range ─────────────── }
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
 
       TM := TTileMapComponent(E.GetComponent(TTileMapComponent));
       Tr := TTransformComponent(E.GetComponent(TTransformComponent));

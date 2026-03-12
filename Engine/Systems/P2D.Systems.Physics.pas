@@ -61,8 +61,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
 
       Tr := TTransformComponent(E.GetComponent(TTransformComponent));
       RB := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));

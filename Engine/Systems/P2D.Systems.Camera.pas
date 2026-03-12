@@ -52,7 +52,7 @@ begin
    FTarget    := nil;
    for E in GetMatchingEntities do
    begin
-      if E.Alive and E.HasComponent(TCamera2DComponent) then
+      if {E.Alive and }E.HasComponent(TCamera2DComponent) then
       begin
          FCamEntity := E;
          Break;
@@ -60,7 +60,7 @@ begin
    end;
    for E in GetMatchingEntities do
    begin
-      if E.Alive and E.HasComponent(TPlayerTag) then
+      if {E.Alive and }E.HasComponent(TPlayerTag) then
       begin
          FTarget := E;
          Break;

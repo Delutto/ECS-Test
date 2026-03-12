@@ -145,8 +145,8 @@ begin
    { Inicia músicas marcadas como AutoPlay }
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
       MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
       if Assigned(MP) and MP.AutoPlay then
          StartMusic(MP);
@@ -171,8 +171,8 @@ begin
    { UpdateMusicStream deve ser chamado todo frame para músicas ativas }
    for E in GetMatchingEntities do
    begin
-      if not E.Alive then
-         Continue;
+      //if not E.Alive then
+      //   Continue;
       MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
       if not Assigned(MP) then
          Continue;
@@ -218,7 +218,8 @@ var
 begin
   for E in GetMatchingEntities do
   begin
-    if not E.Alive then Continue;
+    //if not E.Alive then
+    //   Continue;
     MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
     if Assigned(MP) and MP.Playing then
     begin
@@ -263,7 +264,8 @@ begin
   StopAllMusic;
   for E in GetMatchingEntities do
   begin
-    if not E.Alive then Continue;
+    //if not E.Alive then
+    //   Continue;
     MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
     if Assigned(MP) then
     begin

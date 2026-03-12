@@ -212,8 +212,8 @@ begin
    if Assigned(TileM) then
       for E in GetMatchingEntities do
       begin
-         if not E.Alive then
-            Continue;
+         //if not E.Alive then
+         //   Continue;
          if not E.HasComponent(TRigidBodyComponent) then
             Continue;
 

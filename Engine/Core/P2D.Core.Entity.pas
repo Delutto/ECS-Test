@@ -3,27 +3,56 @@ unit P2D.Core.Entity;
 {$mode objfpc}{$H+}
 
 { =============================================================================
-  P2D.Core.Entity — Component storage rewrite: TFPGMap → TComponentArray
-    TComponentArray = array[0..MAX_COMPONENT_TYPES-1] of TComponent2D
-         • FComponents is a fixed-size inline array; no heap allocation.
-         • Slot index = ComponentRegistry ID (0..63), assigned once.
-         • GetComponent    → registry lookup* + O(1) array index.
-         • HasComponent    → O(1) — single bitset membership test on FSignature.
-         • RemoveComponent → registry lookup* + O(1) array nil + signature bit.
-         • AddComponent    → registry lookup* + O(1) array write + signature bit.
-         • GetComponentByID → TRUE O(1) — direct array index, no lookup at all.
+  P2D.Core.Entity
 
-    * Registry lookup: binary search on TFPGMap with at most 64 entries
-      (max 6 comparisons). This cost is paid once per call and can be
-      eliminated entirely by caching the ComponentID at system Init time
-      and calling GetComponentByID in hot loops.
+  Optimization 3.1 — Component storage: TFPGMap → TComponentArray (O(1))
+  Optimization 3.4 — Pool/Active list separation: FEntities is active-only
 
-  MEMORY TRADE-OFF:
-    Each TEntity now owns a 512-byte inline array (64 × 8 bytes on 64-bit).
-    A typical entity with 6-8 components previously used ~160 bytes for the
-    TFPGMap (object header + dynamic entries). The array is larger per entity,
-    but eliminates heap fragmentation and is contiguous → cache-friendly.
-    For typical 2D game entity counts (< 500), the total overhead is < 256 KB.
+  ── 3.1 (component store) ──────────────────────────────────────────────────
+  TComponentArray = array[0..MAX_COMPONENT_TYPES-1] of TComponent2D
+    • Fixed-size inline array; no heap allocation per entity.
+    • Slot index = ComponentRegistry ID (0..63).
+    • GetComponent    → registry lookup + O(1) array index.
+    • HasComponent    → O(1) bitset test on FSignature.
+    • RemoveComponent → registry lookup + O(1) array nil + signature Exclude.
+    • AddComponent    → registry lookup + O(1) array write + signature Include.
+    • GetComponentByID → true O(1) — direct array index, zero registry cost.
+
+  ── 3.4 (pool/active separation) ───────────────────────────────────────────
+  OLD model:
+    • Entities were in BOTH FEntities AND Pool^.Entities simultaneously.
+    • PurgeDestroyed returned an entity to the pool but LEFT it in FEntities
+      with Alive=False, Pooled=True.
+    • GetAll returned alive + dead-pooled entities every frame.
+    • Every system loop was forced to test "if not E.Alive then Continue"
+      to skip those permanently-dead residents.
+    • RefreshCache iterated every entry in FEntities including dead-pooled
+      ones, paying EntityMatchesFast cost on entities that would always fail
+      the Alive check.
+
+  NEW model — two disjoint lists, single ownership:
+    • FEntities (OwnsObjects=True)  — holds ONLY currently alive entities.
+    • Pool^.Entities (OwnsObjects=True) — holds ONLY inactive/pooled entities.
+    • An entity lives in exactly ONE list at any point in time.
+    • Ownership transfers between lists via the OwnsObjects toggle pattern:
+        disable OwnsObjects → Delete(I) → re-enable OwnsObjects → Add to other list.
+      This avoids constructing a new object and avoids any double-free risk.
+    • After PurgeDestroyed, FEntities contains zero dead-pooled residents.
+    • GetAll returns only alive entities — RefreshCache and every system loop
+      are free from unnecessary dead-entity iteration.
+    • The "if not E.Alive then Continue" guard is still correct and kept for
+      entities that were marked dead within the SAME frame update but have not
+      yet been purged (the window between DestroyEntity and PurgeDestroyed).
+
+  ── Ownership invariant ─────────────────────────────────────────────────────
+    At any moment, every TEntity object is owned by exactly one list:
+      Active state  → FEntities
+      Pooled state  → FPools[i].Entities
+    Pre-allocated entities (PreallocatePool) are created directly into the pool
+    list and never enter FEntities until acquired.
+    ClearAllPools frees all pooled entities via FPools[i].Entities.Free.
+    FEntities.Free frees all active entities.
+    No entity is freed twice.
   ============================================================================= }
 
 interface
@@ -36,28 +65,23 @@ uses
 
 type
    { -------------------------------------------------------------------------
-     TComponentArray — O(1) indexed component storage.
-     Slot [N] holds the component instance whose ComponentRegistry ID = N.
-     Unused slots are nil. The array is value-embedded in TEntity (no heap).
+     TComponentArray — O(1) indexed component storage (optimization 3.1).
+     Slot [N] holds the component whose ComponentRegistry ID = N.
+     Unused slots are nil. Value-embedded in TEntity (no separate heap alloc).
    ------------------------------------------------------------------------- }
    TComponentArray = array[0..MAX_COMPONENT_TYPES - 1] of TComponent2D;
 
-   { -------------------------------------------------------------------------
-     TEntity - Entidade base do ECS
-   ------------------------------------------------------------------------- }
-
    { TEntity }
-
    TEntity = class
    private
-      FID             : TEntityID;
-      FName           : string;
-      FAlive          : Boolean;
-      FComponents     : TComponentArray; // O(1) indexed by ComponentRegistry ID
-      FPooled         : Boolean;
-      FTag            : string;
-      FSignature      : TComponentSignature;
-      FComponentCount : Integer;         // number of non-nil slots (O(1) count)
+      FID            : TEntityID;
+      FName          : string;
+      FAlive         : Boolean;
+      FComponents    : TComponentArray;
+      FPooled        : Boolean;
+      FTag           : string;
+      FSignature     : TComponentSignature;
+      FComponentCount: Integer;
 
       {$IFDEF DEBUG}
       FComponentAddCount   : Integer;
@@ -68,52 +92,40 @@ type
       constructor Create(AID: TEntityID; const AName: string = '');
       destructor  Destroy; override;
 
-      { Standard component API — same external signatures as before. }
       function  AddComponent(AComp: TComponent2D): TComponent2D;
       function  GetComponent(AClass: TComponent2DClass): TComponent2D;
 
-      { Hot-path variant: caller supplies the ComponentID directly.
-        Obtained once via ComponentRegistry.GetComponentID at system Init.
-        Skips the registry lookup entirely — a single array dereference.
-        Use this inside per-frame loops that process the same component types. }
+      { True O(1) hot-path: cache the ComponentID at system Init time and call
+        this instead of GetComponent in per-frame loops. }
       function  GetComponentByID(ACompID: Integer): TComponent2D; inline;
 
-      { O(1) — single bitset membership check on FSignature. }
+      { O(1) bitset test — no array access needed. }
       function  HasComponent(AClass: TComponent2DClass): Boolean;
-
       procedure RemoveComponent(AClass: TComponent2DClass);
+      function  GetSignature: TComponentSignature;
 
-      { Component Signature }
-      function GetSignature: TComponentSignature;
-
-      { Pool Management }
-      procedure ResetForPool; virtual;
+      { Pool lifecycle hooks — called by TEntityManager, not by game code. }
+      procedure ResetForPool;    virtual;
       procedure ActivateFromPool; virtual;
 
       {$IFDEF DEBUG}
       procedure PrintComponentStats;
       {$ENDIF}
 
-      property ID             : TEntityID read FID;
-      property Name           : string    read FName           write FName;
-      property Alive          : Boolean   read FAlive          write FAlive;
-      property Pooled         : Boolean   read FPooled         write FPooled;
-      property Tag            : string    read FTag            write FTag;
-      property ComponentCount : Integer   read FComponentCount;
+      property ID            : TEntityID read FID;
+      property Name          : string    read FName            write FName;
+      property Alive         : Boolean   read FAlive           write FAlive;
+      property Pooled        : Boolean   read FPooled          write FPooled;
+      property Tag           : string    read FTag             write FTag;
+      property ComponentCount: Integer   read FComponentCount;
    end;
 
-   { -------------------------------------------------------------------------
-     Entity Lists and Maps — unchanged
-   ------------------------------------------------------------------------- }
    TEntityList = specialize TFPGObjectList<TEntity>;
    TEntityMap  = specialize TFPGMap<TEntityID, TEntity>;
 
-   { -------------------------------------------------------------------------
-     TEntityPool - Pool interno de entidades por tag — unchanged
-   ------------------------------------------------------------------------- }
    TEntityPool = record
       Tag      : string;
-      Entities : TEntityList;
+      Entities : TEntityList; { OwnsObjects=True — owns pooled (inactive) entities }
       MaxSize  : Integer;
       HitCount : Int64;
       MissCount: Int64;
@@ -121,11 +133,10 @@ type
 
    TEntityPoolArray = array of TEntityPool;
 
-   { -------------------------------------------------------------------------
-     TEntityManager - Gerencia entidades ativas E pooled — unchanged
-   ------------------------------------------------------------------------- }
    TEntityManager = class
    private
+      { OwnsObjects=True — sole owner of active entities.
+        After PurgeDestroyed this list contains ONLY Alive=True entities. }
       FEntities : TEntityList;
       FEntityMap: TEntityMap;
       FNextID   : TEntityID;
@@ -144,8 +155,14 @@ type
 
       function FindPool(const ATag: string): Integer;
       function GetOrCreatePool(const ATag: string): Integer;
+
+      { AcquireFromPool — removes the entity from the pool list and adds it
+        to FEntities + FEntityMap. Transfers ownership: pool → FEntities. }
       function AcquireFromPool(const ATag: string): TEntity;
-      procedure ReturnToPool(AEntity: TEntity);
+
+      { ReturnToPool is no longer a separate method. The recycle logic is
+        inlined in PurgeDestroyed to perform the ownership transfer atomically
+        (remove from FEntities without freeing, add to pool list). }
 
    public
       constructor Create;
@@ -155,12 +172,29 @@ type
       function  CreatePooledEntity(const ATag: string; const AName: string = ''): TEntity;
       procedure DestroyEntity(AID: TEntityID);
       function  GetEntity(AID: TEntityID): TEntity;
+
+      { GetAll returns ONLY alive entities after PurgeDestroyed has run.
+        System loops that guard with "if not E.Alive then Continue" remain
+        correct for the brief intra-frame window between DestroyEntity and
+        PurgeDestroyed, but dead-pooled entities are no longer permanent
+        residents of this list. }
       function  GetAll: TEntityList;
+
+      { PurgeDestroyed — called by TWorld.Update after all systems have run.
+        For each dead (Alive=False) entity:
+          • Non-pooled : freed immediately (FEntities.Delete with OwnsObjects=True).
+          • Pooled     : ownership transferred to the matching pool list.
+                        Entity is reset (components freed, Pooled=True) and
+                        removed from FEntities without being freed. }
       procedure PurgeDestroyed;
 
       procedure ConfigurePool(const ATag: string; AInitialSize, AMaxSize: Integer);
       procedure ClearPool(const ATag: string);
       procedure ClearAllPools;
+
+      { PreallocatePool — creates entities and places them DIRECTLY into the
+        pool list. They never enter FEntities or FEntityMap until acquired.
+        This avoids the round-trip: create → add to FEntities → purge → recycle. }
       procedure PreallocatePool(const ATag: string; ACount: Integer);
 
       {$IFDEF DEBUG}
@@ -186,20 +220,14 @@ uses
 constructor TEntity.Create(AID: TEntityID; const AName: string);
 begin
    inherited Create;
-
-   FID             := AID;
-   FName           := AName;
-   FAlive          := True;
-   FPooled         := False;
-   FTag            := '';
-   FSignature      := [];
-   FComponentCount := 0;
-
-   { Zero-fill the entire array in a single call.
-     FillChar sets all 512 bytes (64 pointers) to 0 = nil.
-     This replaces TComponentMap.Create + Sorted := True. }
+   FID            := AID;
+   FName          := AName;
+   FAlive         := True;
+   FPooled        := False;
+   FTag           := '';
+   FSignature     := [];
+   FComponentCount:= 0;
    FillChar(FComponents, SizeOf(FComponents), 0);
-
    {$IFDEF DEBUG}
    FComponentAddCount    := 0;
    FComponentRemoveCount := 0;
@@ -209,55 +237,38 @@ end;
 
 destructor TEntity.Destroy;
 var
-   I           : Integer;
-   Comp        : TComponent2D;
+   I            : Integer;
+   Comp         : TComponent2D;
    CompClassName: string;
 begin
    {$IFDEF DEBUG}
    Logger.Debug(Format('[Entity %d] Destroying "%s" with %d components',
       [FID, FName, FComponentCount]));
    {$ENDIF}
-
-   { Iterate the full array; only non-nil slots hold live components.
-     No need for a reverse loop — array slots are independent. }
    for I := 0 to MAX_COMPONENT_TYPES - 1 do
    begin
       Comp := FComponents[I];
-      if not Assigned(Comp) then
-         Continue;
-
+      if not Assigned(Comp) then Continue;
       {$IFDEF DEBUG}
       CompClassName := Comp.ClassName;
       {$ENDIF}
-
       try
-         FComponents[I] := nil;  // clear slot before Free (safe against re-entry)
+         FComponents[I] := nil;
          Comp.Free;
          {$IFDEF DEBUG}
          Logger.Debug(Format('[Entity %d] Component freed: %s', [FID, CompClassName]));
          {$ENDIF}
       except
          on E: Exception do
-            Logger.Error(Format('[Entity %d] Error freeing component %s: %s',
-               [FID, CompClassName, E.Message]));
+            Logger.Error(Format('[Entity %d] Error freeing component %s: %s', [FID, CompClassName, E.Message]));
       end;
    end;
-
-   { No FComponents.Free — the array is value-embedded in TEntity. }
-
    {$IFDEF DEBUG}
    Logger.Debug(Format('[Entity %d] Destroyed successfully', [FID]));
    {$ENDIF}
-
    inherited;
 end;
 
-{ -----------------------------------------------------------------------------
-  AddComponent
-  OLD: O(log m) IndexOf (duplicate check) + map insertion.
-  NEW: registry lookup → O(1) array write + signature Include.
-       Duplicate check is a simple Assigned() test on the slot.
-  ----------------------------------------------------------------------------- }
 function TEntity.AddComponent(AComp: TComponent2D): TComponent2D;
 var
    CompID       : Integer;
@@ -268,16 +279,11 @@ begin
       Logger.Error(Format('[Entity %d] AddComponent: Component cannot be nil', [FID]));
       raise EArgumentNilException.Create('TEntity.AddComponent: AComp cannot be nil');
    end;
-
    AComp.OwnerEntity := FID;
    CompClassName     := AComp.ClassName;
-
-   { Resolve the component's registry ID. Auto-register if not yet known. }
    CompID := ComponentRegistry.GetComponentID(TComponent2DClass(AComp.ClassType));
    if CompID < 0 then
       CompID := ComponentRegistry.Register(TComponent2DClass(AComp.ClassType));
-
-   { Replace an existing component of the same type if the slot is occupied. }
    if Assigned(FComponents[CompID]) then
    begin
       {$IFDEF DEBUG}
@@ -291,56 +297,30 @@ begin
             Logger.Error(Format('[Entity %d] Error freeing old component %s: %s',
                [FID, CompClassName, E.Message]));
       end;
-      { FComponentCount stays the same — same slot reused, not a new slot. }
    end
    else
    begin
-      { New slot occupied → update the live-component counter. }
       Inc(FComponentCount);
       {$IFDEF DEBUG}
       Inc(FComponentAddCount);
       {$ENDIF}
    end;
-
-   { O(1) write — direct array index. }
    FComponents[CompID] := AComp;
-
-   { Update the bitset signature — O(1) set Include. }
    Include(FSignature, CompID);
-
    Result := AComp;
 end;
 
-{ -----------------------------------------------------------------------------
-  GetComponent
-  OLD: O(log m) IndexOf on the per-entity TFPGMap.
-  NEW: registry lookup (≤ 6 comparisons on 64 entries) + O(1) array index.
-       For the fastest possible access, use GetComponentByID with a cached ID.
-  ----------------------------------------------------------------------------- }
 function TEntity.GetComponent(AClass: TComponent2DClass): TComponent2D;
 var
    CompID: Integer;
 begin
    Result := nil;
-
-   if not Assigned(AClass) then
-      Exit;
-
+   if not Assigned(AClass) then Exit;
    CompID := ComponentRegistry.GetComponentID(AClass);
-   if CompID < 0 then
-      Exit;                    // component type not registered → cannot exist
-
-   Result := FComponents[CompID];  // O(1) array dereference
+   if CompID < 0 then Exit;
+   Result := FComponents[CompID];
 end;
 
-{ -----------------------------------------------------------------------------
-  GetComponentByID — TRUE O(1), no registry lookup.
-  Call pattern in a hot system:
-    In Init:   FSpriteID    := ComponentRegistry.GetComponentID(TSpriteComponent);
-               FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
-    In Update: Spr := TSpriteComponent(E.GetComponentByID(FSpriteID));
-               Tr  := TTransformComponent(E.GetComponentByID(FTransformID));
-  ----------------------------------------------------------------------------- }
 function TEntity.GetComponentByID(ACompID: Integer): TComponent2D;
 begin
    if (ACompID < 0) or (ACompID >= MAX_COMPONENT_TYPES) then
@@ -348,70 +328,38 @@ begin
       Result := nil;
       Exit;
    end;
-   Result := FComponents[ACompID];  // single array dereference
+   Result := FComponents[ACompID];
 end;
 
-{ -----------------------------------------------------------------------------
-  HasComponent
-  OLD: O(log m) IndexOf on the per-entity TFPGMap.
-  NEW: O(1) — single bitset membership test (CompID in FSignature).
-       No array access, no registry lookup needed for the common True case.
-       FSignature is maintained in sync with the array by AddComponent /
-       RemoveComponent, so it is always authoritative.
-  ----------------------------------------------------------------------------- }
 function TEntity.HasComponent(AClass: TComponent2DClass): Boolean;
 var
    CompID: Integer;
 begin
-   if not Assigned(AClass) then
-   begin
-      Result := False;
-      Exit;
-   end;
-
+   if not Assigned(AClass) then begin Result := False; Exit; end;
    CompID := ComponentRegistry.GetComponentID(AClass);
-   if CompID < 0 then
-   begin
-      Result := False;   // not registered → cannot be on this entity
-      Exit;
-   end;
-
-   { O(1) — set membership is a single bitwise AND + compare. }
+   if CompID < 0 then begin Result := False; Exit; end;
    Result := CompID in FSignature;
 end;
 
-{ -----------------------------------------------------------------------------
-  RemoveComponent
-  OLD: O(log m) IndexOf + O(m) TFPGList.Delete (shifts remaining entries).
-  NEW: registry lookup + O(1) array nil + O(1) signature Exclude.
-  ----------------------------------------------------------------------------- }
 procedure TEntity.RemoveComponent(AClass: TComponent2DClass);
 var
    CompID       : Integer;
    Comp         : TComponent2D;
    CompClassName: string;
 begin
-   if not Assigned(AClass) then
-      Exit;
-
+   if not Assigned(AClass) then Exit;
    CompID := ComponentRegistry.GetComponentID(AClass);
-   if CompID < 0 then
-      Exit;
-
+   if CompID < 0 then Exit;
    Comp := FComponents[CompID];
-   if not Assigned(Comp) then
-      Exit;  // slot is already empty
-
+   if not Assigned(Comp) then Exit;
    CompClassName := Comp.ClassName;
-
    {$IFDEF DEBUG}
    Inc(FComponentRemoveCount);
    {$ENDIF}
-
    try
-      FComponents[CompID] := nil;      // clear slot first (safe against re-entry)
+      FComponents[CompID] := nil;
       Comp.Free;
-      Exclude(FSignature, CompID);     // O(1) bitset Exclude
+      Exclude(FSignature, CompID);
       Dec(FComponentCount);
    except
       on E: Exception do
@@ -428,12 +376,6 @@ begin
    Result := FSignature;
 end;
 
-{ -----------------------------------------------------------------------------
-  ResetForPool
-  OLD: iterates TFPGMap count, frees data, calls FComponents.Clear.
-  NEW: iterates the fixed array, nils each occupied slot.
-       FillChar is NOT used here because we must call .Free on each component.
-  ----------------------------------------------------------------------------- }
 procedure TEntity.ResetForPool;
 var
    I: Integer;
@@ -441,22 +383,17 @@ begin
    {$IFDEF DEBUG}
    Logger.Debug(Format('[Entity %d] Reset for pool (Tag: %s)', [FID, FTag]));
    {$ENDIF}
-
    for I := 0 to MAX_COMPONENT_TYPES - 1 do
-   begin
       if Assigned(FComponents[I]) then
       begin
          FComponents[I].Free;
          FComponents[I] := nil;
       end;
-   end;
-
-   FSignature      := [];
-   FComponentCount := 0;
-   FAlive          := False;
-   FPooled         := True;
-   FName           := '';
-
+   FSignature     := [];
+   FComponentCount:= 0;
+   FAlive         := False;
+   FPooled        := True;
+   FName          := '';
    {$IFDEF DEBUG}
    FComponentAddCount    := 0;
    FComponentRemoveCount := 0;
@@ -467,7 +404,6 @@ procedure TEntity.ActivateFromPool;
 begin
    FAlive  := True;
    FPooled := False;
-
    {$IFDEF DEBUG}
    Logger.Debug(Format('[Entity %d] Activated from pool (Tag: %s)', [FID, FTag]));
    {$ENDIF}
@@ -479,15 +415,14 @@ var
    I   : Integer;
    Comp: TComponent2D;
 begin
-   Logger.Info(Format('=== Entity %d Stats ===', [FID]));
-   Logger.Info(Format('Name: %s',           [FName]));
-   Logger.Info(Format('Tag: %s',            [FTag]));
-   Logger.Info(Format('Alive: %s',          [BoolToStr(FAlive, True)]));
-   Logger.Info(Format('Pooled: %s',         [BoolToStr(FPooled, True)]));
-   Logger.Info(Format('Components: %d',     [FComponentCount]));
-   Logger.Info(Format('Total Added: %d',    [FComponentAddCount]));
-   Logger.Info(Format('Total Removed: %d',  [FComponentRemoveCount]));
-
+   Logger.Info(Format('=== Entity %d Stats ===',    [FID]));
+   Logger.Info(Format('Name: %s',                   [FName]));
+   Logger.Info(Format('Tag: %s',                    [FTag]));
+   Logger.Info(Format('Alive: %s',                  [BoolToStr(FAlive, True)]));
+   Logger.Info(Format('Pooled: %s',                 [BoolToStr(FPooled, True)]));
+   Logger.Info(Format('Components: %d',             [FComponentCount]));
+   Logger.Info(Format('Total Added: %d',            [FComponentAddCount]));
+   Logger.Info(Format('Total Removed: %d',          [FComponentRemoveCount]));
    if FComponentCount > 0 then
    begin
       Logger.Info('Component List (by Registry ID):');
@@ -499,55 +434,51 @@ begin
                [I, Comp.ClassName, BoolToStr(Comp.Enabled, True)]));
       end;
    end;
-
    Logger.Info('========================');
 end;
 {$ENDIF}
 
 { ============================================================================
-  TEntityManager — implementation unchanged from original
+  TEntityManager
   ============================================================================ }
 
 constructor TEntityManager.Create;
 begin
    inherited Create;
-
-   FEntities        := TEntityList.Create(True);
-   FEntityMap       := TEntityMap.Create;
+   FEntities         := TEntityList.Create(True);  { owns active entities }
+   FEntityMap        := TEntityMap.Create;
    FEntityMap.Sorted := True;
-   FNextID          := 1;
-
+   FNextID           := 1;
    SetLength(FPools, 0);
-   FPoolingEnabled  := True;
-   FDefaultPoolSize := 50;
-   FMaxPoolSize     := 500;
-
+   FPoolingEnabled   := True;
+   FDefaultPoolSize  := 50;
+   FMaxPoolSize      := 500;
    {$IFDEF DEBUG}
    FTotalCreated   := 0;
    FTotalDestroyed := 0;
    FTotalPooled    := 0;
    FTotalReused    := 0;
-   Logger.Info('[EntityManager] Created with pooling enabled');
+   Logger.Info('[EntityManager] Created');
    {$ENDIF}
 end;
 
 destructor TEntityManager.Destroy;
 begin
    {$IFDEF DEBUG}
-   Logger.Info(Format('[EntityManager] Destroying with %d active entities',
+   Logger.Info(Format('[EntityManager] Destroying — active entities: %d',
       [FEntities.Count]));
    PrintStats;
    PrintPoolStats;
    {$ENDIF}
-
+   { ClearAllPools frees entities owned by pool lists.
+     FEntities.Free frees entities owned by the active list.
+     By the ownership invariant, no entity is freed twice. }
    ClearAllPools;
    FEntities.Free;
    FEntityMap.Free;
-
    {$IFDEF DEBUG}
    Logger.Info('[EntityManager] Destroyed');
    {$ENDIF}
-
    inherited;
 end;
 
@@ -571,26 +502,42 @@ begin
    PoolIndex := FindPool(ATag);
    if PoolIndex < 0 then
    begin
-      PoolIndex := Length(FPools);
+      PoolIndex                      := Length(FPools);
       SetLength(FPools, PoolIndex + 1);
-      FPools[PoolIndex].Tag      := ATag;
-      FPools[PoolIndex].Entities := TEntityList.Create(True);
-      FPools[PoolIndex].MaxSize  := FMaxPoolSize;
-      FPools[PoolIndex].HitCount := 0;
-      FPools[PoolIndex].MissCount:= 0;
+      FPools[PoolIndex].Tag          := ATag;
+      { OwnsObjects=True: this list owns the inactive entity objects.
+        ClearAllPools / ClearPool frees them through this list. }
+      FPools[PoolIndex].Entities     := TEntityList.Create(True);
+      FPools[PoolIndex].MaxSize      := FMaxPoolSize;
+      FPools[PoolIndex].HitCount     := 0;
+      FPools[PoolIndex].MissCount    := 0;
       {$IFDEF DEBUG}
-      Logger.Info(Format('[EntityManager] Created pool for tag "%s"', [ATag]));
+      Logger.Info(Format('[EntityManager] Pool created for tag "%s"', [ATag]));
       {$ENDIF}
    end;
    Result := PoolIndex;
 end;
 
+{ AcquireFromPool
+  ─────────────────────────────────────────────────────────────────────────────
+  Removes an entity from the pool list and registers it as active.
+
+  Ownership transfer: Pool^.Entities → FEntities
+    1. Temporarily disable Pool^.Entities.OwnsObjects so that Delete(LastIdx)
+       removes the pointer without calling E.Free.
+    2. Re-enable OwnsObjects immediately.
+    3. Add the entity to FEntities (which now owns it) and to FEntityMap.
+
+  Why take from the TAIL (Count-1)?
+    TFPGList.Delete(I) shifts all entries after I left by one — O(n-I) copies.
+    Deleting the last entry is O(1): no shift required. Since pool order is
+    irrelevant (any free entity is equally valid), this is a free optimization.
+  ───────────────────────────────────────────────────────────────────────────── }
 function TEntityManager.AcquireFromPool(const ATag: string): TEntity;
 var
    PoolIndex: Integer;
    Pool     : ^TEntityPool;
-   E        : TEntity;
-   I        : Integer;
+   LastIdx  : Integer;
 begin
    Result := nil;
    if not FPoolingEnabled then Exit;
@@ -600,41 +547,36 @@ begin
 
    Pool := @FPools[PoolIndex];
 
-   for I := 0 to Pool^.Entities.Count - 1 do
+   if Pool^.Entities.Count = 0 then
    begin
-      E := Pool^.Entities[I];
-      if E.Pooled then
-      begin
-         Result := E;
-         Result.ActivateFromPool;
-         Inc(Pool^.HitCount);
-         {$IFDEF DEBUG}
-         Inc(FTotalReused);
-         Logger.Debug(Format('[EntityManager] Entity reused from pool "%s" (ID: %d)',
-            [ATag, Result.ID]));
-         {$ENDIF}
-         Exit;
-      end;
+      Inc(Pool^.MissCount);
+      {$IFDEF DEBUG}
+      Logger.Debug(Format('[EntityManager] Pool miss (empty): tag="%s"', [ATag]));
+      {$ENDIF}
+      Exit;
    end;
 
-   Inc(Pool^.MissCount);
-end;
+   { Take from the tail — O(1) removal, no list shifting. }
+   LastIdx := Pool^.Entities.Count - 1;
+   Result  := Pool^.Entities[LastIdx];
 
-procedure TEntityManager.ReturnToPool(AEntity: TEntity);
-var
-   PoolIndex: Integer;
-begin
-   if not Assigned(AEntity) or (AEntity.Tag = '') then Exit;
+   { ── Ownership transfer: pool → FEntities ────────────────────────────────
+     Disable OwnsObjects so Delete does not call Result.Free,
+     then immediately re-enable it so future operations are safe. }
+   Pool^.Entities.FreeObjects := False;
+   Pool^.Entities.Delete(LastIdx);
+   Pool^.Entities.FreeObjects := True;
 
-   PoolIndex := FindPool(AEntity.Tag);
-   if PoolIndex < 0 then Exit;
+   { Reactivate the entity and register it in the active structures. }
+   Result.ActivateFromPool;
+   FEntities.Add(Result);
+   FEntityMap[Result.ID] := Result;
 
-   AEntity.ResetForPool;
-
+   Inc(Pool^.HitCount);
    {$IFDEF DEBUG}
-   Inc(FTotalPooled);
-   Logger.Debug(Format('[EntityManager] Entity returned to pool "%s" (ID: %d)',
-      [AEntity.Tag, AEntity.ID]));
+   Inc(FTotalReused);
+   Logger.Debug(Format('[EntityManager] Pool hit: tag="%s", ID=%d, pool remaining=%d',
+      [ATag, Result.ID, Pool^.Entities.Count]));
    {$ENDIF}
 end;
 
@@ -651,11 +593,21 @@ begin
    Inc(FNextID);
 end;
 
+{ CreatePooledEntity
+  ─────────────────────────────────────────────────────────────────────────────
+  Pool HIT  (AcquireFromPool succeeds):
+    The entity comes from the pool list, is added to FEntities + FEntityMap,
+    and its name is updated. No new object is allocated.
+
+  Pool MISS (pool empty or not found):
+    A fresh entity is created via CreateEntity (enters FEntities + FEntityMap
+    immediately as active). GetOrCreatePool ensures the pool slot exists so
+    that PurgeDestroyed can find it later when this entity is recycled.
+    The entity is NOT added to the pool list here — it starts its life as
+    active. It will be moved to the pool list by PurgeDestroyed when destroyed.
+  ───────────────────────────────────────────────────────────────────────────── }
 function TEntityManager.CreatePooledEntity(const ATag: string;
    const AName: string): TEntity;
-var
-   PoolIndex: Integer;
-   Pool     : ^TEntityPool;
 begin
    Result := AcquireFromPool(ATag);
    if Assigned(Result) then
@@ -664,27 +616,17 @@ begin
       Exit;
    end;
 
-   Result      := CreateEntity(AName);
-   Result.Tag  := ATag;
+   { Pool miss — create a fresh active entity. }
+   Result     := CreateEntity(AName);
+   Result.Tag := ATag;
 
-   PoolIndex := GetOrCreatePool(ATag);
-   Pool      := @FPools[PoolIndex];
+   { Ensure the pool slot exists so PurgeDestroyed can recycle it. }
+   GetOrCreatePool(ATag);
 
-   if Pool^.Entities.Count < Pool^.MaxSize then
-   begin
-      Pool^.Entities.Add(Result);
-      {$IFDEF DEBUG}
-      Logger.Debug(Format('[EntityManager] Entity added to pool "%s" (Pool size: %d)',
-         [ATag, Pool^.Entities.Count]));
-      {$ENDIF}
-   end
-   else
-   begin
-      {$IFDEF DEBUG}
-      Logger.Warn(Format('[EntityManager] Pool "%s" is full (%d entities)',
-         [ATag, Pool^.MaxSize]));
-      {$ENDIF}
-   end;
+   {$IFDEF DEBUG}
+   Logger.Debug(Format('[EntityManager] Pool miss — new entity: tag="%s", ID=%d',
+      [ATag, Result.ID]));
+   {$ENDIF}
 end;
 
 procedure TEntityManager.DestroyEntity(AID: TEntityID);
@@ -695,7 +637,7 @@ begin
    if Assigned(E) then
    begin
       {$IFDEF DEBUG}
-      Logger.Debug(Format('[EntityManager] Marking entity for destruction: ID=%d, Tag="%s"',
+      Logger.Debug(Format('[EntityManager] Marking entity dead: ID=%d, Tag="%s"',
          [AID, E.Tag]));
       {$ENDIF}
       E.Alive := False;
@@ -717,51 +659,111 @@ begin
    Result := FEntities;
 end;
 
+{ PurgeDestroyed
+  ─────────────────────────────────────────────────────────────────────────────
+  Called once per frame by TWorld.Update after all system updates complete.
+  Iterates FEntities from back to front (so that Delete(I) does not invalidate
+  earlier indices) and processes every entity with Alive=False.
+
+  For each dead entity:
+
+    ── RECYCLE PATH (tagged entity, pool enabled, pool not full) ────────────
+      1. ResetForPool   — frees all components, clears FSignature,
+                          sets FAlive=False, FPooled=True, FName=''.
+      2. Remove from FEntityMap (already done — happens for both paths).
+      3. Ownership transfer: FEntities → Pool^.Entities
+           FEntities.OwnsObjects := False  (prevent Free on Delete)
+           FEntities.Delete(I)             (removes pointer, no Free)
+           FEntities.OwnsObjects := True   (restore normal ownership)
+           Pool^.Entities.Add(E)           (pool takes ownership)
+      After this, FEntities contains no trace of the entity.
+      The entity is ready to be reactivated by AcquireFromPool.
+
+    ── DESTROY PATH (untagged entity, pooling disabled, or pool full) ───────
+      FEntities.Delete(I) with OwnsObjects=True calls E.Free immediately.
+      Entity memory is released.
+
+  Invariant upheld after every PurgeDestroyed call:
+    Every entry in FEntities has Alive=True.
+    Every entry in any Pool^.Entities has Alive=False and Pooled=True.
+  ───────────────────────────────────────────────────────────────────────────── }
 procedure TEntityManager.PurgeDestroyed;
 var
    I         : Integer;
    AID       : TEntityID;
-   Idx       : Integer;
+   MapIdx    : Integer;
    E         : TEntity;
-   EntityName: string;
    EntityTag : string;
+   PoolIdx   : Integer;
+   Pool      : ^TEntityPool;
    ShouldPool: Boolean;
 begin
    for I := FEntities.Count - 1 downto 0 do
    begin
       E := FEntities[I];
-      if not E.Alive then
+
+      { Fast-path: skip alive entities — the overwhelming majority. }
+      if E.Alive then
+         Continue;
+
+      AID       := E.ID;
+      EntityTag := E.Tag;
+
+      { Always remove from the ID map — entity is no longer addressable. }
+      MapIdx := FEntityMap.IndexOf(AID);
+      if MapIdx >= 0 then
+         FEntityMap.Delete(MapIdx);
+
+      { Determine whether to recycle or destroy. }
+      ShouldPool := (EntityTag <> '') and FPoolingEnabled;
+      if ShouldPool then
       begin
-         AID        := E.ID;
-         EntityName := E.Name;
-         EntityTag  := E.Tag;
-         ShouldPool := (EntityTag <> '') and FPoolingEnabled;
+         PoolIdx := FindPool(EntityTag);
+         if PoolIdx >= 0 then
+            Pool := @FPools[PoolIdx]
+         else
+            Pool := nil;
+      end
+      else
+         Pool := nil;
+
+      if Assigned(Pool) and (Pool^.Entities.Count < Pool^.MaxSize) then
+      begin
+         { ── RECYCLE PATH ────────────────────────────────────────────────────
+           Step 1: reset — all components freed, entity made blank and poolable. }
+         E.ResetForPool;
+
+         { Step 2: transfer ownership from FEntities to Pool^.Entities.
+           OwnsObjects controls whether TFPGObjectList calls E.Free on removal.
+           We disable it for the duration of the Delete call only. }
+         FEntities.FreeObjects := False;
+         FEntities.Delete(I);
+         FEntities.FreeObjects := True;
+
+         { Step 3: pool takes ownership. }
+         Pool^.Entities.Add(E);
 
          {$IFDEF DEBUG}
+         Inc(FTotalPooled);
          Logger.Debug(Format(
-            '[EntityManager] Purging entity: ID=%d, Name="%s", Tag="%s", Pool=%s',
-            [AID, EntityName, EntityTag, BoolToStr(ShouldPool, True)]));
+            '[EntityManager] Entity recycled → pool "%s" (ID=%d, pool size=%d)',
+            [EntityTag, AID, Pool^.Entities.Count]));
          {$ENDIF}
-
-         Idx := FEntityMap.IndexOf(AID);
-         if Idx >= 0 then
-            FEntityMap.Delete(Idx);
-
+      end
+      else
+      begin
+         { ── DESTROY PATH ────────────────────────────────────────────────────
+           OwnsObjects=True: FEntities.Delete calls E.Free. }
+         FEntities.Delete(I);
+         {$IFDEF DEBUG}
+         Inc(FTotalDestroyed);
          if ShouldPool then
-            ReturnToPool(E)
+            Logger.Debug(Format(
+               '[EntityManager] Pooled entity destroyed (pool full/missing): ID=%d',
+               [AID]))
          else
-         begin
-            try
-               FEntities.Delete(I);
-               {$IFDEF DEBUG}
-               Inc(FTotalDestroyed);
-               {$ENDIF}
-            except
-               on Ex: Exception do
-                  Logger.Error(Format('[EntityManager] Error purging entity %d: %s',
-                     [AID, Ex.Message]));
-            end;
-         end;
+            Logger.Debug(Format('[EntityManager] Entity destroyed: ID=%d', [AID]));
+         {$ENDIF}
       end;
    end;
 end;
@@ -776,10 +778,21 @@ begin
    if AInitialSize > 0 then
       PreallocatePool(ATag, AInitialSize);
    {$IFDEF DEBUG}
-   Logger.Info(Format('[EntityManager] Pool "%s" configured (Max: %d)', [ATag, AMaxSize]));
+   Logger.Info(Format('[EntityManager] Pool "%s" configured (Max=%d)', [ATag, AMaxSize]));
    {$ENDIF}
 end;
 
+{ PreallocatePool
+  ─────────────────────────────────────────────────────────────────────────────
+  Creates entities and places them DIRECTLY into the pool list.
+  They never enter FEntities or FEntityMap until AcquireFromPool is called.
+
+  This avoids the round-trip overhead of:
+    CreateEntity (FEntities + FEntityMap) → PurgeDestroyed → recycle
+
+  The entity is constructed with a valid FNextID so that when it is later
+  activated, its ID is unique and can be safely inserted into FEntityMap.
+  ───────────────────────────────────────────────────────────────────────────── }
 procedure TEntityManager.PreallocatePool(const ATag: string; ACount: Integer);
 var
    I        : Integer;
@@ -787,41 +800,56 @@ var
    PoolIndex: Integer;
 begin
    PoolIndex := GetOrCreatePool(ATag);
+
    for I := 1 to ACount do
    begin
       if FPools[PoolIndex].Entities.Count >= FPools[PoolIndex].MaxSize then
          Break;
-      E      := CreateEntity(Format('%s_Pool_%d', [ATag, I]));
-      E.Tag  := ATag;
-      E.ResetForPool;
+
+      { Create directly — bypass CreateEntity to avoid FEntities/FEntityMap
+        registration. The entity starts as pooled/inactive. }
+      E        := TEntity.Create(FNextID, Format('%s_Pool_%d', [ATag, I]));
+      E.Tag    := ATag;
+      E.Alive  := False;
+      E.Pooled := True;
+      Inc(FNextID);
+
+      { Pool owns the entity from the start. }
       FPools[PoolIndex].Entities.Add(E);
    end;
+
    {$IFDEF DEBUG}
-   Logger.Info(Format('[EntityManager] Pool "%s" preallocated with %d entities',
+   Logger.Info(Format('[EntityManager] Pool "%s" preallocated: %d entities ready',
       [ATag, FPools[PoolIndex].Entities.Count]));
    {$ENDIF}
 end;
 
+{ ClearPool
+  Empties the pool list for ATag. OwnsObjects=True so .Clear calls E.Free
+  on each entity, releasing all components and entity memory. }
 procedure TEntityManager.ClearPool(const ATag: string);
 var
    PoolIndex: Integer;
-   I        : Integer;
 begin
    PoolIndex := FindPool(ATag);
    if PoolIndex < 0 then Exit;
-   for I := FPools[PoolIndex].Entities.Count - 1 downto 0 do
-      FPools[PoolIndex].Entities.Delete(I);
+   FPools[PoolIndex].Entities.Clear;  { OwnsObjects=True → frees all pooled entities }
    {$IFDEF DEBUG}
    Logger.Info(Format('[EntityManager] Pool "%s" cleared', [ATag]));
    {$ENDIF}
 end;
 
+{ ClearAllPools
+  Frees every pool list. Since each pool list has OwnsObjects=True, .Free
+  releases all entities currently in that pool. FEntities is NOT touched here;
+  its entities are freed when FEntities.Free is called in the destructor.
+  The ownership invariant ensures no entity is freed twice. }
 procedure TEntityManager.ClearAllPools;
 var
    I: Integer;
 begin
    for I := 0 to High(FPools) do
-      FPools[I].Entities.Free;
+      FPools[I].Entities.Free;  { OwnsObjects=True → frees all pooled entity objects }
    SetLength(FPools, 0);
    {$IFDEF DEBUG}
    Logger.Info('[EntityManager] All pools cleared');
@@ -844,39 +872,28 @@ end;
 
 procedure TEntityManager.PrintPoolStats;
 var
-   I, J        : Integer;
-   Pool        : ^TEntityPool;
-   ActiveCount : Integer;
-   PooledCount : Integer;
-   HitRate     : Single;
-   TotalAccess : Int64;
+   I          : Integer;
+   Pool       : ^TEntityPool;
+   HitRate    : Single;
+   TotalAccess: Int64;
 begin
    if Length(FPools) = 0 then
    begin
-      Logger.Info('No entity pools configured');
+      Logger.Info('[EntityManager] No pools configured');
       Exit;
    end;
-
    Logger.Info('=== Entity Pool Stats ===');
    for I := 0 to High(FPools) do
    begin
       Pool        := @FPools[I];
-      ActiveCount := 0;
-      PooledCount := 0;
-      for J := 0 to Pool^.Entities.Count - 1 do
-         if Pool^.Entities[J].Pooled then Inc(PooledCount)
-         else Inc(ActiveCount);
-
       TotalAccess := Pool^.HitCount + Pool^.MissCount;
       if TotalAccess > 0 then
          HitRate := (Pool^.HitCount / TotalAccess) * 100.0
       else
          HitRate := 0.0;
-
-      Logger.Info(Format('Pool: "%s"', [Pool^.Tag]));
-      Logger.Info(Format('  Total Size: %d / %d', [Pool^.Entities.Count, Pool^.MaxSize]));
-      Logger.Info(Format('  Active: %d', [ActiveCount]));
-      Logger.Info(Format('  Pooled: %d', [PooledCount]));
+      Logger.Info(Format('Pool: "%s"',            [Pool^.Tag]));
+      Logger.Info(Format('  Available (pooled): %d / %d',
+         [Pool^.Entities.Count, Pool^.MaxSize]));
       Logger.Info(Format('  Hit Rate: %.1f%% (%d hits, %d misses)',
          [HitRate, Pool^.HitCount, Pool^.MissCount]));
       Logger.Info('');
@@ -886,21 +903,17 @@ end;
 
 function TEntityManager.GetPoolUtilization(const ATag: string): Single;
 var
-   PoolIndex   : Integer;
-   ActiveCount : Integer;
-   I           : Integer;
+   PoolIndex: Integer;
 begin
    Result    := 0.0;
    PoolIndex := FindPool(ATag);
    if PoolIndex < 0 then Exit;
-
-   ActiveCount := 0;
-   for I := 0 to FPools[PoolIndex].Entities.Count - 1 do
-      if not FPools[PoolIndex].Entities[I].Pooled then
-         Inc(ActiveCount);
-
-   if FPools[PoolIndex].Entities.Count > 0 then
-      Result := (ActiveCount / FPools[PoolIndex].Entities.Count) * 100.0;
+   { In the new model, all entities in Pool^.Entities are by definition pooled.
+     Utilization = pool list size as a fraction of the maximum capacity.
+     0% = pool empty (all entities active or none created yet).
+     100% = pool at max capacity (all pre-allocated entities available). }
+   if FPools[PoolIndex].MaxSize > 0 then
+      Result := (FPools[PoolIndex].Entities.Count / FPools[PoolIndex].MaxSize) * 100.0;
 end;
 {$ENDIF}
 

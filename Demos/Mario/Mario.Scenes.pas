@@ -191,7 +191,6 @@ end;
 { ============================================================================
   TGameplayScene
   ============================================================================ }
-
 constructor TGameplayScene.Create(AScreenW, AScreenH: Integer);
 begin
    inherited Create('Gameplay');
@@ -342,10 +341,7 @@ begin
    DrawFPS(FScreenW - 80, FScreenH - 20);
 end;
 
-{ ============================================================================
-  TGameOverScene
-  ============================================================================ }
-
+{$REGION 'TGameOverScene'}
 constructor TGameOverScene.Create(AScreenW, AScreenH: Integer);
 begin
    inherited Create('GameOver');
@@ -383,5 +379,6 @@ begin
 
    DrawText('Press R to play again', FScreenW div 2 - 140, FScreenH div 2 + 40, 24, WHITE);
 end;
+{$ENDREGION}
 
 end.

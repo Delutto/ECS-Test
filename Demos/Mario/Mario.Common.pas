@@ -27,7 +27,7 @@ const
    ACCEL_RUN      = 600.0;
    ACCEL_AIR      = 300.0;
    FRICTION_GND   = 500.0;
-   FRICTION_SKID  = 1000.0; // Friction when turning around
+   FRICTION_SKID  = 550.0; // Friction when turning around
    FRICTION_AIR   = 50.0;
    SKID_THRESHOLD = 50.0;   // Min speed to trigger skid state
 

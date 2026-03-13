@@ -41,59 +41,58 @@ uses
    Mario.Scenes;
 
 type
-  TMarioGame = class(TEngine2D)
-  private
-    FTitleScene   : TTitleScene;
-    FGameplayScene: TGameplayScene;
-    FGameOverScene: TGameOverScene;
-  protected
-    procedure OnInit;                   override;
-    procedure OnUpdate(ADelta: Single);  override;
-    procedure OnRender;                  override;
-    procedure OnShutdown;                override;
-  public
-    constructor Create;
-  end;
+   TMarioGame = class(TEngine2D)
+   private
+      FTitleScene   : TTitleScene;
+      FGameplayScene: TGameplayScene;
+      FGameOverScene: TGameOverScene;
+      protected
+      procedure OnInit; override;
+      procedure OnUpdate(ADelta: Single); override;
+      procedure OnRender; override;
+      procedure OnShutdown; override;
+   public
+      constructor Create;
+   end;
 
 implementation
 
 constructor TMarioGame.Create;
 begin
-  inherited Create(800, 480, 'Pascal2D - Super Mario World Demo', 60);
+   inherited Create(800, 480, 'Pascal2D - Super Mario World Demo', 60);
 end;
 
 procedure TMarioGame.OnInit;
 begin
-  { 1. Register player input bindings. }
-  SetupPlayerInput;
+   { 1. Register player input bindings. }
+   SetupPlayerInput;
 
-  { 2. Generate all procedural textures (requires active OpenGL context). }
-  GenerateAssets;
+   { 2. Generate all procedural textures (requires active OpenGL context). }
+   GenerateAssets;
 
-  { 3. Create the three scenes.
-       Scene objects are owned by TMarioGame; the manager holds non-owning
-       references. TMarioGame.OnShutdown frees them after the manager is done. }
-  FTitleScene    := TTitleScene.Create(ScreenW, ScreenH);
-  FGameplayScene := TGameplayScene.Create(ScreenW, ScreenH);
-  FGameOverScene := TGameOverScene.Create(ScreenW, ScreenH);
+   { 3. Create the three scenes.
+        Scene objects are owned by TMarioGame; the manager holds non-owning references. TMarioGame.OnShutdown frees them after the manager is done. }
+   FTitleScene    := TTitleScene.Create(ScreenW, ScreenH);
+   FGameplayScene := TGameplayScene.Create(ScreenW, ScreenH);
+   FGameOverScene := TGameOverScene.Create(ScreenW, ScreenH);
 
-  { 4. Register scenes with the manager (calls Load on each). }
-  SceneManager.RegisterScene(FTitleScene);
-  SceneManager.RegisterScene(FGameplayScene);
-  SceneManager.RegisterScene(FGameOverScene);
+   { 4. Register scenes with the manager (calls Load on each). }
+   SceneManager.RegisterScene(FTitleScene);
+   SceneManager.RegisterScene(FGameplayScene);
+   SceneManager.RegisterScene(FGameOverScene);
 
-  { 5. Activate the title screen immediately. }
-  SceneManager.ChangeSceneImmediate('Title');
+   { 5. Activate the title screen immediately. }
+   SceneManager.ChangeSceneImmediate('Title');
 end;
 
 procedure TMarioGame.OnUpdate(ADelta: Single);
 begin
-  SceneManager.Update(ADelta);
+   SceneManager.Update(ADelta);
 end;
 
 procedure TMarioGame.OnRender;
 begin
-  SceneManager.Render;
+   SceneManager.Render;
 end;
 
 procedure TMarioGame.OnShutdown;

@@ -168,10 +168,7 @@ implementation
 uses
    P2D.Utils.Logger;
 
-{ ============================================================================
-  TScene2D
-  ============================================================================ }
-
+{ TScene2D }
 constructor TScene2D.Create(const AName: string);
 begin
    inherited Create;
@@ -282,10 +279,7 @@ begin
    {$ENDIF}
 end;
 
-{ ============================================================================
-  TSceneManager
-  ============================================================================ }
-
+{ TSceneManager }
 constructor TSceneManager.Create;
 begin
    inherited Create;
@@ -376,15 +370,15 @@ end;
 
 function TSceneManager.GetScene(const AName: string): TScene2D;
 var
-  I: Integer;
+   I: Integer;
 begin
-  Result := nil;
-  for I := 0 to High(FScenes) do
-    if FScenes[I].Name = AName then
-    begin
-      Result := FScenes[I];
-      Exit;
-    end;
+   Result := nil;
+   for I := 0 to High(FScenes) do
+      if FScenes[I].Name = AName then
+      begin
+         Result := FScenes[I];
+         Exit;
+      end;
 end;
 
 procedure TSceneManager.ChangeScene(const AName: string);

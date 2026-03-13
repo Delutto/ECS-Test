@@ -36,7 +36,7 @@ procedure TPlayerInputSystem.Init;
 begin
    inherited;
 
-   RequireComponent(TPlayerTag);
+   //RequireComponent(TPlayerTag);
    RequireComponent(TPlayerComponent);
    RequireComponent(TInputMapComponent);
 end;

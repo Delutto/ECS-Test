@@ -6,7 +6,8 @@ interface
 
 uses
    SysUtils, Math, raylib,
-   P2D.Core.InputManager, P2D.Core.Types, P2D.Core.World;
+   P2D.Common,
+   P2D.Core.Types, P2D.Core.World, P2D.Core.InputManager;
 
 type
    { -------------------------------------------------------------------------
@@ -105,9 +106,6 @@ end;
 
 { Loop principal único — nenhuma subclasse deve reescrever este método. }
 procedure TEngine2D.Run;
-const
-   FIXED_DT  = 1.0 / 60.0; // passo físico fixo (60 Hz)
-   MAX_DELTA = 0.25;       // teto de delta — evita "spiral of death"
 var
    Delta, Accumulator: Single;
 begin

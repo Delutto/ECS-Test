@@ -21,9 +21,6 @@ type
    TRectangle = raylib.TRectangle;
    TColor   = raylib.TColor;
 
-const
-  INVALID_ENTITY : TEntityID = 0;
-
 // ---------------------------------------------------------------------------
 // Axis-aligned bounding rectangle
 // ---------------------------------------------------------------------------
@@ -38,6 +35,9 @@ type
       function Overlaps(const Other: TRectF): Boolean; inline;
       function Contains(const P: TVector2): Boolean; inline;
    end;
+
+const
+   INVALID_ENTITY : TEntityID = 0;
 
 implementation
 

@@ -26,12 +26,10 @@ unit P2D.Core.ComponentRegistry;
 interface
 
 uses
-  StrUtils, SysUtils, fgl,
-  P2D.Core.Types,
-  P2D.Core.Component;
-
-const
-  MAX_COMPONENT_TYPES = 64;  // Limite de tipos de componentes (0-63)
+   StrUtils, SysUtils, fgl,
+   P2D.Common,
+   P2D.Core.Types,
+   P2D.Core.Component;
 
 type
   {---------------------------------------------------------------------------

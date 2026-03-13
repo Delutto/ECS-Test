@@ -4,31 +4,38 @@ unit P2D.Components.Camera2D;
 
 interface
 
-uses raylib, P2D.Core.Component, P2D.Core.Types;
+uses
+   raylib,
+   P2D.Core.Types,
+   P2D.Core.Entity,
+   P2D.Core.Component;
 
 type
-  TCamera2DComponent = class(TComponent2D)
-  public
-    RaylibCamera: TCamera2D;
-    Zoom        : Single;
-    FollowSpeed : Single;
-    Bounds      : TRectF;   // world limits (0,0,0,0 = unlimited)
-    UseBounds   : Boolean;
-    constructor Create; override;
-  end;
+   TCamera2DComponent = class(TComponent2D)
+   public
+      RaylibCamera: TCamera2D;
+      Zoom        : Single;
+      FollowSpeed : Single;
+      Bounds      : TRectF;   // world limits (0,0,0,0 = unlimited)
+      UseBounds   : Boolean;
+      Target      : TEntity;
+      constructor Create; override;
+   end;
 
 implementation
 
 constructor TCamera2DComponent.Create;
 begin
-  inherited Create;
+   inherited Create;
 
-  FillChar(RaylibCamera, SizeOf(RaylibCamera), 0);
-  RaylibCamera.Zoom := 1.0;
-  Zoom        := 1.0;
-  FollowSpeed := 5.0;
-  UseBounds   := False;
-  Bounds.Create(0, 0, 0, 0);
+   FillChar(RaylibCamera, SizeOf(RaylibCamera), 0);
+   RaylibCamera.Zoom := 1.0;
+   Zoom        := 3.0;
+   FollowSpeed := 5.0;
+   UseBounds   := False;
+   Bounds.Create(0, 0, 0, 0);
+
+   Target := nil;
 end;
 
 end.

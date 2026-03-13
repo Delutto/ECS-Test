@@ -9,7 +9,7 @@ uses
 
 type
    // Tag components – zero data, used only for entity classification
-   TPlayerTag    = class(TComponent2D) end;
+   //TPlayerTag    = class(TComponent2D) end;
    TEnemyTag     = class(TComponent2D) end;
    TGroundTag    = class(TComponent2D) end;
    TCoinTag      = class(TComponent2D) end;

@@ -7,8 +7,7 @@ interface
 uses
    SysUtils, Math, raylib,
    P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.Camera2D,
-   Mario.Components.Player;
+   P2D.Components.Transform, P2D.Components.Camera2D;
 
 type
    TCameraSystem = class(TSystem2D)
@@ -24,6 +23,8 @@ type
       procedure BeginCameraMode;
       procedure EndCameraMode;
       function  GetRaylibCamera: TCamera2D;
+
+      //property Target: TEntity read FTarget write FTarget;
    end;
 
 implementation
@@ -32,15 +33,19 @@ constructor TCameraSystem.Create(AWorld: TWorldBase; AScreenW, AScreenH: Integer
 begin
    inherited Create(AWorld);
 
-   Priority := 15;
-   Name     := 'CameraSystem';
-   FScreenW := AScreenW;
-   FScreenH := AScreenH;
+   Priority    := 15;
+   Name        := 'CameraSystem';
+
+   FCamEntity  := nil;
+   FTarget     := nil;
+   FScreenW    := AScreenW;
+   FScreenH    := AScreenH;
 end;
 
 procedure TCameraSystem.Init;
 var
    E: TEntity;
+   Cam: TCamera2DComponent;
 begin
    inherited;
 
@@ -52,17 +57,11 @@ begin
    FTarget    := nil;
    for E in GetMatchingEntities do
    begin
-      if {E.Alive and }E.HasComponent(TCamera2DComponent) then
+      Cam := TCamera2DComponent(E.GetComponent(TCamera2DComponent));
+      if Cam <> nil then
       begin
          FCamEntity := E;
-         Break;
-      end;
-   end;
-   for E in GetMatchingEntities do
-   begin
-      if {E.Alive and }E.HasComponent(TPlayerTag) then
-      begin
-         FTarget := E;
+         FTarget := Cam.Target;
          Break;
       end;
    end;

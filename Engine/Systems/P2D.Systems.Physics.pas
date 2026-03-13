@@ -5,10 +5,10 @@ unit P2D.Systems.Physics;
 interface
 
 uses
-  SysUtils, P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World, P2D.Components.Transform, P2D.Components.RigidBody;
-
-const
-  GRAVITY = 980.0; // pixels per second squared
+   SysUtils,
+   P2D.Common,
+   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Components.Transform, P2D.Components.RigidBody;
 
 type
 

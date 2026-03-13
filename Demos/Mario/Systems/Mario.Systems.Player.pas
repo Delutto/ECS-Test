@@ -45,7 +45,7 @@ end;
 procedure TPlayerPhysicsSystem.Init;
 begin
    inherited;
-   RequireComponent(TPlayerTag);
+   //RequireComponent(TPlayerTag);
    RequireComponent(TTransformComponent);
    RequireComponent(TRigidBodyComponent);
    RequireComponent(TPlayerComponent);

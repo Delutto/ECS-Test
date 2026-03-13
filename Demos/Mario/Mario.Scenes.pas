@@ -34,7 +34,7 @@ unit Mario.Scenes;
 interface
 
 uses
-   SysUtils, raylib,
+   SysUtils, raylib, Math,
    P2D.Core.Scene,
    P2D.Core.World,
    P2D.Core.Entity,
@@ -89,6 +89,8 @@ type
       FCamSys: TCameraSystem;
       FScreenW: Integer;
       FScreenH: Integer;
+
+      FAccumulator: Single;
 
       procedure RegisterSystems;
       procedure OnPlayerDied(AEvent: TEvent2D);
@@ -237,6 +239,7 @@ end;
 
 procedure TGameplayScene.DoEnter;
 begin
+   FAccumulator := 0;
    { Create all level entities.
     If this is not the first entry (i.e. a restart), the old entities were already purged in DoExit, so the World is clean. }
    LoadLevel(World);
@@ -293,21 +296,23 @@ const
    FIXED_DT : Single = 1.0 / 60.0;
    MAX_DELTA: Single = 0.25;
 var
-   ClampedDelta: Single;
+   Delta: Single;
 begin
    if not Active or Paused then
       Exit;
 
-   ClampedDelta := ADelta;
-   if ClampedDelta > MAX_DELTA then
-      ClampedDelta := MAX_DELTA;
+   Delta        := Min(ADelta, MAX_DELTA);
+   FAccumulator := FAccumulator + Delta;
 
-   { Fixed-step physics and collision. }
-   World.FixedUpdate(ClampedDelta);
+   while FAccumulator >= FIXED_DT do
+   begin
+      World.FixedUpdate(FIXED_DT);
+      FAccumulator := FAccumulator - FIXED_DT;
+   end;
 
    { Variable update: input, animation, camera, game rules.
    PurgeDestroyed and EventBus.Dispatch are called inside World.Update. }
-   World.Update(ClampedDelta);
+   World.Update(Delta);
 end;
 
 procedure TGameplayScene.Render;

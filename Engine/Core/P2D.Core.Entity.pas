@@ -59,6 +59,7 @@ interface
 
 uses
    SysUtils, fgl,
+   P2D.Common,
    P2D.Core.Types,
    P2D.Core.Component,
    P2D.Core.ComponentRegistry;
@@ -315,9 +316,11 @@ var
    CompID: Integer;
 begin
    Result := nil;
-   if not Assigned(AClass) then Exit;
+   if not Assigned(AClass) then
+      Exit;
    CompID := ComponentRegistry.GetComponentID(AClass);
-   if CompID < 0 then Exit;
+   if CompID < 0 then
+      Exit;
    Result := FComponents[CompID];
 end;
 
@@ -335,9 +338,17 @@ function TEntity.HasComponent(AClass: TComponent2DClass): Boolean;
 var
    CompID: Integer;
 begin
-   if not Assigned(AClass) then begin Result := False; Exit; end;
+   if not Assigned(AClass) then
+   begin
+      Result := False;
+      Exit;
+   end;
    CompID := ComponentRegistry.GetComponentID(AClass);
-   if CompID < 0 then begin Result := False; Exit; end;
+   if CompID < 0 then
+   begin
+      Result := False;
+      Exit;
+   end;
    Result := CompID in FSignature;
 end;
 
@@ -347,11 +358,14 @@ var
    Comp         : TComponent2D;
    CompClassName: string;
 begin
-   if not Assigned(AClass) then Exit;
+   if not Assigned(AClass) then
+      Exit;
    CompID := ComponentRegistry.GetComponentID(AClass);
-   if CompID < 0 then Exit;
+   if CompID < 0 then
+      Exit;
    Comp := FComponents[CompID];
-   if not Assigned(Comp) then Exit;
+   if not Assigned(Comp) then
+      Exit;
    CompClassName := Comp.ClassName;
    {$IFDEF DEBUG}
    Inc(FComponentRemoveCount);
@@ -364,8 +378,7 @@ begin
    except
       on E: Exception do
       begin
-         Logger.Error(Format('[Entity %d] Error removing component %s: %s',
-            [FID, CompClassName, E.Message]));
+         Logger.Error(Format('[Entity %d] Error removing component %s: %s', [FID, CompClassName, E.Message]));
          raise;
       end;
    end;
@@ -606,8 +619,7 @@ end;
     The entity is NOT added to the pool list here — it starts its life as
     active. It will be moved to the pool list by PurgeDestroyed when destroyed.
   ───────────────────────────────────────────────────────────────────────────── }
-function TEntityManager.CreatePooledEntity(const ATag: string;
-   const AName: string): TEntity;
+function TEntityManager.CreatePooledEntity(const ATag: string; const AName: string): TEntity;
 begin
    Result := AcquireFromPool(ATag);
    if Assigned(Result) then

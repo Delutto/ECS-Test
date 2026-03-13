@@ -6,6 +6,7 @@ interface
 
 uses
    Classes, SysUtils, raylib,
+   P2D.Common,
    P2D.Core.Types,
    P2D.Core.Entity,
    P2D.Core.World,
@@ -31,7 +32,7 @@ function  CreatePlayer    (AWorld: TWorld; AX, AY: Single): TEntity;
 function  CreateGoomba    (AWorld: TWorld; AX, AY: Single): TEntity;
 function  CreateCoin      (AWorld: TWorld; AX, AY: Single): TEntity;
 function  CreateTileMap   (AWorld: TWorld): TEntity;
-function  CreateCamera    (AWorld: TWorld): TEntity;
+function  CreateCamera    (AWorld: TWorld; Target: TEntity = nil): TEntity;
 function  CreateMusicPlayer(AWorld: TWorld; const AFileName: string; AVolume: Single = 1.0; AAutoPlay: Boolean = True): TEntity;
 
 implementation
@@ -180,7 +181,7 @@ begin
 
    Anim.Play('idle');
 
-   E.AddComponent(TPlayerTag.Create);
+   //E.AddComponent(TPlayerTag.Create);
    E.AddComponent(TPlayerComponent.Create);
 
    IM         := TInputMapComponent(E.AddComponent(TInputMapComponent.Create));
@@ -344,7 +345,7 @@ end;
 
 { ── CreateCamera ─────────────────────────────────────────────────────────── }
 
-function CreateCamera(AWorld: TWorld): TEntity;
+function CreateCamera(AWorld: TWorld; Target: TEntity): TEntity;
 var
    E   : TEntity;
    Tr  : TTransformComponent;
@@ -360,6 +361,7 @@ begin
    Cam.FollowSpeed := 6.0;
    Cam.UseBounds   := True;
    Cam.Bounds      := TRectF.Create(0, 0, 40 * 16, 15 * 16);
+   Cam.Target      := Target;
 
    Result := E;
 end;

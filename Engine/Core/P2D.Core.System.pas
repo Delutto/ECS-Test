@@ -133,7 +133,7 @@ type
       destructor  Destroy; override;
 
       procedure Init; virtual;
-      procedure Update(ADelta: Single); virtual; abstract;
+      procedure Update(ADelta: Single); virtual;
       procedure FixedUpdate(AFixedDelta: Single); virtual;
       procedure Render; virtual;
       procedure Shutdown; virtual;
@@ -427,6 +427,12 @@ end;
 procedure TSystem2D.Init;
 begin
    { Subclasses chamam RequireComponent() aqui. }
+end;
+
+// Default implementation — does nothing
+procedure TSystem2D.Update(ADelta: Single);
+begin
+  // No-op by default
 end;
 
 procedure TSystem2D.FixedUpdate(AFixedDelta: Single);

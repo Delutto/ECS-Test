@@ -18,7 +18,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <SearchPaths>
-            <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;Systems;Components"/>
+            <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;Systems;Components;../../Engine"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -264,6 +264,10 @@
         <Filename Value="Mario.Scenes.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="../../Engine/P2D.Common.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -273,7 +277,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;Systems;Components"/>
+      <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;Systems;Components;../../Engine"/>
       <UnitOutputDirectory Value="../../Trash"/>
     </SearchPaths>
     <Parsing>

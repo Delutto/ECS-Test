@@ -252,22 +252,22 @@ begin
    Tr.Position := Vector2Create(AX, AY);
 
    Spr            := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
-   Spr.Texture    := TexCoin;
+   Spr.Texture    := TResourceManager2D.Instance.LoadTexture(COIN_SHEET_PATH);
    Spr.OwnsTexture := False;
-   Spr.SourceRect := RectangleCreate(0, 0, 16, 16);
+   Spr.SourceRect := RectangleCreate(0, 0, 12, 16);
 
    Col           := TColliderComponent(E.AddComponent(TColliderComponent.Create));
    Col.Tag       := ctCoin;
    Col.IsTrigger := True;
-   Col.Size      := Vector2Create(12, 12);
-   Col.Offset    := Vector2Create(2, 2);
+   Col.Size      := Vector2Create(12, 16);
+   Col.Offset    := Vector2Create(0, 0);
 
    Anim := TAnimationComponent(E.AddComponent(TAnimationComponent.Create));
    Clip := TAnimation.Create('spin', True);
-   AddFrame(Clip, 0, 0, 16, 16, 0.12);
-   AddFrame(Clip, 1, 0, 16, 16, 0.12);
-   AddFrame(Clip, 2, 0, 16, 16, 0.12);
-   AddFrame(Clip, 3, 0, 16, 16, 0.12);
+   AddFrame(Clip, 0, 0, 12, 16, 0.14);
+   AddFrame(Clip, 1, 0, 12, 16, 0.14);
+   AddFrame(Clip, 2, 0, 12, 16, 0.14);
+   AddFrame(Clip, 3, 0, 12, 16, 0.14);
    Anim.AddAnimation(Clip);
    Anim.Play('spin');
 

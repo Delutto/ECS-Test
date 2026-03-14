@@ -20,10 +20,11 @@ type
       FSystems       : TSystemList;
       FEventBus      : TEventBus;
       FShutdownCalled: Boolean;
+      FStructureDirty: Boolean;
 
       procedure SortSystems;
       procedure InvalidateAllSystemCaches;
-
+      procedure MarkStructureDirty; inline;
    protected
       function GetEntities: TEntityManager; override;
       function GetEventBus: TEventBus; override;
@@ -35,7 +36,7 @@ type
       { --- Entidades --------------------------------------------------------- }
       function  CreateEntity(const AName: string = ''): TEntity; override;
 
-      { Nova API: Criação com pooling }
+      { Criação com pooling }
       function  CreatePooledEntity(const ATag: string; const AName: string = ''): TEntity;
 
       procedure DestroyEntity(AID: TEntityID); override;
@@ -77,6 +78,9 @@ type
           3. LoadLevel         — recria entidades
           4. Init              — reinicializa sistemas com as novas entidades }
       procedure ShutdownSystems;
+
+      // Call this ONCE after bulk creation
+      procedure FlushStructureChanges;
 
       { Debug }
       {$IFDEF DEBUG}
@@ -148,6 +152,11 @@ var
 begin
    for S in FSystems do
       S.InvalidateCache;
+end;
+
+procedure TWorld.MarkStructureDirty;
+begin
+   FStructureDirty := True;
 end;
 
 function TWorld.CreateEntity(const AName: string): TEntity;
@@ -250,6 +259,7 @@ procedure TWorld.Update(ADelta: Single);
 var
    S: TSystem2D;
 begin
+   FlushStructureChanges;
    for S in FSystems do
       if S.Enabled then
          S.Update(ADelta);
@@ -337,6 +347,15 @@ begin
    {$IFDEF DEBUG}
    Logger.Info('[World] ShutdownSystems concluído — pronto para re-Init.');
    {$ENDIF}
+end;
+
+procedure TWorld.FlushStructureChanges;
+begin
+   if FStructureDirty then
+   begin
+      InvalidateAllSystemCaches;
+      FStructureDirty := False;
+   end;
 end;
 
 {$IFDEF DEBUG}

@@ -25,10 +25,8 @@ procedure UnloadAssets;
 
 // Textures accessible by the rest of the demo
 var
-   TexPlayer    : TTexture2D;   // spritesheet: 8 frames x 2 rows (small/big)
    TexEnemy     : TTexture2D;   // goomba: 2 frames
    TexTiles     : TTexture2D;   // tileset: 4 tiles (ground,brick,block,coin)
-   TexCoin      : TTexture2D;   // coin spin: 4 frames
    TexBackground: TTexture2D;   // sky gradient with hills
 
 implementation
@@ -148,32 +146,6 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Spinning coin – 16x16, 4 frames
-// ---------------------------------------------------------------------------
-procedure MakeCoin;
-var
-   img: TImage;
-   F: Integer;
-   W: Integer;
-begin
-   img := GenImageColor(64, 16, ColorCreate(0,0,0,0));
-   // Widths for each frame simulate rotation: 14, 8, 2, 8
-   for F := 0 to 3 do
-   begin
-      case F of
-         0: W := 14;
-         1: W := 8;
-         2: W := 2;
-         3: W := 8;
-      end;
-      DrawCircleImg(@img, F*16+8, 8, W div 2, ColorCreate(255,215,0, 255));
-      DrawCircleImg(@img, F*16+8, 8, W div 4, ColorCreate(255,240,100, 255));
-   end;
-   TexCoin := LoadTextureFromImage(img);
-   UnloadImage(img);
-end;
-
-// ---------------------------------------------------------------------------
 // Background – sky + hills + clouds (512 x 240)
 // ---------------------------------------------------------------------------
 procedure MakeBackground;
@@ -219,20 +191,15 @@ procedure GenerateAssets;
 begin
    MakeEnemy;
    MakeTiles;
-   MakeCoin;
    MakeBackground;
 end;
 
 procedure UnloadAssets;
 begin
-   if TexPlayer.Id > 0 then
-      UnloadTexture(TexPlayer);
    if TexEnemy.Id > 0 then
       UnloadTexture(TexEnemy);
    if TexTiles.Id > 0 then
       UnloadTexture(TexTiles);
-   if TexCoin.Id > 0 then
-      UnloadTexture(TexCoin);
    if TexBackground.Id > 0 then
       UnloadTexture(TexBackground);
 end;

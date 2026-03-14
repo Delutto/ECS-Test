@@ -77,6 +77,10 @@ begin
    Action.AddBinding(TInputBinding.FromKey(KEY_ESCAPE));
    Action.AddBinding(TInputBinding.FromKey(KEY_P));
    Action.AddBinding(TInputBinding.FromGamepadButton(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)); // Start
+
+   { ── Shader On/Off ────────────────────────────────────────────────────── }
+   Action := Map.AddAction('Shader');
+   Action.AddBinding(TInputBinding.FromKey(KEY_G));
 end;
 
 end.

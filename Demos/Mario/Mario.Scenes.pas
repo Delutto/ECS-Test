@@ -174,8 +174,7 @@ begin
 
    { Draw the parallax background texture at scale 2 centred on screen. }
    if TexBackground.Id > 0 then
-      DrawTextureEx(TexBackground,
-   Vector2Create((FScreenW - TexBackground.Width * 2) / 2, 0), 0, 2, WHITE);
+      DrawTextureEx(TexBackground, Vector2Create((FScreenW - TexBackground.Width * 2) / 2, 0), 0, 2, WHITE);
 
    { Semi-transparent title card }
    DrawRectangle(FScreenW div 2 - 260, FScreenH div 2 - 70, 520, 120,
@@ -329,8 +328,7 @@ begin
    begin
       Cam := FCamSys.GetRaylibCamera;
       if TexBackground.Id > 0 then
-         DrawTextureEx(TexBackground,
-      Vector2Create(-Cam.Target.X * 0.3 + FScreenW / 2 - 256, 0), 0, 2, WHITE);
+         DrawTextureEx(TexBackground, Vector2Create(-Cam.Target.X * 0.3 + FScreenW / 2 - 256, 0), 0, 2, WHITE);
 
       { World-space rendering inside the camera transform. }
       FCamSys.BeginCameraMode;

@@ -46,9 +46,6 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
       Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
       Transform := TTransformComponent(E.GetComponent(TTransformComponent));
 
@@ -65,17 +62,11 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
-      Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
+      Emitter   := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
       Transform := TTransformComponent(E.GetComponent(TTransformComponent));
 
       if Assigned(Emitter) and Assigned(Transform) then
-      begin
-         // Aplica transformação da entidade e renderiza partículas relativas à posição da entidade
-         Emitter.Render;
-      end;
+         Emitter.RenderAt(Transform.Position);
    end;
 end;
 

@@ -36,7 +36,6 @@ procedure TPlayerInputSystem.Init;
 begin
    inherited;
 
-   //RequireComponent(TPlayerTag);
    RequireComponent(TPlayerComponent);
    RequireComponent(TInputMapComponent);
 end;
@@ -49,9 +48,6 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
       PC := TPlayerComponent(E.GetComponent(TPlayerComponent));
       IM := TInputMapComponent(E.GetComponent(TInputMapComponent));
 
@@ -82,6 +78,7 @@ begin
       { Corte de pulo (short-hop) }
       if IM.IsReleased('Jump') or IM.IsReleased('Spin') then
          PC.WantsJumpCut := True;
+
    end;
 end;
 

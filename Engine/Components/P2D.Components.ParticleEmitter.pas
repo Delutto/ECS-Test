@@ -58,7 +58,7 @@ type
       destructor Destroy; override;
 
       procedure Update(DeltaTime: Double);
-      procedure Render;
+      procedure RenderAt(const AWorldPos: TVector2);
 
       procedure Play;
       procedure Stop;
@@ -274,18 +274,18 @@ begin
    end;
 end;
 
-procedure TParticleEmitterComponent.Render;
+procedure TParticleEmitterComponent.RenderAt(const AWorldPos: TVector2);
 var
-   i: Integer;
+   I: Integer;
+   DrawPos: TVector2;
 begin
-   for i := 0 to High(FParticles) do
+   for I := 0 to FMaxParticles - 1 do
    begin
-      if not FParticles[i].Active then
-         Continue;
-
-      with FParticles[i] do
+      if FParticles[I].Active then
       begin
-         DrawCircleV(Position, Size, Color);
+         DrawPos.X := AWorldPos.X + FParticles[I].Position.X;
+         DrawPos.Y := AWorldPos.Y + FParticles[I].Position.Y;
+         DrawCircleV(DrawPos, FParticles[I].Size, FParticles[I].Color);
       end;
    end;
 end;
@@ -308,18 +308,18 @@ end;
 
 procedure TParticleEmitterComponent.Reset;
 var
-   i: Integer;
+   I: Integer;
 begin
-   for i := 0 to High(FParticles) do
-      FParticles[i].Active := False;
+   for I := 0 to High(FParticles) do
+      FParticles[I].Active := False;
    FEmissionTimer := 0.0;
 end;
 
 procedure TParticleEmitterComponent.Emit(ACount: Integer);
 var
-   i: Integer;
+   I: Integer;
 begin
-   for i := 1 to Min(ACount, FMaxParticles) do
+   for I := 1 to Min(ACount, FMaxParticles) do
       EmitParticle;
 end;
 

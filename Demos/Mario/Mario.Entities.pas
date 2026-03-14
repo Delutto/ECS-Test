@@ -279,68 +279,57 @@ end;
 { ── CreateTileMap ────────────────────────────────────────────────────────── }
 
 function CreateTileMap(AWorld: TWorld): TEntity;
-const
-   LEVEL_MAP: array[0..14] of string = (
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
-            '1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1',
-            '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
-            '1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1',
-            '1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1');
 var
-   E    : TEntity;
-   Tr   : TTransformComponent;
-   TM   : TTileMapComponent;
-   R, C : Integer;
-   Row  : TStringList;
-   Val  : Integer;
-   TTyp : Integer;
+  E   : TEntity;
+  TM  : TTileMapComponent;
+  Tr  : TTransformComponent;
+  Row : TStringList;
+  R, C: Integer;
+  Val : Integer;
+  TTyp: Integer;
 begin
-   E := AWorld.CreateEntity('TileMap');
+  E  := AWorld.CreateEntity('TileMap');
+  Tr := TTransformComponent(E.AddComponent(TTransformComponent.Create));
+  Tr.Position := Vector2Create(0, 0);
 
-   Tr          := TTransformComponent(E.AddComponent(TTransformComponent.Create));
-   Tr.Position := Vector2Create(0, 0);
+  TM := TTileMapComponent(E.AddComponent(TTileMapComponent.Create));
+  TM.TileWidth   := 16;
+  TM.TileHeight  := 16;
+  TM.TileSet     := TexTiles;
+  TM.OwnsTexture := False;
+  TM.TileSetCols := 4;
+  TM.SetSize(40, 15);
 
-   TM              := TTileMapComponent(E.AddComponent(TTileMapComponent.Create));
-   TM.TileWidth    := 16;
-   TM.TileHeight   := 16;
-   TM.TileSet      := TexTiles;
-   TM.OwnsTexture  := False;
-   TM.TileSetCols  := 4;
-   TM.SetSize(40, 15);
-
-   Row := TStringList.Create;
-   try
-      Row.Delimiter       := ',';
-      Row.StrictDelimiter := True;
-      for R := 0 to 14 do
+  Row := TStringList.Create;
+  try
+    Row.Delimiter       := ',';
+    Row.StrictDelimiter := True;
+    for R := 0 to 14 do
+    begin
+      Row.DelimitedText := LEVEL_MAP[R];
+      for C := 0 to Row.Count - 1 do
       begin
-         Row.DelimitedText := LEVEL_MAP[R];
-         for C := 0 to 39 do
-         begin
-            Val := StrToIntDef(Trim(Row[C]), 0);
-            if Val in [1, 2, 3] then
-               TTyp := TILE_SOLID
-            else
-               TTyp := TILE_NONE;
+        if C >= TM.MapCols then Break;
+        Val := StrToIntDef(Trim(Row[C]), 0);
 
-            TM.SetTile(C, R, Val, TTyp);
-         end;
+        { Map the numeric value from the CSV to a tile type.
+          Values are the TILE_* constants themselves, so the mapping
+          is direct — no special-case list needed. }
+        case Val of
+          TILE_SOLID : TTyp := TILE_SOLID;
+          TILE_SEMI  : TTyp := TILE_SEMI;
+        else
+          TTyp := TILE_NONE;
+        end;
+
+        TM.SetTile(C, R, Val, TTyp);
       end;
-   finally
-      Row.Free;
-   end;
+    end;
+  finally
+    Row.Free;
+  end;
 
-   Result := E;
+  Result := E;
 end;
 
 { ── CreateCamera ─────────────────────────────────────────────────────────── }

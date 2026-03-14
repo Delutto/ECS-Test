@@ -5,86 +5,84 @@ unit P2D.Core.Serialization;
 interface
 
 uses
-  Classes, SysUtils, fpjson, jsonparser,
-  P2D.Core.Entity, P2D.Core.Component, P2D.Core.World;
+   Classes, SysUtils, fpjson, jsonparser,
+   P2D.Core.Entity, P2D.Core.Component, P2D.Core.World;
 
 type
-  { IP2DSerializable }
-  IP2DSerializable = interface
-    ['{8F3D2A1C-9B4E-4F21-A8C3-1D5E6F7A8B9C}']
-    function Serialize: TJSONObject;
-    procedure Deserialize(const AJSON: TJSONObject);
-  end;
+   { ISerializable2D }
+   ISerializable2D = interface
+      ['{8F3D2A1C-9B4E-4F21-A8C3-1D5E6F7A8B9C}']
+      function Serialize: TJSONObject;
+      procedure Deserialize(const AJSON: TJSONObject);
+   end;
 
-  { TP2DSerializer }
-  TP2DSerializer = class
-  public
-    class function SerializeEntity(AEntity: TP2DEntity): TJSONObject;
-    class function DeserializeEntity(const AJSON: TJSONObject; AWorld: TP2DWorld): TP2DEntity;
+   { TSerializable2D }
+   TSerializable2D = class
+   public
+      class function SerializeEntity(AEntity: TEntity): TJSONObject;
+      class function DeserializeEntity(const AJSON: TJSONObject; AWorld: TWorld): TEntity;
 
-    class function SerializeWorld(AWorld: TP2DWorld): TJSONObject;
-    class procedure DeserializeWorld(const AJSON: TJSONObject; AWorld: TP2DWorld);
+      class function SerializeWorld(AWorld: TWorld): TJSONObject;
+      class procedure DeserializeWorld(const AJSON: TJSONObject; AWorld: TWorld);
 
-    class procedure SaveEntityToFile(AEntity: TP2DEntity; const AFileName: string);
-    class function LoadEntityFromFile(const AFileName: string; AWorld: TP2DWorld): TP2DEntity;
+      class procedure SaveEntityToFile(AEntity: TEntity; const AFileName: string);
+      class function LoadEntityFromFile(const AFileName: string; AWorld: TWorld): TEntity;
 
-    class procedure SaveWorldToFile(AWorld: TP2DWorld; const AFileName: string);
-    class procedure LoadWorldFromFile(const AFileName: string; AWorld: TP2DWorld);
-  end;
+      class procedure SaveWorldToFile(AWorld: TWorld; const AFileName: string);
+      class procedure LoadWorldFromFile(const AFileName: string; AWorld: TWorld);
+   end;
 
 implementation
 
 uses
-  P2D.Utils.Logger, P2D.Core.Types;
+   P2D.Utils.Logger, P2D.Core.Types;
 
-{ TP2DSerializer }
-
-class function TP2DSerializer.SerializeEntity(AEntity: TP2DEntity): TJSONObject;
+{ TSerializable2D }
+class function TSerializable2D.SerializeEntity(AEntity: TEntity): TJSONObject;
 var
-  i: Integer;
-  ComponentsArray: TJSONArray;
-  Component: TP2DComponent;
-  ComponentObj: TJSONObject;
+   i: Integer;
+   ComponentsArray: TJSONArray;
+   Component: TComponent2D;
+   ComponentObj: TJSONObject;
 begin
-  Result := TJSONObject.Create;
-  try
-    Result.Add('id', AEntity.ID);
-    Result.Add('active', AEntity.Active);
+   Result := TJSONObject.Create;
+   try
+      Result.Add('id', AEntity.ID);
+      Result.Add('active', AEntity.Alive);
 
-    ComponentsArray := TJSONArray.Create;
-    for i := 0 to AEntity.ComponentCount - 1 do
-    begin
-      Component := AEntity.Components[i];
-
-      if Supports(Component, IP2DSerializable) then
+      ComponentsArray := TJSONArray.Create;
+      for i := 0 to AEntity.ComponentCount - 1 do
       begin
-        ComponentObj := TJSONObject.Create;
-        ComponentObj.Add('class', Component.ClassName);
-        ComponentObj.Add('data', (Component as IP2DSerializable).Serialize);
-        ComponentsArray.Add(ComponentObj);
-      end
-      else
-        Logger.Warning(Format('Component %s does not support serialization', [Component.ClassName]));
-    end;
+         Component := AEntity.Components[i];
 
-    Result.Add('components', ComponentsArray);
-  except
-    on E: Exception do
-    begin
+         if Supports(Component, ISerializable2D) then
+         begin
+         ComponentObj := TJSONObject.Create;
+         ComponentObj.Add('class', Component.ClassName);
+         ComponentObj.Add('data', (Component as ISerializable2D).Serialize);
+         ComponentsArray.Add(ComponentObj);
+         end
+         else
+         Logger.Warning(Format('Component %s does not support serialization', [Component.ClassName]));
+      end;
+
+      Result.Add('components', ComponentsArray);
+   except on E: Exception do
+   begin
       Logger.Error('Error serializing entity: ' + E.Message);
       Result.Free;
-      raise;
-    end;
-  end;
+   raise;
+   end;
+   end;
 end;
 
-class function TP2DSerializer.DeserializeEntity(const AJSON: TJSONObject; AWorld: TP2DWorld): TP2DEntity;
+class function TSerializable2D.DeserializeEntity(const AJSON: TJSONObject; AWorld: TWorld): TEntity;
 var
   ComponentsArray: TJSONArray;
   i: Integer;
   ComponentObj: TJSONObject;
-  ComponentClass: TP2DComponentClass;
-  Component: TP2DComponent;
+  ComponentClass: TComponent2DClass;
+  Component: TComponent2D;
   ClassName: string;
 begin
   Result := AWorld.CreateEntity;
@@ -101,14 +99,14 @@ begin
 
         // Aqui você precisaria de um registro de classes de componentes
         // Por enquanto, vou deixar como exemplo
-        ComponentClass := TP2DComponent.FindClass(ClassName) as TP2DComponentClass;
+        ComponentClass := TComponent2D.FindClass(ClassName) as TComponent2DClass;
 
         if Assigned(ComponentClass) then
         begin
           Component := ComponentClass.Create;
-          if Supports(Component, IP2DSerializable) then
+          if Supports(Component, ISerializable2D) then
           begin
-            (Component as IP2DSerializable).Deserialize(ComponentObj.Get('data', TJSONObject(nil)));
+            (Component as ISerializable2D).Deserialize(ComponentObj.Get('data', TJSONObject(nil)));
             Result.AddComponent(Component);
           end
           else
@@ -131,7 +129,7 @@ begin
   end;
 end;
 
-class function TP2DSerializer.SerializeWorld(AWorld: TP2DWorld): TJSONObject;
+class function TSerializable2D.SerializeWorld(AWorld: TWorld): TJSONObject;
 var
   EntitiesArray: TJSONArray;
   i: Integer;
@@ -155,7 +153,7 @@ begin
   end;
 end;
 
-class procedure TP2DSerializer.DeserializeWorld(const AJSON: TJSONObject; AWorld: TP2DWorld);
+class procedure TSerializable2D.DeserializeWorld(const AJSON: TJSONObject; AWorld: TWorld);
 var
   EntitiesArray: TJSONArray;
   i: Integer;
@@ -180,7 +178,7 @@ begin
   end;
 end;
 
-class procedure TP2DSerializer.SaveEntityToFile(AEntity: TP2DEntity; const AFileName: string);
+class procedure TSerializable2D.SaveEntityToFile(AEntity: TEntity; const AFileName: string);
 var
   JSON: TJSONObject;
   JSONString: string;
@@ -209,7 +207,7 @@ begin
   end;
 end;
 
-class function TP2DSerializer.LoadEntityFromFile(const AFileName: string; AWorld: TP2DWorld): TP2DEntity;
+class function TSerializable2D.LoadEntityFromFile(const AFileName: string; AWorld: TWorld): TEntity;
 var
   FileStream: TFileStream;
   JSONString: string;
@@ -246,7 +244,7 @@ begin
   end;
 end;
 
-class procedure TP2DSerializer.SaveWorldToFile(AWorld: TP2DWorld; const AFileName: string);
+class procedure TSerializable2D.SaveWorldToFile(AWorld: TWorld; const AFileName: string);
 var
   JSON: TJSONObject;
   JSONString: string;
@@ -275,7 +273,7 @@ begin
   end;
 end;
 
-class procedure TP2DSerializer.LoadWorldFromFile(const AFileName: string; AWorld: TP2DWorld);
+class procedure TSerializable2D.LoadWorldFromFile(const AFileName: string; AWorld: TWorld);
 var
   FileStream: TFileStream;
   JSONString: string;

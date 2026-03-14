@@ -82,7 +82,7 @@ begin
    DrawText(PChar(HUD), FScreenW - 200, 8, 18, WHITE);
 
    // Dica de controles
-   DrawText('Arrows/WASD: Move   Space/W: Jump   Shift/Z: Run', 10, FScreenH - 22, 12, ColorCreate(220, 220, 220, 200));
+   DrawText('Arrows: Move   Shift: Run   Space: Jump   CTRL: Spin Jump', 10, FScreenH - 22, 12, ColorCreate(220, 220, 220, 200));
 
    // Game over
    if PC.State = psDead then

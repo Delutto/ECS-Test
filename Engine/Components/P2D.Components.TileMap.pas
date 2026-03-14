@@ -6,37 +6,38 @@ interface
 
 uses
    SysUtils, Classes, raylib,
-   P2D.Common,
-   P2D.Core.Component, P2D.Core.Types;
+   P2D.Core.Component,
+   P2D.Core.Types;
+
+const
+   TILE_NONE   = 0;
+   TILE_SOLID  = 1;
+   TILE_SEMI   = 2;  { One-way / semi-solid: blocks only when falling DOWN onto the top surface }
+   TILE_HAZARD = 3;
+   TILE_COIN   = 4;
+   TILE_GOAL   = 5;
 
 type
    TTileData = record
-      TileID  : Integer; // índice do frame no atlas de texturas
-      TileType: Integer; // TILE_SOLID, TILE_SEMI, etc.
-      Solid   : Boolean;
+      TileID  : Integer; { Frame index in the texture atlas }
+      TileType: Integer; { TILE_SOLID, TILE_SEMI, TILE_NONE, etc. }
+      Solid   : Boolean; { True only when TileType = TILE_SOLID }
+      Semi    : Boolean; { True only when TileType = TILE_SEMI  }
    end;
+
    TTileRow  = array of TTileData;
    TTileGrid = array of TTileRow;
 
    TTileMapComponent = class(TComponent2D)
    public
-      TileWidth  : Integer;
-      TileHeight : Integer;
-      MapCols    : Integer;
-      MapRows    : Integer;
-      Grid       : TTileGrid;
-      TileSet    : TTexture2D;
-      TileSetCols: Integer;
-
-      { ── Controle de propriedade da textura ─────────────────────────────────
-      False (padrão): A textura é compartilhada/gerenciada externamente.
-                      O destrutor NÃO chama UnloadTexture.
-                      Use quando TileSet for atribuído diretamente de uma variável global ou de um AssetManager.
-
-      True:           A textura foi carregada por este componente via LoadTileSet(). O destrutor chamará UnloadTexture quando o componente for destruído.
-
-      Espelha o mesmo padrão já adotado em TSpriteComponent.OwnsTexture. }
-      OwnsTexture: Boolean;
+      TileWidth   : Integer;
+      TileHeight  : Integer;
+      MapCols     : Integer;
+      MapRows     : Integer;
+      Grid        : TTileGrid;
+      TileSet     : TTexture2D;
+      TileSetCols : Integer;
+      OwnsTexture : Boolean;
 
       constructor Create; override;
       destructor  Destroy; override;
@@ -46,12 +47,9 @@ type
       function  GetTile(ACol, ARow: Integer): TTileData;
       function  GetTileRect(ATileID: Integer): TRectangle;
       function  GetTileWorldRect(ACol, ARow: Integer): TRectF;
-
-      { Carrega textura de arquivo. O componente passa a ser dono da textura (OwnsTexture := True é setado automaticamente). }
       procedure LoadTileSet(const APath: string; ACols: Integer);
-
       procedure LoadFromString(const AData: string);
-      end;
+   end;
 
 implementation
 
@@ -59,24 +57,21 @@ implementation
 
 constructor TTileMapComponent.Create;
 begin
-   inherited Create;
+   inherited;
 
    TileWidth   := 16;
    TileHeight  := 16;
    MapCols     := 0;
    MapRows     := 0;
    TileSetCols := 1;
-   OwnsTexture := False; // padrão seguro: não libera textura compartilhada
+   OwnsTexture := False;
    FillChar(TileSet, SizeOf(TileSet), 0);
 end;
 
 destructor TTileMapComponent.Destroy;
 begin
-   { CORREÇÃO: só descarrega a textura se este componente for o dono.
-     Quando OwnsTexture = False (padrão), texturas globais como TexTiles(gerenciadas por Mario.ProceduralArt) não são tocadas. }
    if OwnsTexture and (TileSet.Id > 0) then
       UnloadTexture(TileSet);
-
    inherited;
 end;
 
@@ -95,6 +90,7 @@ begin
          Grid[R][C].TileID   := TILE_NONE;
          Grid[R][C].TileType := TILE_NONE;
          Grid[R][C].Solid    := False;
+         Grid[R][C].Semi     := False;
       end;
    end;
 end;
@@ -107,13 +103,15 @@ begin
    Grid[ARow][ACol].TileID   := ATileID;
    Grid[ARow][ACol].TileType := ATileType;
    Grid[ARow][ACol].Solid    := ATileType = TILE_SOLID;
+   Grid[ARow][ACol].Semi     := ATileType = TILE_SEMI;
 end;
 
 function TTileMapComponent.GetTile(ACol, ARow: Integer): TTileData;
 begin
    FillChar(Result, SizeOf(Result), 0);
-   if (ARow >= 0) and (ARow < MapRows) and (ACol >= 0) and (ACol < MapCols) then
-      Result := Grid[ARow][ACol];
+   if (ARow < 0) or (ARow >= MapRows) or (ACol < 0) or (ACol >= MapCols) then
+      Exit;
+   Result := Grid[ARow][ACol];
 end;
 
 function TTileMapComponent.GetTileRect(ATileID: Integer): TRectangle;
@@ -137,14 +135,10 @@ end;
 
 procedure TTileMapComponent.LoadTileSet(const APath: string; ACols: Integer);
 begin
-   { Se já havia uma textura própria, descarrega antes de carregar a nova. }
    if OwnsTexture and (TileSet.Id > 0) then
       UnloadTexture(TileSet);
-
    TileSet     := LoadTexture(PChar(APath));
    TileSetCols := ACols;
-
-   { Componente carregou a textura: é o responsável por liberá-la. }
    OwnsTexture := True;
 end;
 
@@ -174,9 +168,10 @@ begin
             Val := StrToIntDef(Trim(Parts[C]), 0);
 
             case Val of
-               1   : TTyp := TILE_SOLID;
-               2   : TTyp := TILE_SEMI;
-               else  TTyp := TILE_NONE;
+               TILE_SOLID : TTyp := TILE_SOLID;
+               TILE_SEMI  : TTyp := TILE_SEMI;
+            else
+               TTyp := TILE_NONE;
             end;
 
             SetTile(C, R, Val, TTyp);

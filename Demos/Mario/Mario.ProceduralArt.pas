@@ -99,43 +99,52 @@ end;
 // ---------------------------------------------------------------------------
 procedure MakeTiles;
 var
-   img: TImage;
-   BX: Integer;
+   Img: TImage;
+   X  : Integer;
 begin
-   img := GenImageColor(64, 16, ColorCreate(0,0,0,0));
+   Img := GenImageColor(64, 16, ColorCreate(0, 0, 0, 0));
 
-   // 0 – Ground (green/dirt)
-   FillRect(@img, 0, 0, 16, 4, ColorCreate(80,160,50, 255));
-   FillRect(@img, 0, 4, 16,12, ColorCreate(140,100,60, 255));
-   // grid lines
-   FillRect(@img, 0, 4, 16, 1, ColorCreate(100,70,30, 255));
-   FillRect(@img, 8, 4, 1, 12, ColorCreate(100,70,30, 255));
+   { ── Tile 0 (TileID 1): Solid ground ─────────────────────────────────────── }
+   FillRect(@Img,  0, 0, 16, 16, ColorCreate(139, 101,  62, 255)); { dirt brown  }
+   FillRect(@Img,  0, 0, 16,  4, ColorCreate( 80, 160,  50, 255)); { grass strip }
+   { Subtle grid lines to break up the surface }
+   for X := 0 to 15 do
+      ImageDrawPixel(@Img, X, 4, ColorCreate(60, 130, 40, 255));
 
-   // 1 – Brick
-   FillRect(@img,16, 0, 16,16, ColorCreate(180,80,30, 255));
-   FillRect(@img,16, 0, 16, 1, ColorCreate(220,120,60, 255));
-   FillRect(@img,16, 8, 16, 1, ColorCreate(120,50,10, 255));
-   FillRect(@img,20, 1,  1,  7, ColorCreate(120,50,10, 255));
-   FillRect(@img,28, 9,  1,  7, ColorCreate(120,50,10, 255));
+   { ── Tile 1 (TileID 2): Semi-solid one-way platform ──────────────────────── }
+   { Visually distinct: a lighter wood-plank look with a clear top edge         }
+   FillRect(@Img, 16,  0, 16, 16, ColorCreate(210, 170, 100, 255)); { plank base  }
+   FillRect(@Img, 16,  0, 16,  3, ColorCreate(240, 200, 120, 255)); { bright top  }
+   FillRect(@Img, 16,  3, 16,  1, ColorCreate(160, 120,  60, 255)); { top border  }
+   { Vertical plank separators }
+   ImageDrawPixel(@Img, 20,  4, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 20,  5, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 20,  6, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 24,  4, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 24,  5, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 24,  6, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 28,  4, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 28,  5, ColorCreate(160, 120, 60, 255));
+   ImageDrawPixel(@Img, 28,  6, ColorCreate(160, 120, 60, 255));
 
-   // 2 – Question block
-   FillRect(@img,32, 0, 16,16, ColorCreate(200,160,0, 255));
-   FillRect(@img,32, 0, 16, 1, ColorCreate(240,200,50, 255));
-   FillRect(@img,32, 0,  1,16, ColorCreate(240,200,50, 255));
-   FillRect(@img,47, 0,  1,16, ColorCreate(100,80,0, 255));
-   FillRect(@img,32,15, 16, 1, ColorCreate(100,80,0, 255));
-   // "?"
-   FillRect(@img,37, 4,  6, 2, ColorCreate(255,255,255, 255));
-   FillRect(@img,41, 6,  2, 3, ColorCreate(255,255,255, 255));
-   FillRect(@img,39, 9,  4, 2, ColorCreate(255,255,255, 255));
-   FillRect(@img,39,12,  4, 2, ColorCreate(255,255,255, 255));
+   { ── Tile 2 (TileID 3): ? Block ──────────────────────────────────────────── }
+   FillRect(@Img, 32,  0, 16, 16, ColorCreate(220, 170,   0, 255)); { gold body   }
+   FillRect(@Img, 32,  0, 16,  1, ColorCreate(255, 210,  80, 255)); { top shine   }
+   FillRect(@Img, 32,  0,  1, 16, ColorCreate(255, 210,  80, 255)); { left shine  }
+   FillRect(@Img, 47,  0,  1, 16, ColorCreate(160, 110,   0, 255)); { right dark  }
+   FillRect(@Img, 32, 15, 16,  1, ColorCreate(160, 110,   0, 255)); { bottom dark }
+   { "?" mark — 3 small rectangles forming the glyph }
+   FillRect(@Img, 37,  3,  6,  2, ColorCreate(255, 255, 255, 255)); { top bar     }
+   FillRect(@Img, 41,  5,  2,  3, ColorCreate(255, 255, 255, 255)); { right leg   }
+   FillRect(@Img, 38,  8,  4,  2, ColorCreate(255, 255, 255, 255)); { middle bar  }
+   FillRect(@Img, 38, 11,  4,  2, ColorCreate(255, 255, 255, 255)); { dot         }
 
-   // 3 – Coin in tile
-   DrawCircleImg(@img, 56, 8, 6, ColorCreate(255,215,0, 255));
-   DrawCircleImg(@img, 56, 8, 3, ColorCreate(255,240,100, 255));
+   { ── Tile 3 (TileID 4): Coin tile ────────────────────────────────────────── }
+   DrawCircleImg(@Img, 56, 8, 6, ColorCreate(255, 200,   0, 255)); { gold circle  }
+   DrawCircleImg(@Img, 56, 8, 4, ColorCreate(255, 230,  80, 255)); { inner shine  }
 
-   TexTiles := LoadTextureFromImage(img);
-   UnloadImage(img);
+   TexTiles := LoadTextureFromImage(Img);
+   UnloadImage(Img);
 end;
 
 // ---------------------------------------------------------------------------

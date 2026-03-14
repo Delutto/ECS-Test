@@ -36,7 +36,7 @@ uses
    SysUtils, raylib,
    P2D.Core.Engine,
    P2D.Core.Scene,
-   Mario.ProceduralArt,
+   Mario.Assets,
    Mario.InputSetup,
    Mario.Scenes;
 

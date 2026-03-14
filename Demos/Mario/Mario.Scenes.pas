@@ -49,8 +49,9 @@ uses
    P2D.Systems.Render,
    P2D.Systems.Camera,
    P2D.Systems.TileMap,
-   Mario.ProceduralArt,
+   Mario.Assets,
    Mario.Level,
+   Mario.Common,
    Mario.Events,
    Mario.Systems.Input,
    Mario.Systems.Player,
@@ -70,7 +71,9 @@ type
    private
       FScreenW: Integer;
       FScreenH: Integer;
-      protected
+
+      LogoSpr: TTexture2D;
+   protected
       procedure DoLoad; override;
       procedure DoEnter; override;
       procedure DoExit; override;
@@ -94,7 +97,7 @@ type
 
       procedure RegisterSystems;
       procedure OnPlayerDied(AEvent: TEvent2D);
-      protected
+   protected
       procedure DoLoad; override;
       procedure DoEnter; override;
       procedure DoExit; override;
@@ -113,6 +116,9 @@ type
     Does not own a world. Draws directly over the frozen gameplay frame.
     Pressing R transitions back to the gameplay scene.
    ========================================================================= }
+
+   { TGameOverScene }
+
    TGameOverScene = class(TScene2D)
    private
       FScreenW: Integer;
@@ -120,6 +126,7 @@ type
    protected
       procedure DoLoad; override;
       procedure DoEnter; override;
+      procedure DoExit; override;
    public
       constructor Create(AScreenW, AScreenH: Integer);
       procedure Update(ADelta: Single); override;
@@ -131,12 +138,10 @@ implementation
 uses
    P2D.Core.ResourceManager,
    P2D.Core.InputManager,
-   P2D.Components.Tags;
+   P2D.Components.Tags,
+   Mario.Entities;
 
-{ ============================================================================
-  TTitleScene
-  ============================================================================ }
-
+{$REGION 'TTitleScene' }
 constructor TTitleScene.Create(AScreenW, AScreenH: Integer);
 begin
    inherited Create('Title');
@@ -147,51 +152,67 @@ end;
 
 procedure TTitleScene.DoLoad;
 begin
-   { Title scene has no ECS world content — nothing to register. }
+   World.AddSystem(TAudioSystem.Create(World));
 end;
 
 procedure TTitleScene.DoEnter;
 begin
    { Play title BGM via direct raylib call; the ECS audio system belongs to TGameplayScene, not here.
      If a title music track is desired, load and play it here, and stop it in DoExit. }
+   CreateMusicPlayer(World, BGM_TITLE);
+   LogoSpr := TResourceManager2D.Instance.LoadTexture(LOGO_TEXTURE);
 end;
 
 procedure TTitleScene.DoExit;
+var
+   AudioSys: TAudioSystem;
 begin
-   { Nothing to clean up. }
+   AudioSys := TAudioSystem(World.GetSystem(TAudioSystem));
+   if Assigned(AudioSys) then
+      AudioSys.StopAllMusic;
+
+   World.ShutdownSystems;
+
+   World.DestroyAllEntities;
+
+   UnloadTexture(LogoSpr);
 end;
 
 procedure TTitleScene.Update(ADelta: Single);
 begin
    { No World to update. Check for player input to start the game. }
-   if IsKeyPressed(KEY_ENTER) or IsKeyPressed(KEY_SPACE) then
+   if IsKeyPressed(KEY_SPACE) then
       SceneManager.ChangeScene('Gameplay');
+
+   World.Update(ADelta);
 end;
 
 procedure TTitleScene.Render;
+var
+   SW, SH: Integer;
 begin
+   SW := GetScreenWidth;
+   SH := GetScreenHeight;
+
    ClearBackground(ColorCreate(92, 148, 252, 255));
 
    { Draw the parallax background texture at scale 2 centred on screen. }
    if TexBackground.Id > 0 then
-      DrawTextureEx(TexBackground, Vector2Create((FScreenW - TexBackground.Width * 2) / 2, 0), 0, 2, WHITE);
+      DrawTextureEx(TexBackground, Vector2Create((SW - TexBackground.Width * 2) / 2, 0), 0, 2, WHITE);
 
    { Semi-transparent title card }
-   DrawRectangle(FScreenW div 2 - 260, FScreenH div 2 - 70, 520, 120,
-   ColorCreate(0, 0, 0, 180));
+   //DrawRectangle(SW div 2 - 260, SH div 2 - 70, 520, 120, ColorCreate(0, 0, 0, 180));
 
-   DrawText('SUPER PASCAL WORLD',
-   FScreenW div 2 - 230, FScreenH div 2 - 50, 40, YELLOW);
+   //DrawText('SUPER PASCAL WORLD', SW div 2 - 230, SH div 2 - 50, 40, YELLOW);
+   DrawTextureEx(LogoSpr, Vector2Create((SW / 2) - (LogoSpr.width / 2) * 2, ((SH / 2) - (LogoSpr.height / 2) * 2) - 75), 0, 2, WHITE);
 
-   DrawText('Press ENTER or SPACE to start',
-   FScreenW div 2 - 175, FScreenH div 2 + 10, 22, WHITE);
+   DrawText('Press SPACE to start', SW div 2 - 140, SH div 2 + 10, 22, WHITE);
 
-   DrawFPS(FScreenW - 80, FScreenH - 20);
+   DrawFPS(SW - 80, SH - 20);
 end;
+{$ENDREGION}
 
-{ ============================================================================
-  TGameplayScene
-  ============================================================================ }
+{$REGION 'TGameplayScene'}
 constructor TGameplayScene.Create(AScreenW, AScreenH: Integer);
 begin
    inherited Create('Gameplay');
@@ -266,12 +287,7 @@ begin
    World.ShutdownSystems;
 
    { 3. Destroy and purge all entities, freeing their components. }
-   SetLength(IDs, World.Entities.GetAll.Count);
-   for I := 0 to World.Entities.GetAll.Count - 1 do
-      IDs[I] := World.Entities.GetAll[I].ID;
-   for I := 0 to High(IDs) do
-      World.DestroyEntity(IDs[I]);
-   World.Entities.PurgeDestroyed;
+   World.DestroyAllEntities;
 
    { 4. Re-subscribe TPlayerDiedEvent for the next DoEnter cycle.
    ShutdownSystems cleared the EventBus subscriptions, so we must restore this scene-level subscription explicitly. }
@@ -317,9 +333,13 @@ end;
 procedure TGameplayScene.Render;
 var
    Cam: TCamera2D;
+   SW, SH: Integer;
 begin
    if not Active then
       Exit;
+
+   SW := GetScreenWidth;
+   SH := GetScreenHeight;
 
    ClearBackground(ColorCreate(92, 148, 252, 255));
 
@@ -328,7 +348,7 @@ begin
    begin
       Cam := FCamSys.GetRaylibCamera;
       if TexBackground.Id > 0 then
-         DrawTextureEx(TexBackground, Vector2Create(-Cam.Target.X * 0.3 + FScreenW / 2 - 256, 0), 0, 2, WHITE);
+         DrawTextureEx(TexBackground, Vector2Create(-Cam.Target.X * 0.3 + SW / 2 - 256, 0), 0, 2, WHITE);
 
       { World-space rendering inside the camera transform. }
       FCamSys.BeginCameraMode;
@@ -341,8 +361,9 @@ begin
    { Screen-space HUD — outside the camera transform. }
    World.RenderByLayer(rlScreen);
 
-   DrawFPS(FScreenW - 80, FScreenH - 20);
+   DrawFPS(SW - 80, SH - 20);
 end;
+{$ENDREGION}
 
 {$REGION 'TGameOverScene'}
 constructor TGameOverScene.Create(AScreenW, AScreenH: Integer);
@@ -355,12 +376,25 @@ end;
 
 procedure TGameOverScene.DoLoad;
 begin
-   { No ECS world content needed for the game-over overlay. }
+   World.AddSystem(TAudioSystem.Create(World));
 end;
 
 procedure TGameOverScene.DoEnter;
 begin
-   { Nothing to initialise — the overlay is purely visual. }
+   CreateMusicPlayer(World, BGM_GAMEOVER);
+end;
+
+procedure TGameOverScene.DoExit;
+var
+   AudioSys: TAudioSystem;
+begin
+   AudioSys := TAudioSystem(World.GetSystem(TAudioSystem));
+   if Assigned(AudioSys) then
+      AudioSys.StopAllMusic;
+
+   World.ShutdownSystems;
+
+   World.DestroyAllEntities;
 end;
 
 procedure TGameOverScene.Update(ADelta: Single);
@@ -369,18 +403,25 @@ begin
      TGameplayScene.DoExit destroys all entities and TGameplayScene.DoEnter recreates them, giving a clean slate. }
    if IsKeyPressed(KEY_R) then
       SceneManager.ChangeScene('Gameplay');
+
+   World.Update(ADelta);
 end;
 
+{ Dark full-screen overlay — draws over whatever was last rendered.
+  Because TEngine2D calls BeginDrawing/EndDrawing around OnRender, and  OnRender calls SceneManager.Render which delegates here,
+  the framebuffer still contains the frozen gameplay frame from the previous Update cycle. }
 procedure TGameOverScene.Render;
+var
+   SW, SH: Integer;
 begin
-   { Dark full-screen overlay — draws over whatever was last rendered.
-    Because TEngine2D calls BeginDrawing/EndDrawing around OnRender, and  OnRender calls SceneManager.Render which delegates here,
-    the framebuffer still contains the frozen gameplay frame from the previous Update cycle. }
-   DrawRectangle(0, 0, FScreenW, FScreenH, ColorCreate(0, 0, 0, 160));
+   SW := GetScreenWidth;
+   SH := GetScreenHeight;
 
-   DrawText('GAME OVER', FScreenW div 2 - 130, FScreenH div 2 - 30, 50, RED);
+   DrawRectangle(0, 0, SW, SH, ColorCreate(0, 0, 0, 160));
 
-   DrawText('Press R to play again', FScreenW div 2 - 140, FScreenH div 2 + 40, 24, WHITE);
+   DrawText('GAME OVER', SW div 2 - 135, SH div 2 - 30, 50, RED);
+
+   DrawText('Press R to play again', SW div 2 - 140, SH div 2 + 40, 24, WHITE);
 end;
 {$ENDREGION}
 

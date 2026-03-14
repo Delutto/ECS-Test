@@ -40,6 +40,7 @@ type
       function  CreatePooledEntity(const ATag: string; const AName: string = ''): TEntity;
 
       procedure DestroyEntity(AID: TEntityID); override;
+      procedure DestroyAllEntities; override;
       function  GetEntity(AID: TEntityID): TEntity; override;
 
       { Pool Management }
@@ -179,6 +180,16 @@ procedure TWorld.DestroyEntity(AID: TEntityID);
 begin
    FEntities.DestroyEntity(AID);
    InvalidateAllSystemCaches;
+end;
+
+procedure TWorld.DestroyAllEntities;
+var
+   E: TEntity;
+begin
+   for E in Entities.GetAll do
+     DestroyEntity(E.ID);
+
+   Entities.PurgeDestroyed;
 end;
 
 function TWorld.GetEntity(AID: TEntityID): TEntity;

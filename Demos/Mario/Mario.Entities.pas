@@ -38,7 +38,7 @@ function  CreateMusicPlayer(AWorld: TWorld; const AFileName: string; AVolume: Si
 implementation
 
 uses
-   Mario.ProceduralArt;
+   Mario.Assets;
 
 { ── Helper de frames de animação ─────────────────────────────────────────── }
 procedure AddFrame(AAnim: TAnimation; ACol: Integer; ARow: Integer; AFrameW: Integer; AFrameH: Integer; ADur: Single);
@@ -253,7 +253,7 @@ begin
 
    Spr            := TSpriteComponent(E.AddComponent(TSpriteComponent.Create));
    Spr.Texture    := TResourceManager2D.Instance.LoadTexture(COIN_SHEET_PATH);
-   Spr.OwnsTexture := False;
+   Spr.OwnsTexture:= False;
    Spr.SourceRect := RectangleCreate(0, 0, 12, 16);
 
    Col           := TColliderComponent(E.AddComponent(TColliderComponent.Create));

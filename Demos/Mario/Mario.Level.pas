@@ -17,7 +17,7 @@ implementation
 
 uses
    P2D.Core.Entity,
-   Mario.ProceduralArt;
+   Mario.Assets;
 
 procedure LoadLevel(AWorld: TWorld);
 var
@@ -45,8 +45,7 @@ begin
    { Camera }
    CreateCamera(AWorld, Player);
 
-   { Entidade de música de fundo:
-    carrega o asset via TResourceManager2D e cria a entidade com TMusicPlayerComponent; TAudioSystem detecta AutoPlay=True no Init. }
+   { Entidade de música de fundo: carrega o asset via TResourceManager2D e cria a entidade com TMusicPlayerComponent; TAudioSystem detecta AutoPlay=True no Init. }
    CreateMusicPlayer(AWorld, BGM_OVERWORLD, 1, True);
 end;
 

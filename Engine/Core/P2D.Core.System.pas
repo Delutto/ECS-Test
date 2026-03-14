@@ -55,6 +55,9 @@ type
    TWorldBase — interface mínima que TSystem2D precisa do World.
    TWorld (em P2D.Core.World) herda desta classe e implementa tudo.
    ---------------------------------------------------------------------------}
+
+   { TWorldBase }
+
    TWorldBase = class
    protected
       { Getter abstrato exposto via propriedade Entities. }
@@ -66,6 +69,9 @@ type
 
       { Marca a entidade para destruição ao final do frame. }
       procedure DestroyEntity(AID: TEntityID); virtual; abstract;
+
+      { Destroi todos os componentes de todas as entidades e as marca para destruição }
+      procedure DestroyAllEntities; virtual; abstract;
 
       { Busca uma entidade pelo ID. Retorna nil se não encontrada. }
       function  GetEntity(AID: TEntityID): TEntity; virtual; abstract;

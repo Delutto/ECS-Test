@@ -33,10 +33,8 @@ uses
    Mario.Events,         // TCoinCollectedEvent, TEnemyStompedEvent, etc.
    Mario.Common;
 
-   type
-
+type
    { TMarioAudioSystem }
-
    TMarioAudioSystem = class(TAudioSystem)
    private
       procedure OnCoinCollected (AEvent: TEvent2D);

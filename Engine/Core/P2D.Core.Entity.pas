@@ -96,8 +96,7 @@ type
       function  AddComponent(AComp: TComponent2D): TComponent2D;
       function  GetComponent(AClass: TComponent2DClass): TComponent2D;
 
-      { True O(1) hot-path: cache the ComponentID at system Init time and call
-        this instead of GetComponent in per-frame loops. }
+      { True O(1) hot-path: cache the ComponentID at system Init time and call this instead of GetComponent in per-frame loops. }
       function  GetComponentByID(ACompID: Integer): TComponent2D; inline;
 
       { O(1) bitset test — no array access needed. }

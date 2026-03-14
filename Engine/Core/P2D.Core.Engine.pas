@@ -21,6 +21,9 @@ type
 
    O loop de acumulador (fixed timestep) roda inteiramente dentro de Run, que chama FWorld.FixedUpdate, FWorld.Update e os hooks na ordem correta.
    -------------------------------------------------------------------------}
+
+   { TEngine2D }
+
    TEngine2D = class
    private
       FWorld    : TWorld;
@@ -30,6 +33,7 @@ type
       FTargetFPS: Integer;
       FRunning  : Boolean;
       FAlpha    : Single; // Fração do passo físico atual (0..1) para interpolação
+      procedure HandleFullscreenToggle;
    protected
     { Hooks virtuais — sobrescreva na subclasse do jogo concreto.
       Implementações padrão são no-ops seguros (exceto OnRender, que chama FWorld.Render como comportamento básico). }
@@ -37,6 +41,7 @@ type
       procedure OnUpdate(ADelta: Single); virtual;
       procedure OnRender; virtual;
       procedure OnShutdown; virtual;
+      procedure OnScreenResized(ANewW, ANewH: Integer); virtual;
    public
       constructor Create(AWidth, AHeight: Integer; const ATitle: string; AFPS: Integer = 60);
       destructor Destroy; override;
@@ -80,6 +85,26 @@ begin
    inherited;
 end;
 
+procedure TEngine2D.HandleFullscreenToggle;
+var
+   AltHeld: Boolean;
+begin
+   AltHeld := IsKeyDown(KEY_LEFT_ALT) or IsKeyDown(KEY_RIGHT_ALT);
+   if not AltHeld then
+      Exit;
+   if not IsKeyPressed(KEY_ENTER) then
+      Exit;
+
+   ToggleFullscreen;
+
+   { Atualiza as dimensões armazenadas com os valores reais pós-toggle. }
+   FScreenW := GetScreenWidth;
+   FScreenH := GetScreenHeight;
+
+   { Notifica a subclasse para que sistemas e cenas possam reagir. }
+   OnScreenResized(FScreenW, FScreenH);
+end;
+
 { Hooks — implementações padrão vazias (safe no-ops) }
 procedure TEngine2D.OnInit;
 begin
@@ -102,6 +127,11 @@ end;
 procedure TEngine2D.OnShutdown;
 begin
    { Sobrescreva para: UnloadAssets, fechar conexões, salvar dados, etc. }
+end;
+
+procedure TEngine2D.OnScreenResized(ANewW, ANewH: Integer);
+begin
+   { No-op padrão. Sobrescreva para propagar as novas dimensões a cenas, sistemas de HUD, câmera, render targets, etc. }
 end;
 
 { Loop principal único — nenhuma subclasse deve reescrever este método. }
@@ -149,6 +179,9 @@ begin
          FWorld.Update(Delta);
 
          InputManager.Poll;
+
+         { Verifica ALT+ENTER antes do hook OnUpdate para que o jogo já receba o delta com as dimensões corretas neste frame. }
+         HandleFullscreenToggle;
 
        { Hook de update extra: lógica de meta-jogo (restart, pause, etc.)
          Rodado após FWorld.Update para que entidades já estejam purgadas. }

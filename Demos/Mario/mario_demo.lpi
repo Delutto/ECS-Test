@@ -149,10 +149,6 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Mario.ProceduralArt.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
         <Filename Value="Systems/Mario.Systems.Enemy.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
@@ -266,6 +262,10 @@
       </Unit>
       <Unit>
         <Filename Value="../../Engine/P2D.Common.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Assets.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

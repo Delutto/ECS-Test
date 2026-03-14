@@ -131,21 +131,25 @@ end;
   ══════════════════════════════════════════════════════════════════════════════ }
 procedure THUDSystem.Update(ADelta: Single);
 begin
-  { intentionally empty }
+   { Toggle do shader via tecla G }
+   if IsKeyPressed(KEY_G) then
+      FShaderActive := not FShaderActive;
 end;
 
-{ ══════════════════════════════════════════════════════════════════════════════
-  Render
-  ══════════════════════════════════════════════════════════════════════════════ }
+{ Render }
 procedure THUDSystem.Render;
 var
-   E        : TEntity;
-   PC       : TPlayerComponent;
-   HUD      : string;
-   TextW    : Single;
-   SizeVec  : array[0..1] of Single;
+   E       : TEntity;
+   PC      : TPlayerComponent;
+   HUD     : string;
+   TextW   : Single;
+   SizeVec : array[0..1] of Single;
+   SW, SH  : Integer;
 begin
-   { ── Find the player component ── }
+   { Dimensões reais da janela neste frame. }
+   SW := GetScreenWidth;
+   SH := GetScreenHeight;
+
    PC := nil;
    for E in GetMatchingEntities do
       if E.Alive then
@@ -153,60 +157,54 @@ begin
          PC := TPlayerComponent(E.GetComponent(TPlayerComponent));
          Break;
       end;
-      if not Assigned(PC) then
-         Exit;
+   if not Assigned(PC) then
+      Exit;
 
-   { ── Top HUD bar ── }
-   DrawRectangle(0, 0, FScreenW, 34, ColorCreate(0, 0, 0, 180));
+   { ── Barra superior ─────────────────────────────────────────────────── }
+   DrawRectangle(0, 0, SW, 34, ColorCreate(0, 0, 0, 180));
 
-   { Score }
    HUD := Format('SCORE %07d', [PC.Score]);
    DrawHUDText(HUD, 12, 10, FFontSize, YELLOW);
 
-   { Coins — centred }
    HUD   := Format('x%02d', [PC.Coins]);
    TextW := MeasureHUDText('COINS ' + HUD, FFontSize);
-   DrawHUDText('COINS ' + HUD, (FScreenW div 2) - Trunc(TextW * 0.5), 10, FFontSize, WHITE);
+   DrawHUDText('COINS ' + HUD, (SW div 2) - Trunc(TextW * 0.5), 10, FFontSize, WHITE);
 
-   { Lives — right-aligned }
    HUD   := Format('LIVES %d', [PC.Lives]);
    TextW := MeasureHUDText(HUD, FFontSize);
-   DrawHUDText(HUD, FScreenW - Trunc(TextW) - 12, 10, FFontSize, WHITE);
+   DrawHUDText(HUD, SW - Trunc(TextW) - 12, 10, FFontSize, WHITE);
 
-   { ── Bottom control hint ── }
-   DrawRectangle(0, FScreenH - 20, FScreenW, 20, ColorCreate(0, 0, 0, 140));
-   DrawText('Arrows: Move  |  Shift: Run  |  Space: Jump  |  Ctrl: Spin  |  G: Shader On/Off', 8, FScreenH - 15, 10, ColorCreate(200, 200, 200, 180));
+   { ── Barra inferior de controles ─────────────────────────────────────── }
+   DrawRectangle(0, SH - 20, SW, 20, ColorCreate(0, 0, 0, 140));
+   DrawText('Arrows: Move  |  Shift: Run  |  Space: Jump  |  Ctrl: Spin  |  G: Shader On/Off  |  Alt+Enter: Fullscreen', 8, SH - 15, 10, ColorCreate(200, 200, 200, 180));
 
-   if IsKeyPressed(KEY_G) then
-      FShaderActive := not FShaderActive;
-   { ── CRT vignette + scanline overlay ──────────────────────────────────
-   A full-screen black rectangle is rendered with the shader active. The shader ignores the rectangle colour and computes its own
-   per-pixel alpha from gl_FragCoord, producing a vignette that darkens the edges while remaining transparent in the centre. }
-   if FShaderReady and (FShaderLocScreenSize >= 0) and(FShaderActive) then
+   { ── Overlay CRT ─────────────────────────────────────────────────────
+     O uniforme screenSize precisa das dimensões ATUAIS para que as
+     coordenadas do shader (gl_FragCoord) sejam normalizadas corretamente,
+     especialmente após um toggle de fullscreen. }
+   if FShaderReady and (FShaderLocScreenSize >= 0) and FShaderActive then
    begin
-      SizeVec[0] := FScreenW;
-      SizeVec[1] := FScreenH;
-      { SHADER_UNIFORM_VEC2 = 1 (raylib constant) }
+      SizeVec[0] := SW;
+      SizeVec[1] := SH;
       SetShaderValue(FShader, FShaderLocScreenSize, @SizeVec[0], 1);
 
       BeginShaderMode(FShader);
-      { Any drawable will trigger the shader; colour is irrelevant because the FS computes its own output using gl_FragCoord + screenSize.    }
-      DrawRectangle(0, 0, FScreenW, FScreenH, WHITE);
+      DrawRectangle(0, 0, SW, SH, WHITE);
       EndShaderMode;
    end;
 
-   { ── Game-over overlay (drawn last, on top of the vignette) ── }
+   { ── Overlay de Game Over ─────────────────────────────────────────── }
    if PC.State = psDead then
    begin
-      DrawRectangle(0, 0, FScreenW, FScreenH, ColorCreate(0, 0, 0, 160));
+      DrawRectangle(0, 0, SW, SH, ColorCreate(0, 0, 0, 160));
 
       HUD   := 'GAME OVER';
       TextW := MeasureHUDText(HUD, 32.0);
-      DrawHUDText(HUD, (FScreenW div 2) - Trunc(TextW * 0.5), (FScreenH div 2) - 24, 32.0, RED);
+      DrawHUDText(HUD, (SW div 2) - Trunc(TextW * 0.5), (SH div 2) - 24, 32.0, RED);
 
       HUD   := 'Press R to restart';
       TextW := MeasureHUDText(HUD, FFontSize);
-      DrawHUDText(HUD, (FScreenW div 2) - Trunc(TextW * 0.5), (FScreenH div 2) + 20, FFontSize, WHITE);
+      DrawHUDText(HUD, (SW div 2) - Trunc(TextW * 0.5), (SH div 2) + 20, FFontSize, WHITE);
    end;
 end;
 

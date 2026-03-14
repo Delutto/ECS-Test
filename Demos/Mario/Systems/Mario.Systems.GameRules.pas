@@ -167,7 +167,7 @@ begin
       if PC.Lives <= 0 then
       begin
          PC.State := psDead;
-         World.EventBus.Publish(TPlayerDiedEvent.Create);
+         //World.EventBus.Publish(TPlayerDiedEvent.Create);
       end;
    end;
 end;

@@ -12,7 +12,10 @@ const
    SFX_GAMEOVER  = 'assets/audio/sfx/gameover.wav';
    SFX_JUMP      = 'assets/audio/sfx/jump.wav';
    SFX_SPIN      = 'assets/audio/sfx/spinjump.wav';
+   BGM_TITLE     = 'assets/audio/bgm/title.mp3';
    BGM_OVERWORLD = 'assets/audio/bgm/overworld.mp3';
+   BGM_GAMEOVER  = 'assets/audio/bgm/gameover.wav';
+
 
    { ── Font assets ───────────────────────────────────────────────────────────
     The HUD System attempts to load FONT_HUD at FONT_HUD_SIZE pixels via
@@ -36,6 +39,9 @@ const
    SHADER_VS_CRT  = '';
    SHADER_FS_CRT  = 'assets/shaders/crt_vignette.fs';
    SHADER_KEY_CRT = 'crt_vignette_scanline';
+
+   { ── Logo Screen ──────────────────────────────────────────────────────── }
+   LOGO_TEXTURE = 'assets/graphics/logo.png';
 
    { ── Player sprite sheet ──────────────────────────────────────────────── }
    PLAYER_SHEET_PATH = 'assets/graphics/mario.png';

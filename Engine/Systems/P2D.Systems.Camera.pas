@@ -72,10 +72,12 @@ var
    Cam   : TCamera2DComponent;
    CamTr : TTransformComponent;
    TgtTr : TTransformComponent;
+   SW    : Integer;
+   SH    : Integer;
    HalfW : Single;
    HalfH : Single;
-   HalfWW: Single; // metade da viewport em unidades do MUNDO (HalfW / Zoom)
-   HalfHW: Single; // metade da viewport em unidades do MUNDO (HalfH / Zoom)
+   HalfWW: Single;
+   HalfHW: Single;
 begin
    if not Assigned(FCamEntity) then
       Exit;
@@ -86,8 +88,11 @@ begin
    if not Assigned(Cam) or not Assigned(CamTr) then
       Exit;
 
-   HalfW := FScreenW / 2;
-   HalfH := FScreenH / 2;
+   { Dimensões reais da janela neste frame — corretas após qualquer toggle. }
+   SW    := GetScreenWidth;
+   SH    := GetScreenHeight;
+   HalfW := SW / 2;
+   HalfH := SH / 2;
 
    { ── Smooth follow ──────────────────────────────────────────────────── }
    if Assigned(FTarget) and FTarget.Alive then
@@ -95,20 +100,19 @@ begin
       TgtTr := TTransformComponent(FTarget.GetComponent(TTransformComponent));
       if Assigned(TgtTr) then
       begin
-         CamTr.Position.X := CamTr.Position.X + (TgtTr.Position.X - CamTr.Position.X) * Cam.FollowSpeed * ADelta;
-         CamTr.Position.Y := CamTr.Position.Y + (TgtTr.Position.Y - CamTr.Position.Y) * Cam.FollowSpeed * ADelta;
+         CamTr.Position.X := CamTr.Position.X +
+            (TgtTr.Position.X - CamTr.Position.X) * Cam.FollowSpeed * ADelta;
+         CamTr.Position.Y := CamTr.Position.Y +
+            (TgtTr.Position.Y - CamTr.Position.Y) * Cam.FollowSpeed * ADelta;
       end;
    end;
 
    { ── Clamp nos limites do mundo ──────────────────────────────────────
-    HalfW e HalfH são pixels de TELA.
-    O target da câmera opera em coordenadas de MUNDO.
-    A metade visível em mundo = HalfScreen / Zoom.
-    Divide pelo Zoom para converter tela → mundo. }
+     Divide pelo Zoom para converter pixels de tela em unidades de mundo. }
    if Cam.UseBounds then
    begin
-      HalfWW := HalfW / Cam.Zoom; // ex: 400 / 3.0 ≈ 133 unidades de mundo
-      HalfHW := HalfH / Cam.Zoom; // ex: 240 / 3.0 =  80 unidades de mundo
+      HalfWW := HalfW / Cam.Zoom;
+      HalfHW := HalfH / Cam.Zoom;
 
       if CamTr.Position.X < Cam.Bounds.X + HalfWW then
          CamTr.Position.X := Cam.Bounds.X + HalfWW;

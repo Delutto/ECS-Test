@@ -21,7 +21,7 @@ type
       ZOrder    : Integer;
       Visible   : Boolean;
     { Quando False, o destrutor NÃO chama UnloadTexture.
-      Usar False para texturas compartilhadas (vindas de um atlas/cache gerenciado externamente, como as variáveis globais de Mario.ProceduralArt).
+      Usar False para texturas compartilhadas (vindas de um atlas/cache gerenciado externamente, como as variáveis globais de Mario.Assets).
       Usar True apenas quando o sprite for o único dono da textura (ex: carregada via LoadFromFile para uso exclusivo). }
       OwnsTexture: Boolean;
       constructor Create; override;

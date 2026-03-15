@@ -6,12 +6,15 @@ interface
 
 uses
    raylib,
-   P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Core.ComponentRegistry, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
    P2D.Components.Sprite, P2D.Components.Animation;
 
 type
    { TAnimationSystem }
    TAnimationSystem = class(TSystem2D)
+   private
+      FAnimationID: Integer;
+      FSpriteID: Integer;
    public
       constructor Create(AWorld: TWorldBase); override;
       procedure Init; override;
@@ -34,6 +37,9 @@ begin
 
    RequireComponent(TAnimationComponent);
    RequireComponent(TSpriteComponent);
+
+   FAnimationID := ComponentRegistry.GetComponentID(TAnimationComponent);
+   FSpriteID := ComponentRegistry.GetComponentID(TSpriteComponent);
 end;
 
 procedure TAnimationSystem.Update(ADelta: Single);
@@ -45,11 +51,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
-      Anim := TAnimationComponent(E.GetComponent(TAnimationComponent));
-      Spr  := TSpriteComponent(E.GetComponent(TSpriteComponent));
+      Anim := TAnimationComponent(E.GetComponentByID(FAnimationID));
+      Spr  := TSpriteComponent(E.GetComponentByID(FSpriteID));
 
       if Anim.Enabled and Spr.Enabled then
       begin

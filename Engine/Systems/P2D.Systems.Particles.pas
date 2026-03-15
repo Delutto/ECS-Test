@@ -6,12 +6,15 @@ interface
 
 uses
    Classes, SysUtils,
-   P2D.Core.System, P2D.Core.Entity,
+   P2D.Core.ComponentRegistry, P2D.Core.System, P2D.Core.Entity,
    P2D.Components.ParticleEmitter, P2D.Components.Transform;
 
 type
    { TParticleSystem }
    TParticleSystem = class(TSystem2D)
+   private
+      FParticleEmitterID: Integer;
+      FTransformID: Integer;
    public
       constructor Create(AWorld: TWorldBase); override;
       procedure Init; override;
@@ -35,6 +38,9 @@ begin
 
    RequireComponent(TParticleEmitterComponent);
    RequireComponent(TTransformComponent);
+
+   FParticleEmitterID := ComponentRegistry.GetComponentID(TParticleEmitterComponent);
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
 end;
 
 { TP2DParticleSystem }
@@ -46,8 +52,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      Emitter := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
-      Transform := TTransformComponent(E.GetComponent(TTransformComponent));
+      Emitter := TParticleEmitterComponent(E.GetComponentByID(FParticleEmitterID));
+      Transform := TTransformComponent(E.GetComponentByID(FTransformID));
 
       if Assigned(Emitter) then
          Emitter.Update(AFixedDelta);
@@ -62,8 +68,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      Emitter   := TParticleEmitterComponent(E.GetComponent(TParticleEmitterComponent));
-      Transform := TTransformComponent(E.GetComponent(TTransformComponent));
+      Emitter   := TParticleEmitterComponent(E.GetComponentByID(FParticleEmitterID));
+      Transform := TTransformComponent(E.GetComponentByID(FTransformID));
 
       if Assigned(Emitter) and Assigned(Transform) then
          Emitter.RenderAt(Transform.Position);

@@ -6,7 +6,7 @@ interface
 
 uses
    SysUtils, Math, raylib,
-   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Core.ComponentRegistry, P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
    P2D.Components.Transform, P2D.Components.Camera2D;
 
 type
@@ -16,6 +16,9 @@ type
       FTarget   : TEntity;
       FScreenW  : Integer;
       FScreenH  : Integer;
+
+      FTransformID: Integer;
+      FCameraID: Integer;
    public
       constructor Create(AWorld: TWorldBase; AScreenW, AScreenH: Integer); reintroduce;
       procedure Init; override;
@@ -53,11 +56,14 @@ begin
    O Update usa FCamEntity/FTarget diretamente — GetMatchingEntities é usado apenas aqui no Init para localizar as entidades. }
    RequireComponent(TTransformComponent);
 
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
+   FCameraID := ComponentRegistry.GetComponentID(TCamera2DComponent);
+
    FCamEntity := nil;
    FTarget    := nil;
    for E in GetMatchingEntities do
    begin
-      Cam := TCamera2DComponent(E.GetComponent(TCamera2DComponent));
+      Cam := TCamera2DComponent(E.GetComponentByID(FCameraID));
       if Cam <> nil then
       begin
          FCamEntity := E;
@@ -82,8 +88,8 @@ begin
    if not Assigned(FCamEntity) then
       Exit;
 
-   Cam   := TCamera2DComponent(FCamEntity.GetComponent(TCamera2DComponent));
-   CamTr := TTransformComponent(FCamEntity.GetComponent(TTransformComponent));
+   Cam   := TCamera2DComponent(FCamEntity.GetComponentByID(FCameraID));
+   CamTr := TTransformComponent(FCamEntity.GetComponentByID(FTransformID));
 
    if not Assigned(Cam) or not Assigned(CamTr) then
       Exit;
@@ -97,13 +103,11 @@ begin
    { ── Smooth follow ──────────────────────────────────────────────────── }
    if Assigned(FTarget) and FTarget.Alive then
    begin
-      TgtTr := TTransformComponent(FTarget.GetComponent(TTransformComponent));
+      TgtTr := TTransformComponent(FTarget.GetComponentByID(FTransformID));
       if Assigned(TgtTr) then
       begin
-         CamTr.Position.X := CamTr.Position.X +
-            (TgtTr.Position.X - CamTr.Position.X) * Cam.FollowSpeed * ADelta;
-         CamTr.Position.Y := CamTr.Position.Y +
-            (TgtTr.Position.Y - CamTr.Position.Y) * Cam.FollowSpeed * ADelta;
+         CamTr.Position.X := CamTr.Position.X + (TgtTr.Position.X - CamTr.Position.X) * Cam.FollowSpeed * ADelta;
+         CamTr.Position.Y := CamTr.Position.Y + (TgtTr.Position.Y - CamTr.Position.Y) * Cam.FollowSpeed * ADelta;
       end;
    end;
 
@@ -138,7 +142,7 @@ var
 begin
    if not Assigned(FCamEntity) then
       Exit;
-   Cam := TCamera2DComponent(FCamEntity.GetComponent(TCamera2DComponent));
+   Cam := TCamera2DComponent(FCamEntity.GetComponentByID(FCameraID));
    if Assigned(Cam) then
       BeginMode2D(Cam.RaylibCamera);
 end;
@@ -156,7 +160,7 @@ begin
    Result.Zoom := 1;
    if not Assigned(FCamEntity) then
       Exit;
-   Cam := TCamera2DComponent(FCamEntity.GetComponent(TCamera2DComponent));
+   Cam := TCamera2DComponent(FCamEntity.GetComponentByID(FCameraID));
    if Assigned(Cam) then
       Result := Cam.RaylibCamera;
 end;

@@ -6,16 +6,9 @@ interface
 
 uses
    SysUtils, Classes, raylib,
+   P2D.Common,
    P2D.Core.Component,
    P2D.Core.Types;
-
-const
-   TILE_NONE   = 0;
-   TILE_SOLID  = 1;
-   TILE_SEMI   = 2;  { One-way / semi-solid: blocks only when falling DOWN onto the top surface }
-   TILE_HAZARD = 3;
-   TILE_COIN   = 4;
-   TILE_GOAL   = 5;
 
 type
    TTileData = record

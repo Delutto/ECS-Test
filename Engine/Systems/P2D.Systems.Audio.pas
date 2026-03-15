@@ -25,12 +25,13 @@ unit P2D.Systems.Audio;
 interface
 
 uses
-  SysUtils, raylib,
-  P2D.Core.System,
-  P2D.Core.World,
-  P2D.Core.Entity,
-  P2D.Core.Event,
-  P2D.Components.MusicPlayer;
+   SysUtils, raylib,
+   P2D.Core.System,
+   P2D.Core.World,
+   P2D.Core.Entity,
+   P2D.Core.Event,
+   P2D.Core.ComponentRegistry,
+   P2D.Components.MusicPlayer;
 
 { ── Eventos de áudio publicados por outros sistemas ────────────────────────── }
 type
@@ -69,6 +70,7 @@ type
 { ── Sistema ─────────────────────────────────────────────────────────────── }
   TAudioSystem = class(TSystem2D)
   private
+    FMusicPlayerID: Integer;
     { Callbacks vinculados ao EventBus }
     procedure OnPlaySound(AEvent: TEvent2D);
     procedure OnPlayMusic(AEvent: TEvent2D);
@@ -142,12 +144,12 @@ begin
 
    RequireComponent(TMusicPlayerComponent);
 
+   FMusicPlayerID := ComponentRegistry.GetComponentID(TMusicPlayerComponent);
+
    { Inicia músicas marcadas como AutoPlay }
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-      MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
+      MP := TMusicPlayerComponent(E.GetComponentByID(FMusicPlayerID));
       if Assigned(MP) and MP.AutoPlay then
          StartMusic(MP);
    end;
@@ -173,7 +175,7 @@ begin
    begin
       //if not E.Alive then
       //   Continue;
-      MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
+      MP := TMusicPlayerComponent(E.GetComponentByID(FMusicPlayerID));
       if not Assigned(MP) then
          Continue;
       if MP.Playing then
@@ -218,9 +220,7 @@ var
 begin
   for E in GetMatchingEntities do
   begin
-    //if not E.Alive then
-    //   Continue;
-    MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
+    MP := TMusicPlayerComponent(E.GetComponentByID(FMusicPlayerID));
     if Assigned(MP) and MP.Playing then
     begin
       StopMusicStream(MP.Music);
@@ -264,9 +264,7 @@ begin
   StopAllMusic;
   for E in GetMatchingEntities do
   begin
-    //if not E.Alive then
-    //   Continue;
-    MP := TMusicPlayerComponent(E.GetComponent(TMusicPlayerComponent));
+    MP := TMusicPlayerComponent(E.GetComponentByID(FMusicPlayerID));
     if Assigned(MP) then
     begin
       MP.Music  := TResourceManager2D.Instance.LoadMusic(Ev.FileName);
@@ -279,18 +277,18 @@ end;
 
 procedure TAudioSystem.OnStopMusic(AEvent: TEvent2D);
 begin
-  StopAllMusic;
+   StopAllMusic;
 end;
 
 procedure TAudioSystem.OnSetVolume(AEvent: TEvent2D);
 var
-  Ev : TAudioSetVolumeEvent;
+   Ev : TAudioSetVolumeEvent;
 begin
-  Ev := TAudioSetVolumeEvent(AEvent);
-  SetMasterVolume(Ev.MasterVolume);
-  {$IFDEF DEBUG}
-  Logger.Debug(Format('[AudioSystem] Master volume set to %.2f', [Ev.MasterVolume]));
-  {$ENDIF}
+   Ev := TAudioSetVolumeEvent(AEvent);
+   SetMasterVolume(Ev.MasterVolume);
+   {$IFDEF DEBUG}
+   Logger.Debug(Format('[AudioSystem] Master volume set to %.2f', [Ev.MasterVolume]));
+   {$ENDIF}
 end;
 
 end.

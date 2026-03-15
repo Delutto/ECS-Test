@@ -6,7 +6,8 @@ interface
 
 uses
    SysUtils, Math,
-   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.Events,
+   P2D.Common,
+   P2D.Core.ComponentRegistry, P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.Events,
    P2D.Components.Transform, P2D.Components.RigidBody,
    P2D.Components.Collider, P2D.Components.TileMap;
 
@@ -16,11 +17,12 @@ type
       FTileMapEntity : TEntity;
       FEntList       : array of TEntity;
 
+      FTransformID: Integer;
+      FColliderID: Integer;
+
       { ── Tile collision helpers ── }
       procedure SolveTileCollision(ATr: TTransformComponent; ARB: TRigidBodyComponent; ACol: TColliderComponent; AMap: TTileMapComponent; AMapTr: TTransformComponent);
-
       procedure SolveSolidTile(ATr: TTransformComponent; ARB: TRigidBodyComponent; const R: TRectF; const TileR: TRectF; AMap: TTileMapComponent; ACol: Integer; ARow: Integer);
-
       procedure SolveSemiTile(ATr: TTransformComponent; ARB: TRigidBodyComponent; const R: TRectF; const TileR: TRectF);
 
       { ── Entity-vs-entity overlap ── }
@@ -56,6 +58,9 @@ begin
 
    RequireComponent(TColliderComponent);
    RequireComponent(TTransformComponent);
+
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
+   FColliderID := ComponentRegistry.GetComponentID(TColliderComponent);
 
    { Cache the first tilemap entity found in the world }
    FTileMapEntity := nil;
@@ -98,9 +103,9 @@ begin
          if not E.HasComponent(TRigidBodyComponent) then
             Continue;
 
-         Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
+         Tr  := TTransformComponent(E.GetComponentByID(FTransformID));
          RB  := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
-         Col := TColliderComponent(E.GetComponent(TColliderComponent));
+         Col := TColliderComponent(E.GetComponentByID(FColliderID));
 
          if Tr.Enabled and RB.Enabled and Col.Enabled then
             SolveTileCollision(Tr, RB, Col, TileM, MapTr);
@@ -234,26 +239,28 @@ var
    OverY         : Single;
    FeetWereAbove : Boolean;
 begin
-  { Only handle the vertical (top-surface) case }
-  if ARB.Velocity.Y < 0 then
-     Exit; { Moving up → pass through }
+   { Only handle the vertical (top-surface) case }
+   if ARB.Velocity.Y < 0 then
+      Exit; { Moving up → pass through }
 
-  OverY := Min(R.Bottom, TileR.Bottom) - Max(R.Y, TileR.Y);
+   OverY := Min(R.Bottom, TileR.Bottom) - Max(R.Y, TileR.Y);
 
-  { "Feet were above" heuristic:
+   { "Feet were above" heuristic:
     After the push-out the bottom of the entity would sit exactly on the
     tile top.  We accept this only when the penetration is shallow enough
     that the entity really was approaching from above rather than already
     being well inside the tile (which would mean it spawned or teleported
     inside it). }
-  FeetWereAbove := (R.Bottom - OverY) <= TileR.Y;
+   FeetWereAbove := (R.Bottom - OverY) <= TileR.Y;
 
-  if not FeetWereAbove then Exit; { Entity is coming from below → pass through }
+   if not FeetWereAbove then
+      Exit; { Entity is coming from below → pass through }
 
-  { ── Land on top of the semi-solid ── }
-  ATr.Position.Y := ATr.Position.Y - OverY;
-  ARB.Grounded   := True;
-  if ARB.Velocity.Y > 0 then ARB.Velocity.Y := 0;
+   { ── Land on top of the semi-solid ── }
+   ATr.Position.Y := ATr.Position.Y - OverY;
+   ARB.Grounded   := True;
+   if ARB.Velocity.Y > 0 then
+      ARB.Velocity.Y := 0;
 end;
 
 { ══════════════════════════════════════════════════════════════════════════════
@@ -261,51 +268,51 @@ end;
   ══════════════════════════════════════════════════════════════════════════════ }
 procedure TCollisionSystem.SolveEntityCollisions;
 var
-  Count: Integer;
-  I, J : Integer;
-  EA, EB: TEntity;
-  TA, TB: TTransformComponent;
-  CA, CB: TColliderComponent;
-  RA, RB_: TRectF;
+   Count: Integer;
+   I, J : Integer;
+   EA, EB: TEntity;
+   TA, TB: TTransformComponent;
+   CA, CB: TColliderComponent;
+   RA, RB_: TRectF;
 begin
-  Count := GetMatchingEntities.Count;
-  if Count < 2 then Exit;
+   Count := GetMatchingEntities.Count;
+   if Count < 2 then
+      Exit;
 
-  if Length(FEntList) < Count then
-    SetLength(FEntList, Count);
+   if Length(FEntList) < Count then
+      SetLength(FEntList, Count);
 
-  Count := 0;
-  for EA in GetMatchingEntities do
-  begin
-    if not EA.Alive then Continue;
-    FEntList[Count] := EA;
-    Inc(Count);
-  end;
+   Count := 0;
+   for EA in GetMatchingEntities do
+   begin
+      if not EA.Alive then
+         Continue;
+      FEntList[Count] := EA;
+      Inc(Count);
+   end;
 
-  for I := 0 to Count - 2 do
-  begin
-    EA := FEntList[I];
-    TA := TTransformComponent(EA.GetComponent(TTransformComponent));
-    CA := TColliderComponent(EA.GetComponent(TColliderComponent));
-    if not Assigned(TA) or not Assigned(CA) then Continue;
-    RA := CA.GetWorldRect(TA.Position);
+   for I := 0 to Count - 2 do
+   begin
+      EA := FEntList[I];
+      TA := TTransformComponent(EA.GetComponentByID(FTransformID));
+      CA := TColliderComponent(EA.GetComponentByID(FColliderID));
+      if not Assigned(TA) or not Assigned(CA) then
+         Continue;
+      RA := CA.GetWorldRect(TA.Position);
 
-    for J := I + 1 to Count - 1 do
-    begin
-      EB  := FEntList[J];
-      TB  := TTransformComponent(EB.GetComponent(TTransformComponent));
-      CB  := TColliderComponent(EB.GetComponent(TColliderComponent));
-      if not Assigned(TB) or not Assigned(CB) then Continue;
-      RB_ := CB.GetWorldRect(TB.Position);
+      for J := I + 1 to Count - 1 do
+      begin
+         EB  := FEntList[J];
+         TB  := TTransformComponent(EB.GetComponentByID(FTransformID));
+         CB  := TColliderComponent(EB.GetComponentByID(FColliderID));
+         if not Assigned(TB) or not Assigned(CB) then
+            Continue;
+         RB_ := CB.GetWorldRect(TB.Position);
 
-      if RA.Overlaps(RB_) then
-        World.EventBus.Publish(
-          TEntityOverlapEvent.Create(
-            EA.ID, EB.ID,
-            CA.Tag, CB.Tag,
-            CA.IsTrigger, CB.IsTrigger));
-    end;
-  end;
+         if RA.Overlaps(RB_) then
+         World.EventBus.Publish(TEntityOverlapEvent.Create(EA.ID, EB.ID, CA.Tag, CB.Tag, CA.IsTrigger, CB.IsTrigger));
+      end;
+   end;
 end;
 
 end.

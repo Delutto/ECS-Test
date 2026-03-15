@@ -10,9 +10,10 @@ const
    MAX_DELTA = 0.25;       // teto de delta — evita "spiral of death"
 
    // P2D.Components.TileMap
+
    TILE_NONE   = 0;
    TILE_SOLID  = 1;
-   TILE_SEMI   = 2;  // plataforma one-way (semi-sólida)
+   TILE_SEMI   = 2;  { One-way / semi-solid: blocks only when falling DOWN onto the top surface }
    TILE_HAZARD = 3;
    TILE_COIN   = 4;
    TILE_GOAL   = 5;

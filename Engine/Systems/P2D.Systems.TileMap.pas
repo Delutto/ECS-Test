@@ -39,13 +39,17 @@ interface
 uses
    raylib, Math,
    P2D.Common,
-   P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Core.ComponentRegistry, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
    P2D.Components.Transform, P2D.Components.TileMap, P2D.Components.Camera2D;
 
 type
    { TTileMapSystem }
    TTileMapSystem = class(TSystem2D)
    private
+      FTileMapID: Integer;
+      FTransformID: Integer;
+      FCamera: Integer;
+
       { Camera entity cached at Init time.
         Used every Render call to obtain the raylib TCamera2D needed by
         GetScreenToWorld2D for frustum culling.
@@ -88,9 +92,10 @@ begin
    FCamEntity := nil;
    for E in World.Entities.GetAll do
    begin
-      if {E.Alive and }E.HasComponent(TCamera2DComponent) then
+      if E.HasComponent(TCamera2DComponent) then
       begin
          FCamEntity := E;
+         FCamera := ComponentRegistry.GetComponentID(TCamera2DComponent);
          Exit;
       end;
    end;
@@ -108,6 +113,9 @@ begin
 
    RequireComponent(TTileMapComponent);
    RequireComponent(TTransformComponent);
+
+   FTileMapID := ComponentRegistry.GetComponentID(TTileMapComponent);
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
 
    { Cache the camera entity for use in Render.
      This must run after LoadLevel has created the camera entity, which is
@@ -165,7 +173,7 @@ begin
    HasCam := Assigned(FCamEntity) and FCamEntity.Alive;
    if HasCam then
    begin
-      Cam    := TCamera2DComponent(FCamEntity.GetComponent(TCamera2DComponent));
+      Cam    := TCamera2DComponent(FCamEntity.GetComponentByID(FCamera));
       HasCam := Assigned(Cam);
    end
    else
@@ -174,24 +182,17 @@ begin
    if HasCam then
    begin
       { Top-left screen corner → world coordinates }
-      TL := GetScreenToWorld2D(
-               Vector2Create(0, 0),
-               Cam.RaylibCamera);
+      TL := GetScreenToWorld2D(Vector2Create(0, 0), Cam.RaylibCamera);
 
       { Bottom-right screen corner → world coordinates }
-      BR := GetScreenToWorld2D(
-               Vector2Create(GetScreenWidth, GetScreenHeight),
-               Cam.RaylibCamera);
+      BR := GetScreenToWorld2D(Vector2Create(GetScreenWidth, GetScreenHeight), Cam.RaylibCamera);
    end;
 
    { ── Step 2 + 3: Render each tilemap with culled tile range ─────────────── }
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
-      TM := TTileMapComponent(E.GetComponent(TTileMapComponent));
-      Tr := TTransformComponent(E.GetComponent(TTransformComponent));
+      TM := TTileMapComponent(E.GetComponentByID(FTileMapID));
+      Tr := TTransformComponent(E.GetComponentByID(FTransformID));
 
       if not (TM.Enabled and Tr.Enabled) then
          Continue;

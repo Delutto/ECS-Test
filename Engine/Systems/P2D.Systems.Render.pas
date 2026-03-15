@@ -6,12 +6,16 @@ interface
 
 uses
    SysUtils, Math, raylib,
+   P2D.Core.ComponentRegistry,
    P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
    P2D.Components.Transform, P2D.Components.Sprite;
 
 type
    { TRenderSystem }
    TRenderSystem = class(TSystem2D)
+   private
+      FTSpriteID: Integer;
+      FTransformID: Integer;
    public
       constructor Create(AWorld: TWorldBase); override;
       procedure Init; override;
@@ -35,6 +39,9 @@ begin
 
    RequireComponent(TSpriteComponent);
    RequireComponent(TTransformComponent);
+
+   FTSpriteID := ComponentRegistry.GetComponentID(TSpriteComponent);
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
 end;
 
 procedure TRenderSystem.Update(ADelta: Single);
@@ -55,11 +62,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
-      Spr := TSpriteComponent(E.GetComponent(TSpriteComponent));
-      Tr  := TTransformComponent(E.GetComponent(TTransformComponent));
+      Spr := TSpriteComponent(E.GetComponentByID(FTSpriteID));
+      Tr  := TTransformComponent(E.GetComponentByID(FTransformID));
 
       if not (Spr.Enabled and Tr.Enabled and Spr.Visible) then
          Continue;

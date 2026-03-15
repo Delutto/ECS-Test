@@ -7,38 +7,44 @@ interface
 uses
    SysUtils,
    P2D.Common,
+   P2D.Core.ComponentRegistry,
    P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
    P2D.Components.Transform, P2D.Components.RigidBody;
 
 type
-
-  { TPhysicsSystem }
-
-  TPhysicsSystem = class(TSystem2D)
-  public
-    constructor Create(AWorld: TWorldBase); override;
-    procedure Init; override;
-    procedure Update(ADelta: Single); override;
-    procedure FixedUpdate(AFixedDelta: Single); override;
-  end;
+   { TPhysicsSystem }
+   TPhysicsSystem = class(TSystem2D)
+   private
+      FTransformID: Integer;  // cached at Init
+      FRigidBodyID: Integer;
+   public
+      constructor Create(AWorld: TWorldBase); override;
+      procedure Init; override;
+      procedure Update(ADelta: Single); override;
+      procedure FixedUpdate(AFixedDelta: Single); override;
+   end;
 
 implementation
 
 constructor TPhysicsSystem.Create(AWorld: TWorldBase);
 begin
-  inherited Create(AWorld);
-  Priority := 10;
-  Name     := 'PhysicsSystem';
+   inherited Create(AWorld);
+
+   Priority := 10;
+   Name     := 'PhysicsSystem';
 end;
 
 procedure TPhysicsSystem.Init;
 begin
    inherited;
 
- { Cache cobre todas as entidades colidíveis (player, inimigos, moedas).
-   O loop de tile collision filtra adicionalmente por TRigidBodyComponent. }
+   // calls RequireComponent
    RequireComponent(TTransformComponent);
    RequireComponent(TRigidBodyComponent);
+
+   // Cache IDs after RequireComponent guarantees registration
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
+   FRigidBodyID := ComponentRegistry.GetComponentID(TRigidBodyComponent);
 end;
 
 { Update é vazio: toda a integração física acontece em FixedUpdate, garantindo que o comportamento seja independente do frame rate. }
@@ -61,11 +67,8 @@ var
 begin
    for E in GetMatchingEntities do
    begin
-      //if not E.Alive then
-      //   Continue;
-
-      Tr := TTransformComponent(E.GetComponent(TTransformComponent));
-      RB := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
+      Tr := TTransformComponent(E.GetComponentByID(FTransformID));
+      RB := TRigidBodyComponent(E.GetComponentByID(FRigidBodyID));
 
       if not (Tr.Enabled and RB.Enabled) then
          Continue;

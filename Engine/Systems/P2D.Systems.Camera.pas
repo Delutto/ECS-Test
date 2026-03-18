@@ -78,8 +78,6 @@ var
    Cam   : TCamera2DComponent;
    CamTr : TTransformComponent;
    TgtTr : TTransformComponent;
-   SW    : Integer;
-   SH    : Integer;
    HalfW : Single;
    HalfH : Single;
    HalfWW: Single;
@@ -95,10 +93,8 @@ begin
       Exit;
 
    { Dimensões reais da janela neste frame — corretas após qualquer toggle. }
-   SW    := GetScreenWidth;
-   SH    := GetScreenHeight;
-   HalfW := SW / 2;
-   HalfH := SH / 2;
+   HalfW := FScreenW / 2;
+   HalfH := FScreenH / 2;
 
    { ── Smooth follow ──────────────────────────────────────────────────── }
    if Assigned(FTarget) and FTarget.Alive then

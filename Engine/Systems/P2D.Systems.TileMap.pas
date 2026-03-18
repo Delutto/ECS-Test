@@ -13,7 +13,7 @@ unit P2D.Systems.TileMap;
 
     NEW: Computes the visible tile index range from the camera viewport once
          per frame using raylib's GetScreenToWorld2D, then iterates only the
-         cells that overlap the screen. At zoom 3.0 (800 × 480 px screen)
+         cells that overlap the screen. At zoom 3.0 (800 × 600 px screen)
          approximately 19 × 12 = 228 cells are visited — a 62% reduction.
 
   DESIGN NOTES:
@@ -164,6 +164,7 @@ var
    ColStart, ColEnd: Integer;
    RowStart, RowEnd: Integer;
    HasCam          : Boolean;
+   VW, VH          : Integer;
 begin
    { ── Step 1: Resolve camera and compute world-space viewport ─────────────
      This block runs ONCE per frame, outside the tilemap entity loop.
@@ -181,11 +182,14 @@ begin
 
    if HasCam then
    begin
-      { Top-left screen corner → world coordinates }
-      TL := GetScreenToWorld2D(Vector2Create(0, 0), Cam.RaylibCamera);
-
-      { Bottom-right screen corner → world coordinates }
-      BR := GetScreenToWorld2D(Vector2Create(GetScreenWidth, GetScreenHeight), Cam.RaylibCamera);
+      { TCameraSystem sets Offset = (VirtualW/2, VirtualH/2).
+        Multiply by 2 to recover the full virtual canvas dimensions.
+        GetScreenToWorld2D with corners (0,0) and (VW,VH) gives the world-space rectangle visible through
+	   the virtual canvas — correct at any physical resolution because only the camera matrix matters. }
+      VW := Round(Cam.RaylibCamera.Offset.X * 2);
+      VH := Round(Cam.RaylibCamera.Offset.Y * 2);
+      TL := GetScreenToWorld2D(Vector2Create(0,  0),  Cam.RaylibCamera);
+      BR := GetScreenToWorld2D(Vector2Create(VW, VH), Cam.RaylibCamera);
    end;
 
    { ── Step 2 + 3: Render each tilemap with culled tile range ─────────────── }
@@ -212,14 +216,10 @@ begin
            Max/Min clamps ensure the range stays within valid grid indices
            even when the camera looks beyond the tilemap's bounds
            (e.g. player near a level edge at high zoom). }
-         ColStart := Max(0,
-            Trunc((TL.X - Tr.Position.X) / TM.TileWidth)  - 1);
-         ColEnd   := Min(TM.MapCols - 1,
-            Trunc((BR.X - Tr.Position.X) / TM.TileWidth)  + 1);
-         RowStart := Max(0,
-            Trunc((TL.Y - Tr.Position.Y) / TM.TileHeight) - 1);
-         RowEnd   := Min(TM.MapRows - 1,
-            Trunc((BR.Y - Tr.Position.Y) / TM.TileHeight) + 1);
+         ColStart := Max(0, Trunc((TL.X - Tr.Position.X) / TM.TileWidth)  - 1);
+         ColEnd   := Min(TM.MapCols - 1, Trunc((BR.X - Tr.Position.X) / TM.TileWidth)  + 1);
+         RowStart := Max(0, Trunc((TL.Y - Tr.Position.Y) / TM.TileHeight) - 1);
+         RowEnd   := Min(TM.MapRows - 1, Trunc((BR.Y - Tr.Position.Y) / TM.TileHeight) + 1);
       end
       else
       begin

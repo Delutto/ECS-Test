@@ -38,24 +38,53 @@ type
    TEventQueue     = specialize TFPGObjectList<TEvent2D>;
    THandlerMap     = specialize TFPGMap<Pointer, TSubscriberList>;
 
-   { -------------------------------------------------------------------------
-    TEventBus — barramento central de eventos com dispatch diferido.
+   {══════════════════════════════════════════════════════════════════════
+    TEventBus
+    Central deferred-dispatch event bus with double-buffered queues and
+    inheritance-based handler lookup.
 
-    Publish → enfileira o evento (não chama handlers imediatamente).
-    Dispatch → processa toda a fila e libera os eventos.
-              Chamado por TWorld.Update ao final de cada frame.
+    Publish / Dispatch contract
+    ───────────────────────────
+    Publish  — enqueues the event in FWriteQueue (non-blocking).
+    Dispatch — swaps queues and processes FReadQueue. Events published
+               during Dispatch land in FWriteQueue and are processed in
+               the next Dispatch call, preventing re-entrancy loops.
 
-    Dispatch diferido garante:
-      - Handlers rodam em contexto previsível (após física e lógica do frame)
-      - Eventos publicados durante Dispatch vão para o próximo frame
-        (previne loops infinitos de re-entrância)
-    ------------------------------------------------------------------------- }
+    Inheritance-based dispatch
+    ──────────────────────────
+    When an event is dispatched, the bus walks the class hierarchy of the
+    event's runtime type upward toward TObject, calling all handlers
+    subscribed to each class in the chain. This means:
+
+      - A handler subscribed to TEvent2D (the base) receives every event.
+      - A handler subscribed to TPlayerDamagedEvent receives only that
+        exact event type and any subclass of it.
+      - Exact-class handlers fire before parent-class handlers because
+        the walk starts at the concrete type.
+
+    Handled propagation
+    ───────────────────
+    If any handler sets AEvent.Handled := True, the remaining handlers
+    in the current class level are skipped AND the class hierarchy walk
+    is also stopped. This preserves the original behavior for exact-class
+    dispatch while extending it consistently to the inheritance walk.
+
+    Handler map key
+    ───────────────
+    Keys are Pointer(AClass) — the class VMT pointer — stored in a sorted
+    TFPGMap. The walk therefore performs one IndexOf per level in the
+    class hierarchy, typically 2–4 levels deep for game events.
+   ══════════════════════════════════════════════════════════════════════ }
+
+   { TEventBus }
    TEventBus = class
    private
       FHandlers    : THandlerMap;
       FReadQueue   : TEventQueue;
       FWriteQueue  : TEventQueue;
       FDispatching : Boolean;
+      { Exchanges FReadQueue and FWriteQueue by swapping their reference variables. }
+      procedure SwapQueues;
    public
       constructor Create;
       destructor  Destroy; override;
@@ -97,6 +126,15 @@ begin
    inherited Create;
 
    Callback := ACallback;
+end;
+
+procedure TEventBus.SwapQueues;
+var
+   Tmp: TEventQueue;
+begin
+   Tmp         := FReadQueue;
+   FReadQueue  := FWriteQueue;
+   FWriteQueue := Tmp;
 end;
 
 { TEventBus }
@@ -182,44 +220,50 @@ end;
 
 procedure TEventBus.Dispatch;
 var
-   I, J      : Integer;
-   Event     : TEvent2D;
-   TempQueue : TEventQueue;
-   Key       : Pointer;
-   Idx       : Integer;
-   List      : TSubscriberList;
+   Event : TEvent2D;
+   Cls   : TClass;
+   Idx   : Integer;
+   List  : TSubscriberList;
+   Sub   : TEventSubscriber;
+   I     : Integer;
 begin
    if FDispatching or (FWriteQueue.Count = 0) then
       Exit;
+
+   { Step 1: swap queues so newly published events are isolated }
+   SwapQueues;
+
    FDispatching := True;
-
-   { DOUBLE BUFFERING SWAP:
-     A fila que estava recebendo eventos vira a fila de leitura.
-     A fila de leitura (que está vazia) vira a nova fila de escrita.
-     Isso custa 0 alocações na memória (apenas troca de referências)! }
-   TempQueue   := FReadQueue;
-   FReadQueue  := FWriteQueue;
-   FWriteQueue := TempQueue;
-
    try
       for I := 0 to FReadQueue.Count - 1 do
       begin
          Event := FReadQueue[I];
-         Key   := Pointer(Event.ClassType);
-         Idx   := FHandlers.IndexOf(Key);
 
-         if Idx < 0 then
-            Continue;
-
-         List := FHandlers.Data[Idx];
-         for J := 0 to List.Count - 1 do
+         { Step 2: walk the class hierarchy from the concrete type upward }
+         Cls := Event.ClassType;
+         while Assigned(Cls) and (Cls <> TObject) do
          begin
-            if Event.Handled then Break;
-            List[J].Callback(Event);
+            Idx := FHandlers.IndexOf(Pointer(Cls));
+            if Idx >= 0 then
+            begin
+               List := FHandlers.Data[Idx];
+               for Sub in List do
+               begin
+                  if Event.Handled then
+                     Break;  { stop subscriber loop }
+                  Sub.Callback(Event);
+               end;
+            end;
+
+            { Stop the hierarchy walk if any handler marked the event handled }
+            if Event.Handled then
+               Break;
+
+            Cls := Cls.ClassParent;
          end;
       end;
    finally
-      { O .Clear esvazia a fila e (graças ao OwnsObjects=True) chama o .Free automaticamente em todos os TEvent2D iterados. }
+      { Clear FReadQueue: OwnsObjects=True frees all event objects }
       FReadQueue.Clear;
       FDispatching := False;
    end;

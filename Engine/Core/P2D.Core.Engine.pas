@@ -285,8 +285,21 @@ begin
 
    except on E: Exception do
    begin
+      {$IFDEF DEBUG}
       TraceLog(LOG_ERROR, PChar('TEngine2D — Erro fatal: ' + E.Message));
-      raise;
+      {$ENDIF}
+      try
+         FWorld.Shutdown;
+         OnShutdown;
+         if FRenderTexture.Id > 0 then
+         UnloadRenderTexture(FRenderTexture);
+         CloseAudioDevice;
+         CloseWindow;
+      except
+      {$IFDEF DEBUG}
+         TraceLog(LOG_ERROR, PChar('TEngine2D — Erro fatal: ' + E.Message));
+      {$ENDIF}
+      end;
    end;
    end;
 

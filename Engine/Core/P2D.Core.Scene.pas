@@ -62,12 +62,11 @@ unit P2D.Core.Scene;
 interface
 
 uses
-   SysUtils,
+   SysUtils, Math,
    P2D.Core.World,
    P2D.Core.System;
 
 type
-
   { =========================================================================
     TScene2D — base class for all scenes.
     Subclass this and override the Do* hooks.
@@ -79,6 +78,8 @@ type
       FName  : string;
       FActive: Boolean;
       FPaused: Boolean;
+
+      FAccumulator: Single;
    protected
       { Override these in subclasses — all are safe no-ops by default. }
       procedure DoLoad;   virtual;  { build ECS world: systems + entities }
@@ -166,6 +167,7 @@ var
 implementation
 
 uses
+   P2D.Common,
    P2D.Utils.Logger;
 
 { TScene2D }
@@ -177,6 +179,7 @@ begin
    FWorld  := TWorld.Create;
    FActive := False;
    FPaused := False;
+   FAccumulator := 0;
    {$IFDEF DEBUG}
    Logger.Info('[Scene] Created: ' + AName);
    {$ENDIF}
@@ -229,6 +232,7 @@ procedure TScene2D.Enter;
 begin
    FActive := True;
    FPaused := False;
+   FAccumulator := 0;
    {$IFDEF DEBUG}
    Logger.Info('[Scene] Entering: ' + FName);
    {$ENDIF}
@@ -247,9 +251,21 @@ end;
 { Default Update: only drives World.Update (no FixedUpdate accumulator).
   Scenes that need fixed-step physics should override this method. }
 procedure TScene2D.Update(ADelta: Single);
+var
+   Delta: Single;
 begin
-   if FActive and not FPaused then
-      FWorld.Update(ADelta);
+   if not (FActive and not FPaused) then
+      Exit;
+
+   Delta := Min(ADelta, MAX_DELTA);
+   FAccumulator := FAccumulator + Delta;
+   while FAccumulator >= FIXED_DT do
+   begin
+      FWorld.FixedUpdate(FIXED_DT);
+      FAccumulator := FAccumulator - FIXED_DT;
+   end;
+
+   FWorld.Update(ADelta);
 end;
 
 { Default Render: draws both world-space and screen-space layers.

@@ -276,14 +276,18 @@ var
 begin
    if not Assigned(AComp) then
    begin
+      {$IFDEF DEBUG}
       Logger.Error(Format('[Entity %d] AddComponent: Component cannot be nil', [FID]));
+      {$ENDIF}
       raise EArgumentNilException.Create('TEntity.AddComponent: AComp cannot be nil');
    end;
+
    AComp.OwnerEntity := FID;
    CompClassName     := AComp.ClassName;
    CompID := ComponentRegistry.GetComponentID(TComponent2DClass(AComp.ClassType));
    if CompID < 0 then
       CompID := ComponentRegistry.Register(TComponent2DClass(AComp.ClassType));
+
    if Assigned(FComponents[CompID]) then
    begin
       {$IFDEF DEBUG}

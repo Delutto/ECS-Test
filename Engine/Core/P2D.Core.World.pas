@@ -163,13 +163,15 @@ end;
 function TWorld.CreateEntity(const AName: string): TEntity;
 begin
    Result := FEntities.CreateEntity(AName);
-   InvalidateAllSystemCaches;
+   MarkStructureDirty;
+   //InvalidateAllSystemCaches;
 end;
 
 function TWorld.CreatePooledEntity(const ATag: string; const AName: string): TEntity;
 begin
    Result := FEntities.CreatePooledEntity(ATag, AName);
-   InvalidateAllSystemCaches;
+   MarkStructureDirty;
+   //InvalidateAllSystemCaches;
 
    {$IFDEF DEBUG}
    Logger.Debug(Format('[World] Pooled entity created: Tag="%s", Name="%s"', [ATag, AName]));
@@ -179,7 +181,8 @@ end;
 procedure TWorld.DestroyEntity(AID: TEntityID);
 begin
    FEntities.DestroyEntity(AID);
-   InvalidateAllSystemCaches;
+   MarkStructureDirty;
+   //InvalidateAllSystemCaches;
 end;
 
 procedure TWorld.DestroyAllEntities;
@@ -245,6 +248,7 @@ begin
    for S in FSystems do
       if S.Enabled then
          S.Init;
+   //ComponentRegistry.Lock;
 end;
 
 procedure TWorld.FixedUpdate(AFixedDelta: Single);

@@ -300,27 +300,8 @@ begin
 end;
 
 procedure TGameplayScene.Update(ADelta: Single);
-const
-   FIXED_DT : Single = 1.0 / 60.0;
-   MAX_DELTA: Single = 0.25;
-var
-   Delta: Single;
 begin
-   if not Active or Paused then
-      Exit;
-
-   Delta        := Min(ADelta, MAX_DELTA);
-   FAccumulator := FAccumulator + Delta;
-
-   while FAccumulator >= FIXED_DT do
-   begin
-      World.FixedUpdate(FIXED_DT);
-      FAccumulator := FAccumulator - FIXED_DT;
-   end;
-
-   { Variable update: input, animation, camera, game rules.
-   PurgeDestroyed and EventBus.Dispatch are called inside World.Update. }
-   World.Update(Delta);
+   inherited Update(ADelta);
 end;
 
 procedure TGameplayScene.Render;

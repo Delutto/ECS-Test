@@ -5,197 +5,195 @@ unit Mario.Scenes;
 interface
 
 uses
-   SysUtils, raylib, Math,
-   P2D.Core.Scene,
-   P2D.Core.World,
-   P2D.Core.Entity,
-   P2D.Core.Types,
-   P2D.Core.Event,
-   P2D.Core.System,
-   P2D.Systems.Audio,
-   P2D.Systems.Physics,
-   P2D.Systems.Collision,
-   P2D.Systems.Animation,
-   P2D.Systems.Particles,
-   P2D.Systems.Render,
-   P2D.Systems.Camera,
-   P2D.Systems.TileMap,
-   P2D.Systems.Lifetime,
-   P2D.Systems.Tween,
-   P2D.Systems.Text,
-   Mario.Assets,
-   Mario.Level,
-   Mario.Common,
-   Mario.Events,
-   Mario.Systems.Input,
-   Mario.Systems.Player,
-   Mario.Systems.Enemy,
-   Mario.Systems.HUD,
-   Mario.Systems.GameRules,
-   Mario.Systems.Audio,
-   Mario.Systems.ScorePopup,
-   Mario.InputSetup;
+  SysUtils, raylib, Math,
+  P2D.Core.Scene,
+  P2D.Core.World,
+  P2D.Core.Entity,
+  P2D.Core.Types,
+  P2D.Core.Event,
+  P2D.Core.System,
+  P2D.Systems.Audio,
+  P2D.Systems.Physics,
+  P2D.Systems.Collision,
+  P2D.Systems.Animation,
+  P2D.Systems.Particles,
+  P2D.Systems.Render,
+  P2D.Systems.Camera,
+  P2D.Systems.TileMap,
+  P2D.Systems.Lifetime,
+  P2D.Systems.Tween,
+  P2D.Systems.Text,
+  P2D.Systems.StateMachine,
+  Mario.Assets,
+  Mario.Level,
+  Mario.Common,
+  Mario.Events,
+  Mario.Systems.Input,
+  Mario.Systems.Player,
+  Mario.Systems.Enemy,
+  Mario.Systems.HUD,
+  Mario.Systems.GameRules,
+  Mario.Systems.Audio,
+  Mario.Systems.ScorePopup,
+  Mario.InputSetup;
 
 type
-   TTitleScene    = class; // forward
-   TGameplayScene = class; // forward
-   TGameOverScene = class; // forward
+  TTitleScene    = class;
+  TGameplayScene = class;
+  TGameOverScene = class;
 
-  { TGameplayScene — the main gameplay world.
-    Owns all ECS systems and entities. Camera is kept as a field so that OnRender can call BeginMode2D / EndMode2D around rlWorld rendering. }
-   TTitleScene = class(TScene2D)
-   private
-      FScreenW: Integer;
-      FScreenH: Integer;
-      LogoSpr : TTexture2D;
-   protected
-      procedure DoLoad;  override;
-      procedure DoEnter; override;
-      procedure DoExit;  override;
-   public
-      constructor Create(AScreenW, AScreenH: Integer);
-      procedure Update(ADelta: Single); override;
-      procedure Render; override;
-   end;
+  { TTitleScene }
+  TTitleScene = class(TScene2D)
+  private
+    FScreenW: Integer;
+    FScreenH: Integer;
+    LogoSpr : TTexture2D;
+  protected
+    procedure DoLoad;  override;
+    procedure DoEnter; override;
+    procedure DoExit;  override;
+  public
+    constructor Create(AScreenW, AScreenH: Integer);
+    procedure Update(ADelta: Single); override;
+    procedure Render; override;
+  end;
 
-   { TGameplayScene — main gameplay world. }
-   TGameplayScene = class(TScene2D)
-   private
-      FCamSys : TCameraSystem;
-      FScreenW: Integer;
-      FScreenH: Integer;
-      FAccumulator: Single;
+  { TGameplayScene }
+  TGameplayScene = class(TScene2D)
+  private
+    FCamSys     : TCameraSystem;
+    FScreenW    : Integer;
+    FScreenH    : Integer;
+    FAccumulator: Single;
+    procedure RegisterSystems;
+    procedure OnPlayerDied(AEvent: TEvent2D);
+  protected
+    procedure DoLoad;   override;
+    procedure DoEnter;  override;
+    procedure DoExit;   override;
+    procedure DoUnload; override;
+  public
+    constructor Create(AScreenW, AScreenH: Integer);
+    procedure Update(ADelta: Single); override;
+    procedure Render; override;
+    property CamSys: TCameraSystem read FCamSys;
+  end;
 
-      procedure RegisterSystems;
-      procedure OnPlayerDied(AEvent: TEvent2D);
-      protected
-      procedure DoLoad;   override;
-      procedure DoEnter;  override;
-      procedure DoExit;   override;
-      procedure DoUnload; override;
-   public
-      constructor Create(AScreenW, AScreenH: Integer);
-      procedure Update(ADelta: Single); override;
-      procedure Render; override;
-      property CamSys: TCameraSystem read FCamSys;
-   end;
-
-   { TGameOverScene — game-over overlay (unchanged from original) }
-   TGameOverScene = class(TScene2D)
-   private
-      FScreenW: Integer;
-      FScreenH: Integer;
-      protected
-      procedure DoLoad;  override;
-      procedure DoEnter; override;
-      procedure DoExit;  override;
-   public
-      constructor Create(AScreenW, AScreenH: Integer);
-      procedure Update(ADelta: Single); override;
-      procedure Render; override;
-   end;
+  { TGameOverScene }
+  TGameOverScene = class(TScene2D)
+  private
+    FScreenW: Integer;
+    FScreenH: Integer;
+  protected
+    procedure DoLoad;  override;
+    procedure DoEnter; override;
+    procedure DoExit;  override;
+  public
+    constructor Create(AScreenW, AScreenH: Integer);
+    procedure Update(ADelta: Single); override;
+    procedure Render; override;
+  end;
 
 implementation
 
 uses
-   P2D.Core.ResourceManager,
-   P2D.Core.InputManager,
-   Mario.Entities;
+  P2D.Core.ResourceManager,
+  P2D.Core.InputManager,
+  Mario.Entities;
 
 { TTitleScene }
 constructor TTitleScene.Create(AScreenW, AScreenH: Integer);
 begin
-   inherited Create('Title');
+  inherited Create('Title');
 
-   FScreenW := AScreenW;
-   FScreenH := AScreenH;
+  FScreenW := AScreenW;
+  FScreenH := AScreenH;
 end;
 
 procedure TTitleScene.DoLoad;
 begin
-   World.AddSystem(TAudioSystem.Create(World));
+  World.AddSystem(TAudioSystem.Create(World));
 end;
 
 procedure TTitleScene.DoEnter;
 begin
-   CreateMusicPlayer(World, BGM_TITLE);
-   LogoSpr := TResourceManager2D.Instance.LoadTexture(LOGO_TEXTURE);
+  CreateMusicPlayer(World, BGM_TITLE);
+  LogoSpr := TResourceManager2D.Instance.LoadTexture(LOGO_TEXTURE);
 end;
 
 procedure TTitleScene.DoExit;
-var
-   AudioSys: TAudioSystem;
+var AudioSys: TAudioSystem;
 begin
-   AudioSys := TAudioSystem(World.GetSystem(TAudioSystem));
-   if Assigned(AudioSys) then
-      AudioSys.StopAllMusic;
-   World.ShutdownSystems;
-   World.DestroyAllEntities;
-   UnloadTexture(LogoSpr);
+  AudioSys := TAudioSystem(World.GetSystem(TAudioSystem));
+  if Assigned(AudioSys) then
+	AudioSys.StopAllMusic;
+  World.ShutdownSystems;
+  World.DestroyAllEntities;
+  UnloadTexture(LogoSpr);
 end;
 
 procedure TTitleScene.Update(ADelta: Single);
 begin
-   if IsKeyPressed(KEY_SPACE) then
-      SceneManager.ChangeScene('Gameplay');
-   World.Update(ADelta);
+  if IsKeyPressed(KEY_SPACE) then
+	SceneManager.ChangeScene('Gameplay');
+  World.Update(ADelta);
 end;
 
 procedure TTitleScene.Render;
 begin
-   ClearBackground(ColorCreate(92, 148, 252, 255));
-   if TexBackground.Id > 0 then
-      DrawTextureEx(TexBackground, Vector2Create((FScreenW - TexBackground.Width  * 2) / 2, (FScreenH - TexBackground.Height * 2)), 0, 2, WHITE);
-   DrawTextureEx(LogoSpr, Vector2Create((FScreenW / 2) - (LogoSpr.Width  / 2) * 2, (FScreenH / 2) - (LogoSpr.Height / 2) * 2 - 75), 0, 2, WHITE);
-   DrawText('Press SPACE to start', FScreenW div 2 - 140, FScreenH div 2 + 10, 22, WHITE);
-   DrawFPS(FScreenW - 80, FScreenH - 20);
+  ClearBackground(ColorCreate(92, 148, 252, 255));
+  if TexBackground.Id > 0 then
+    DrawTextureEx(TexBackground, Vector2Create((FScreenW - TexBackground.Width  * 2) / 2, (FScreenH - TexBackground.Height * 2)), 0, 2, WHITE);
+  DrawTextureEx(LogoSpr, Vector2Create((FScreenW / 2) - (LogoSpr.Width  / 2) * 2, (FScreenH / 2) - (LogoSpr.Height / 2) * 2 - 75), 0, 2, WHITE);
+  DrawText('Press SPACE to start', FScreenW div 2 - 140, FScreenH div 2 + 10, 22, WHITE);
+  DrawFPS(FScreenW - 80, FScreenH - 20);
 end;
 
-{ TGameplayScene }
+{ ═══════════════════════════════════════════════════════════════════════════
+  TGameplayScene
+  ═══════════════════════════════════════════════════════════════════════════ }
 constructor TGameplayScene.Create(AScreenW, AScreenH: Integer);
 begin
-   inherited Create('Gameplay');
+  inherited Create('Gameplay');
 
-   FCamSys  := nil;
-   FScreenW := AScreenW;
-   FScreenH := AScreenH;
+  FCamSys  := nil;
+  FScreenW := AScreenW;
+  FScreenH := AScreenH;
 end;
 
 procedure TGameplayScene.RegisterSystems;
 var
-   W: TWorld;
-   TextSys: TTextSystem2D;
+  W      : TWorld;
+  TextSys: TTextSystem2D;
 begin
-   W := World;
+  W := World;
 
-   W.AddSystem(TPlayerInputSystem.Create(W));   { priority  1 }
-   W.AddSystem(TEnemySystem.Create(W));         { priority  3 }
-   W.AddSystem(TAnimationSystem.Create(W));     { priority  5 }
-   W.AddSystem(TPlayerPhysicsSystem.Create(W)); { priority  7 }
-   W.AddSystem(TPlayerAnimSystem.Create(W));    { priority  8 }
-   W.AddSystem(TPhysicsSystem.Create(W));       { priority 10 }
+  { ── System registration in priority order (sorted by TWorld.AddSystem) ── }
+  W.AddSystem(TPlayerInputSystem.Create(W));        { priority  1 }
+  W.AddSystem(TLifetimeSystem.Create(W));           { priority  2 }
+  W.AddSystem(TTweenSystem2D.Create(W));            { priority  3 }
+  W.AddSystem(TEnemySystem.Create(W));              { priority  3 }
+  W.AddSystem(TAnimationSystem.Create(W));          { priority  5 }
+  W.AddSystem(TStateMachineSystem2D.Create(W));     { priority  6 }
+  W.AddSystem(TPlayerPhysicsSystem.Create(W));      { priority  7 }
+  W.AddSystem(TPlayerAnimSystem.Create(W));         { priority  8 }
+  W.AddSystem(TPhysicsSystem.Create(W));            { priority 10 }
 
-   FCamSys := TCameraSystem.Create(W, FScreenW, FScreenH);
-   W.AddSystem(FCamSys);                        { priority 15 }
+  FCamSys := TCameraSystem.Create(W, FScreenW, FScreenH);
+  W.AddSystem(FCamSys);                             { priority 15 }
 
-   W.AddSystem(TCollisionSystem.Create(W));     { priority 20 }
-   W.AddSystem(TGameRulesSystem.Create(W));     { priority 25 }
+  W.AddSystem(TCollisionSystem.Create(W));          { priority 20 }
+  W.AddSystem(TGameRulesSystem.Create(W));          { priority 25 }
+  W.AddSystem(TScorePopupSystem.Create(W));         { priority 26 }
+  W.AddSystem(TTileMapSystem.Create(W));            { priority 30 }
+  W.AddSystem(TMarioAudioSystem.Create(W));         { priority 50 }
+  W.AddSystem(TRenderSystem.Create(W));             { priority 100 }
 
-   { ── NEW: ScorePopupSystem (priority 26) + its engine dependencies ── }
-   W.AddSystem(TLifetimeSystem.Create(W));      { priority  2 }
-   W.AddSystem(TTweenSystem2D.Create(W));       { priority  3 }
-   W.AddSystem(TScorePopupSystem.Create(W));    { priority 26 }
+  TextSys             := TTextSystem2D.Create(W);
+  TextSys.RenderLayer := rlWorld;
+  W.AddSystem(TextSys);                             { priority 110 }
 
-   W.AddSystem(TTileMapSystem.Create(W));       { priority 30 }
-   W.AddSystem(TMarioAudioSystem.Create(W));    { priority 50 }
-   W.AddSystem(TRenderSystem.Create(W));        { priority 100 }
-
-   { TextSystem: renders popup labels in rlWorld space, after TRenderSystem }
-   TextSys := TTextSystem2D.Create(W);
-   TextSys.RenderLayer := rlWorld;
-   W.AddSystem(TextSys);                        { priority 110 }
-
-   W.AddSystem(THUDSystem.Create(W, FScreenW, FScreenH)); { priority 200 }
+  W.AddSystem(THUDSystem.Create(W, FScreenW, FScreenH)); { priority 200 }
 end;
 
 procedure TGameplayScene.DoLoad;
@@ -212,21 +210,18 @@ begin
 end;
 
 procedure TGameplayScene.DoExit;
-var
-  AudioSys: TAudioSystem;
+var AudioSys: TAudioSystem;
 begin
   AudioSys := TAudioSystem(World.GetSystem(TMarioAudioSystem));
   if Assigned(AudioSys) then
-     AudioSys.StopAllMusic;
+    AudioSys.StopAllMusic;
   World.ShutdownSystems;
   World.DestroyAllEntities;
   World.EventBus.Subscribe(TPlayerDiedEvent, @OnPlayerDied);
 end;
 
 procedure TGameplayScene.DoUnload;
-begin
-  // World is freed by TScene2D.Destroy, which frees all systems.
-end;
+begin end;
 
 procedure TGameplayScene.OnPlayerDied(AEvent: TEvent2D);
 begin
@@ -242,9 +237,7 @@ procedure TGameplayScene.Render;
 var
   Cam: TCamera2D;
 begin
-  if not Active then
-     Exit;
-
+  if not Active then Exit;
   ClearBackground(ColorCreate(92, 148, 252, 255));
 
   if Assigned(FCamSys) then
@@ -252,10 +245,7 @@ begin
     Cam := FCamSys.GetRaylibCamera;
     if TexBackground.Id > 0 then
       DrawTextureEx(TexBackground,
-        Vector2Create(-Cam.Target.X * 0.3 + FScreenW / 2 - 256,
-                      (FScreenH - TexBackground.Height * 2)),
-        0, 2, WHITE);
-
+        Vector2Create(-Cam.Target.X * 0.3 + FScreenW / 2 - 256, (FScreenH - TexBackground.Height * 2)), 0, 2, WHITE);
     FCamSys.BeginCameraMode;
       World.RenderByLayer(rlWorld);
     FCamSys.EndCameraMode;
@@ -267,12 +257,11 @@ begin
   DrawFPS(FScreenW - 80, FScreenH - 20);
 end;
 
-{ ═══════════════════════════════════════════════════════════════════════════
-  TGameOverScene — identical to original
-  ═══════════════════════════════════════════════════════════════════════════ }
+{ TGameOverScene }
 constructor TGameOverScene.Create(AScreenW, AScreenH: Integer);
 begin
   inherited Create('GameOver');
+
   FScreenW := AScreenW;
   FScreenH := AScreenH;
 end;
@@ -292,7 +281,7 @@ var AudioSys: TAudioSystem;
 begin
   AudioSys := TAudioSystem(World.GetSystem(TAudioSystem));
   if Assigned(AudioSys) then
-     AudioSys.StopAllMusic;
+    AudioSys.StopAllMusic;
   World.ShutdownSystems;
   World.DestroyAllEntities;
 end;

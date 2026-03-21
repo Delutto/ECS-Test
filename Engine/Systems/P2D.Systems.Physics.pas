@@ -70,6 +70,8 @@ begin
       Tr := TTransformComponent(E.GetComponentByID(FTransformID));
       RB := TRigidBodyComponent(E.GetComponentByID(FRigidBodyID));
 
+      if not Assigned(Tr) or not Assigned(RB) then
+         Continue;
       if not (Tr.Enabled and RB.Enabled) then
          Continue;
 

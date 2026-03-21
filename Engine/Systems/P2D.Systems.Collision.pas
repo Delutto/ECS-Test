@@ -107,6 +107,8 @@ begin
          RB  := TRigidBodyComponent(E.GetComponent(TRigidBodyComponent));
          Col := TColliderComponent(E.GetComponentByID(FColliderID));
 
+         if not Assigned(Tr) or not Assigned(RB) or not Assigned(Col) then
+            Continue;
          if Tr.Enabled and RB.Enabled and Col.Enabled then
             SolveTileCollision(Tr, RB, Col, TileM, MapTr);
       end;
@@ -310,7 +312,7 @@ begin
          RB_ := CB.GetWorldRect(TB.Position);
 
          if RA.Overlaps(RB_) then
-         World.EventBus.Publish(TEntityOverlapEvent.Create(EA.ID, EB.ID, CA.Tag, CB.Tag, CA.IsTrigger, CB.IsTrigger));
+            World.EventBus.Publish(TEntityOverlapEvent.Create(EA.ID, EB.ID, CA.Tag, CB.Tag, CA.IsTrigger, CB.IsTrigger));
       end;
    end;
 end;

@@ -8,6 +8,9 @@ uses
    P2D.Core.Component;
 
 type
+   { Goomba FSM state IDs — cast to TGoombaState via Ord() / TGoombaState() }
+   TGoombaState = (gsWalking, gsStomped);
+
    TGoombaComponent = class(TComponent2D)
    public
       Speed        : Single;

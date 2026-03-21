@@ -65,6 +65,9 @@ begin
       Spr := TSpriteComponent(E.GetComponentByID(FTSpriteID));
       Tr  := TTransformComponent(E.GetComponentByID(FTransformID));
 
+      if not Assigned(Spr) or not Assigned(Tr) then
+         Continue;
+
       if not (Spr.Enabled and Tr.Enabled and Spr.Visible) then
          Continue;
       if Spr.Texture.Id = 0 then

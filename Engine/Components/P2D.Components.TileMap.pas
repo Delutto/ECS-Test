@@ -46,8 +46,10 @@ type
 
 implementation
 
-{ TTileMapComponent }
+uses
+   P2D.Core.ComponentRegistry;
 
+{ TTileMapComponent }
 constructor TTileMapComponent.Create;
 begin
    inherited;
@@ -174,5 +176,8 @@ begin
       Lines.Free;
    end;
 end;
+
+initialization
+   ComponentRegistry.Register(TTileMapComponent);
 
 end.

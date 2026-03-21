@@ -20,6 +20,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TTransformComponent.Create;
 begin
    inherited Create;
@@ -29,5 +32,8 @@ begin
    Scale        := Vector2Create(1, 1);
    Rotation     := 0;
 end;
+
+initialization
+   ComponentRegistry.Register(TTransformComponent);
 
 end.

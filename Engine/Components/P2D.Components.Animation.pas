@@ -49,8 +49,10 @@ type
 
 implementation
 
-// ---------------------------------------------------------------------------
-// TAnimation
+uses
+   P2D.Core.ComponentRegistry;
+
+{ TAnimation }
 constructor TAnimation.Create(const AName: string; ALoop: Boolean);
 begin
    inherited Create;
@@ -146,5 +148,8 @@ begin
       end;
    end;
 end;
+
+initialization
+   ComponentRegistry.Register(TAnimationComponent);
 
 end.

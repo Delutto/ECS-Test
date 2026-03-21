@@ -32,6 +32,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TSpriteComponent.Create;
 begin
    inherited Create;
@@ -71,5 +74,8 @@ begin
    SourceRect.Width  := Texture.Width;
    SourceRect.Height := Texture.Height;
 end;
+
+initialization
+   ComponentRegistry.Register(TSpriteComponent);
 
 end.

@@ -20,6 +20,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TColliderComponent.Create;
 begin
    inherited Create;
@@ -34,5 +37,8 @@ function TColliderComponent.GetWorldRect(const APosition: TVector2): TRectF;
 begin
    Result := TRectF.Create(APosition.X + Offset.X, APosition.Y + Offset.Y, Size.X, Size.Y);
 end;
+
+initialization
+   ComponentRegistry.Register(TColliderComponent);
 
 end.

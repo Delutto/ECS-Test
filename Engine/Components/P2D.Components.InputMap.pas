@@ -38,6 +38,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TInputMapComponent.Create;
 begin
    inherited Create;
@@ -70,5 +73,8 @@ function TInputMapComponent.AxisValue(const AAction: string): Single;
 begin
    Result := InputManager.AxisValue(FMapName, AAction);
 end;
+
+initialization
+   ComponentRegistry.Register(TInputMapComponent);
 
 end.

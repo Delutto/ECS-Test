@@ -343,9 +343,7 @@ begin
   Result := (RequiredSig <= EntitySig);
 end;
 
-{===============================================================================
-  Finalization
-===============================================================================}
+{ Finalization }
 finalization
   FreeAndNil(GComponentRegistry);
 

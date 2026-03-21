@@ -22,6 +22,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TRigidBodyComponent.Create;
 begin
   inherited Create;
@@ -35,5 +38,8 @@ begin
   OnWall       := False;
   UseGravity   := True;
 end;
+
+initialization
+   ComponentRegistry.Register(TRigidBodyComponent);
 
 end.

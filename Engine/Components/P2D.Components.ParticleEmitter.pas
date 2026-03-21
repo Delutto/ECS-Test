@@ -90,7 +90,7 @@ type
 implementation
 
 uses
-   Math, P2D.Utils.Math;
+   Math, P2D.Utils.Math, P2D.Core.ComponentRegistry;
 
 { TP2DParticleEmitter }
 
@@ -322,5 +322,8 @@ begin
    for I := 1 to Min(ACount, FMaxParticles) do
       EmitParticle;
 end;
+
+initialization
+   ComponentRegistry.Register(TParticleEmitterComponent);
 
 end.

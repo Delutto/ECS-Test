@@ -18,6 +18,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 { TGoombaComponent }
 constructor TGoombaComponent.Create;
 begin
@@ -27,5 +30,8 @@ begin
    Direction    := -1;
    WallCooldown := 0.0;
 end;
+
+initialization
+   ComponentRegistry.Register(TGoombaComponent);
 
 end.

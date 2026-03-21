@@ -49,6 +49,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TAudioComponent.Create;
 begin
    inherited Create;
@@ -64,5 +67,8 @@ begin
    FPlayOnAwake := False;
    FPlaying     := False;
 end;
+
+initialization
+   ComponentRegistry.Register(TAudioComponent);
 
 end.

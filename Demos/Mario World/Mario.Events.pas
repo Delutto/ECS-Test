@@ -5,8 +5,6 @@ unit Mario.Events;
 { ============================================================================
   Eventos específicos do demo Mario.
   Todos herdam de TEvent2D e carregam apenas dados imutáveis.
-  O TAudioSystem reage aos eventos de gameplay publicando os eventos de
-  áudio correspondentes — sem acoplamento entre gameplay e áudio.
   ============================================================================ }
 
 interface
@@ -20,7 +18,10 @@ type
    public
       NewCoins : Integer;
       NewScore : Integer;
-      constructor Create(ACoins, AScore: Integer);
+      { Position of the coin in world space — used by TScorePopupSystem. }
+      WorldX   : Single;
+      WorldY   : Single;
+      constructor Create(ACoins, AScore: Integer; AWorldX: Single = 0; AWorldY: Single = 0);
    end;
 
    TPlayerDamagedEvent = class(TEvent2D)
@@ -43,7 +44,10 @@ type
    public
       ScoreGained : Integer;
       NewScore    : Integer;
-      constructor Create(AScoreGained, ANewScore: Integer);
+      { Position of the stomped enemy in world space — used by TScorePopupSystem. }
+      WorldX      : Single;
+      WorldY      : Single;
+      constructor Create(AScoreGained, ANewScore: Integer; AWorldX: Single = 0; AWorldY: Single = 0);
    end;
 
    TPlayerDiedEvent = class(TEvent2D)
@@ -59,12 +63,14 @@ type
 
 implementation
 
-constructor TCoinCollectedEvent.Create(ACoins, AScore: Integer);
+constructor TCoinCollectedEvent.Create(ACoins, AScore: Integer; AWorldX, AWorldY: Single);
 begin
    inherited Create;
 
    NewCoins := ACoins;
    NewScore := AScore;
+   WorldX   := AWorldX;
+   WorldY   := AWorldY;
 end;
 
 constructor TPlayerDamagedEvent.Create(ALives: Integer);
@@ -81,27 +87,29 @@ end;
 
 constructor TPlayerSpinEvent.Create;
 begin
-   inherited Create;
+  inherited Create;
 end;
 
-constructor TEnemyStompedEvent.Create(AScoreGained, ANewScore: Integer);
+constructor TEnemyStompedEvent.Create(AScoreGained, ANewScore: Integer; AWorldX, AWorldY: Single);
 begin
    inherited Create;
 
    ScoreGained := AScoreGained;
    NewScore    := ANewScore;
+   WorldX      := AWorldX;
+   WorldY      := AWorldY;
 end;
 
 constructor TPlayerDiedEvent.Create;
 begin
-   inherited Create;
+  inherited Create;
 end;
 
 constructor TPlayerRespawnedEvent.Create(ALives: Integer);
 begin
-   inherited Create;
+  inherited Create;
 
-   LivesRemaining := ALives;
+  LivesRemaining := ALives;
 end;
 
 end.

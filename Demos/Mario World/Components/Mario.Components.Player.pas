@@ -61,6 +61,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TPlayerComponent.Create;
 begin
    inherited Create;
@@ -84,5 +87,8 @@ begin
    WantsDuck      := False;
    WantsSpin      := False;
 end;
+
+initialization
+   ComponentRegistry.Register(TPlayerComponent);
 
 end.

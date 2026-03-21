@@ -43,6 +43,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TMusicPlayerComponent.Create;
 begin
   inherited Create;
@@ -53,5 +56,8 @@ begin
   FLoop     := True;
   FPlaying  := False;
 end;
+
+initialization
+   ComponentRegistry.Register(TMusicPlayerComponent);
 
 end.

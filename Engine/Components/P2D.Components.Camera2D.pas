@@ -24,6 +24,9 @@ type
 
 implementation
 
+uses
+   P2D.Core.ComponentRegistry;
+
 constructor TCamera2DComponent.Create;
 begin
    inherited Create;
@@ -37,5 +40,8 @@ begin
 
    Target := nil;
 end;
+
+initialization
+   ComponentRegistry.Register(TCamera2DComponent);
 
 end.

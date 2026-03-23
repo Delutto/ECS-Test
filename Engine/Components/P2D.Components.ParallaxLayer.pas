@@ -2,42 +2,54 @@ unit P2D.Components.ParallaxLayer;
 
 {$mode objfpc}{$H+}
 
-{ ─────────────────────────────────────────────────────────────────────────────
-  TParallaxLayerComponent2D — horizontal/vertical parallax scrolling layer.
+{ =============================================================================
+  TParallaxLayerComponent2D
 
-  DESIGN
-  ──────
-  • Each parallax layer entity carries:
-      - A TTransformComponent (base world position + rendering anchor)
-      - A TSpriteComponent (the background texture to tile)
-      - This TParallaxLayerComponent2D (scroll factors + tiling config)
-
-  • TParallaxSystem2D reads the camera's world position every frame and
-    recomputes the draw offset:
-        DrawOffsetX = CameraX * ScrollFactorX
-        DrawOffsetY = CameraY * ScrollFactorY
-
-  • TileH / TileV flags control whether the texture is tiled horizontally
-    and/or vertically to cover the full screen without gaps.
-
-  • ZOrder on TSpriteComponent controls depth:
-      Z=-10 → far background; Z=-1 → near background; Z=0 → tilemap.
-  ───────────────────────────────────────────────────────────────────────────── }
+  IMPORTANT: this component stores the texture reference directly so that
+  TParallaxSystem2D does NOT need TSpriteComponent.
+  If the parallax entity also carried TSpriteComponent, TRenderSystem would
+  match it and render the full-resolution texture in world space (inside
+  BeginMode2D), multiplied by the camera zoom — producing a giant rectangle
+  that covers the tilemap. Keeping the texture here avoids that conflict.
+  ============================================================================= }
 
 interface
 
 uses
+   raylib,
    P2D.Core.Component;
 
 type
    TParallaxLayerComponent2D = class(TComponent2D)
    public
-      ScrollFactorX: Single;  // 0.0=fixed, 0.5=half speed, 1.0=moves with camera
+      { Texture to tile across the background.
+      Non-owning reference — the texture is managed externally
+      (e.g. by TResourceManager2D or a global ProceduralArt variable). }
+      Texture      : TTexture2D;
+
+      { Colour modulation applied to every draw call (WHITE = no tint). }
+      Tint         : TColor;
+
+      { Scroll factors: 0.0 = fixed on screen, 1.0 = moves with the camera.
+      Values between 0 and 1 create the parallax depth illusion.
+      Note: because the tilemap is drawn inside BeginMode2D with zoom=3,
+      a parallax ScrollFactorX of 0.3 gives a visual speed of 0.3/3 = 10%
+      of the tilemap's apparent speed. }
+      ScrollFactorX: Single;
       ScrollFactorY: Single;
-      TileH        : Boolean; // tile texture horizontally
-      TileV        : Boolean; // tile texture vertically
+
+      { When True, the texture is tiled horizontally / vertically to fill
+      the virtual canvas without gaps regardless of camera travel. }
+      TileH: Boolean;
+      TileV: Boolean;
+
+      { Draw order among parallax layers.
+      Lower ZOrder → drawn first → visually further away.
+      TParallaxSystem2D sorts entities by this value before rendering. }
+      ZOrder: Integer;
+
       constructor Create; override;
-   end;
+  end;
 
 implementation
 
@@ -48,13 +60,17 @@ constructor TParallaxLayerComponent2D.Create;
 begin
    inherited Create;
 
-   ScrollFactorX := 0.3;  // slow-moving background default
-   ScrollFactorY := 0.0;  // typically no vertical scroll in platformers
+   FillChar(Texture, SizeOf(Texture), 0);
+   Tint          := WHITE;
+   ScrollFactorX := 0.3;
+   ScrollFactorY := 0.0;
    TileH         := True;
    TileV         := False;
+   ZOrder        := 0;
 end;
 
 initialization
    ComponentRegistry.Register(TParallaxLayerComponent2D);
 
 end.
+

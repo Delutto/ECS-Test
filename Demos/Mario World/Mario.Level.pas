@@ -23,6 +23,30 @@ procedure LoadLevel(AWorld: TWorld);
 var
    Player: TEntity;
 begin
+   { Parallax layers (created before world entities so their entity IDs are lower, but ZOrder guarantees correct draw order regardless) }
+
+   { Layer 0 — far sky, distant hills and clouds }
+   CreateParallaxBackground(AWorld,
+                            TexBackground,   { 512×240                     }
+                            0.20,            { ScrollFactorX — very slow   }
+                            0.0,             { ScrollFactorY — no vertical }
+                            2.0,             { scale — pixel-doubled       }
+                            0.0,             { ScreenY — fills from top    }
+                            0,               { ZOrder — drawn first        }
+                            True,            { TileH                       }
+                            False);          { TileV                       }
+
+   { Layer 1 — near hills and bushes (transparent background) }
+   CreateParallaxBackground(AWorld,
+                            TexBackground2,  { 256×120                           }
+                            0.60,            { ScrollFactorX — noticeably faster }
+                            0.0,             { ScrollFactorY                     }
+                            2.0,             { scale                             }
+                            360.0,           { ScreenY — sits above ground row   }
+                            1,               { ZOrder — drawn on top of layer 0  }
+                            True,            { TileH                             }
+                            False);          { TileV                             }
+
    { Tilemap }
    CreateTileMap(AWorld);
 

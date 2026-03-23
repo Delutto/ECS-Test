@@ -63,94 +63,92 @@ end;
 
 procedure TEnemySystem.Init;
 var
-  E  : TEntity;
-  FSM: TStateMachineComponent2D;
+   E  : TEntity;
+   FSM: TStateMachineComponent2D;
 begin
-  inherited;
+   inherited;
 
-  RequireComponent(TEnemyTag);
-  RequireComponent(TTransformComponent);
-  RequireComponent(TRigidBodyComponent);
-  RequireComponent(TGoombaComponent);
-  RequireComponent(TStateMachineComponent2D);
+   RequireComponent(TEnemyTag);
+   RequireComponent(TTransformComponent);
+   RequireComponent(TRigidBodyComponent);
+   RequireComponent(TGoombaComponent);
+   RequireComponent(TStateMachineComponent2D);
 
-  FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
-  FRigidBodyID := ComponentRegistry.GetComponentID(TRigidBodyComponent);
-  FGoombaID    := ComponentRegistry.GetComponentID(TGoombaComponent);
-  FSpriteID    := ComponentRegistry.GetComponentID(TSpriteComponent);
-  FAnimID      := ComponentRegistry.GetComponentID(TAnimationComponent);
-  FFSMID       := ComponentRegistry.GetComponentID(TStateMachineComponent2D);
-  FLifetimeID  := ComponentRegistry.GetComponentID(TLifetimeComponent2D);
+   FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
+   FRigidBodyID := ComponentRegistry.GetComponentID(TRigidBodyComponent);
+   FGoombaID    := ComponentRegistry.GetComponentID(TGoombaComponent);
+   FSpriteID    := ComponentRegistry.GetComponentID(TSpriteComponent);
+   FAnimID      := ComponentRegistry.GetComponentID(TAnimationComponent);
+   FFSMID       := ComponentRegistry.GetComponentID(TStateMachineComponent2D);
+   FLifetimeID  := ComponentRegistry.GetComponentID(TLifetimeComponent2D);
 
-  { Attach this system's callbacks to every Goomba entity that already
-    exists (created by LoadLevel before World.Init ran). }
-  for E in GetMatchingEntities do
-  begin
-    FSM := TStateMachineComponent2D(E.GetComponentByID(FFSMID));
-    if not Assigned(FSM) then Continue;
-    FSM.OnEnter := @OnGoombaEnterState;
-    FSM.OnExit  := @OnGoombaExitState;
-  end;
+   { Attach this system's callbacks to every Goomba entity that already
+   exists (created by LoadLevel before World.Init ran). }
+   for E in GetMatchingEntities do
+   begin
+      FSM := TStateMachineComponent2D(E.GetComponentByID(FFSMID));
+      if not Assigned(FSM) then
+         Continue;
+      FSM.OnEnter := @OnGoombaEnterState;
+      FSM.OnExit  := @OnGoombaExitState;
+   end;
 end;
 
 { ── FSM callback: fires when the Goomba ENTERS a new state ─────────────── }
 procedure TEnemySystem.OnGoombaEnterState(AEntityID: Cardinal; AStateID: TStateID);
 var
-  E   : TEntity;
-  RB  : TRigidBodyComponent;
-  Spr : TSpriteComponent;
-  Anim: TAnimationComponent;
-  Tr  : TTransformComponent;
-  LT  : TLifetimeComponent2D;
+   E   : TEntity;
+   RB  : TRigidBodyComponent;
+   Spr : TSpriteComponent;
+   Anim: TAnimationComponent;
+   Tr  : TTransformComponent;
+   LT  : TLifetimeComponent2D;
 begin
-  E := World.GetEntity(AEntityID);
-  if not Assigned(E) or not E.Alive then Exit;
+   E := World.GetEntity(AEntityID);
+   if not Assigned(E) or not E.Alive then
+      Exit;
 
-  case TGoombaState(AStateID) of
-
-    gsWalking:
-      { Nothing special — entity starts here via SetInitialState. } ;
-
-    gsStomped:
-    begin
-      { 1. Freeze horizontal movement; disable gravity so it stays put. }
-      RB := TRigidBodyComponent(E.GetComponentByID(FRigidBodyID));
-      if Assigned(RB) then
+   case TGoombaState(AStateID) of
+      gsWalking: { Nothing special — entity starts here via SetInitialState. } ;
+      gsStomped:
       begin
-        RB.Velocity.X := 0;
-        RB.Velocity.Y := 0;
-        RB.UseGravity := False;
+         { 1. Freeze horizontal movement; disable gravity so it stays put. }
+         RB := TRigidBodyComponent(E.GetComponentByID(FRigidBodyID));
+         if Assigned(RB) then
+         begin
+            RB.Velocity.X := 0;
+            RB.Velocity.Y := 0;
+            RB.UseGravity := False;
+         end;
+
+         { 2. Visually flatten: squash Y scale to 30% to mimic a stomped sprite.
+         Disable the collider tag implicitly — GameRules checks entity alive. }
+         Spr := TSpriteComponent(E.GetComponentByID(FSpriteID));
+         if Assigned(Spr) then
+            Spr.Tint := ColorCreate(180, 120, 80, 255);   { brownish death tint }
+
+         Anim := TAnimationComponent(E.GetComponentByID(FAnimID));
+         if Assigned(Anim) then
+            Anim.Play('stomped');
+
+         { 3. Transform: squash the sprite vertically at the bottom of the tile. }
+         Tr := TTransformComponent(E.GetComponentByID(FTransformID));
+         if Assigned(Tr) then
+         begin
+            Tr.Position.Y := Tr.Position.Y + 11; { shift down so feet stay on ground }
+            Tr.Scale.Y    := 0.30;               { flatten to 30% height             }
+         end;
+
+         { 4. Unpause the pre-attached lifetime counter so TLifetimeSystem will destroy this entity after 0.45 s. }
+         LT := TLifetimeComponent2D(E.GetComponentByID(FLifetimeID));
+         if Assigned(LT) then
+         begin
+            LT.Duration  := 0.45;
+            LT.Remaining := 0.45;
+            LT.Paused    := False;
+         end;
       end;
-
-      { 2. Visually flatten: squash Y scale to 30% to mimic a stomped sprite.
-            Disable the collider tag implicitly — GameRules checks entity alive. }
-      Spr := TSpriteComponent(E.GetComponentByID(FSpriteID));
-      if Assigned(Spr) then
-        Spr.Tint := ColorCreate(180, 120, 80, 255);   { brownish death tint }
-
-      Anim := TAnimationComponent(E.GetComponentByID(FAnimID));
-      if Assigned(Anim) then
-        Anim.Play('stomped');
-
-      { 3. Transform: squash the sprite vertically at the bottom of the tile. }
-      Tr := TTransformComponent(E.GetComponentByID(FTransformID));
-      if Assigned(Tr) then
-      begin
-        Tr.Position.Y := Tr.Position.Y + 11;   { shift down so feet stay on ground }
-        Tr.Scale.Y    := 0.30;                  { flatten to 30% height              }
-      end;
-
-      { 4. Unpause the pre-attached lifetime counter so TLifetimeSystem
-            will destroy this entity after 0.45 s. }
-      LT := TLifetimeComponent2D(E.GetComponentByID(FLifetimeID));
-      if Assigned(LT) then
-      begin
-        LT.Duration  := 0.45;
-        LT.Remaining := 0.45;
-        LT.Paused    := False;
-      end;
-    end;
-  end;
+   end;
 end;
 
 { ── FSM callback: fires when the Goomba EXITS a state ──────────────────── }

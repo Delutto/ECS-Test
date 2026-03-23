@@ -28,7 +28,7 @@ type
    RenderByLayer(rlScreen) fora dele, garantindo que cada sistema
    desenhe no espaço correto.
    ---------------------------------------------------------------------------}
-   TRenderLayer = (rlWorld, rlScreen);
+   TRenderLayer = (rlBackground, rlWorld, rlScreen);
 
    {---------------------------------------------------------------------------
    Component Signature - Otimização de Queries

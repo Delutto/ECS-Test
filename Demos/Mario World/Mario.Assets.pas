@@ -2,18 +2,7 @@ unit Mario.Assets;
 
 {$mode objfpc}{$H+}
 
-{ Geração procedural de todos os assets visuais da demo Mario.
-  Nenhum arquivo de imagem externo é necessário.
-
-  Spritesheet do player (128x32) — 8 colunas × 2 linhas (small / big):
-    Col 0 : idle
-    Col 1 : walk A  (pé direito à frente)
-    Col 2 : walk B  (cruzamento de passada)
-    Col 3 : walk C  (pé esquerdo à frente)
-    Col 4 : jump    (pernas recolhidas, braços levantados)
-    Col 5 : run A   (passada larga – perna dir. muito à frente)
-    Col 6 : run B   (passada larga – perna esq. muito à frente)
-    Col 7 : dead    (pernas e braços abertos) }
+{ Geração procedural dos assets visuais da demo Mario }
 
 interface
 
@@ -23,17 +12,15 @@ uses
 procedure GenerateAssets;
 procedure UnloadAssets;
 
-// Textures accessible by the rest of the demo
 var
-   TexEnemy     : TTexture2D;   // goomba: 2 frames
-   TexTiles     : TTexture2D;   // tileset: 4 tiles (ground,brick,block,coin)
-   TexBackground: TTexture2D;   // sky gradient with hills
+   TexEnemy      : TTexture2D;   { goomba: 2 frames × 16×16                        }
+   TexTiles      : TTexture2D;   { tileset: 4 tiles (ground, plank, ?-block, coin) }
+   TexBackground : TTexture2D;   { sky + hills + clouds: 512×240 (far layer)       }
+   TexBackground2: TTexture2D;   { closer hills + bushes: 256×120 (near layer)     }
 
 implementation
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+{ ── Helpers ─────────────────────────────────────────────────────────────── }
 procedure FillRect(img: PImage; x, y, w, h: Integer; c: TColor);
 var
    IX, IY: Integer;
@@ -47,161 +34,175 @@ procedure DrawCircleImg(img: PImage; cx, cy, r: Integer; c: TColor);
 var
    IX, IY: Integer;
 begin
-  for IY := cy - r to cy + r do
-    for IX := cx - r to cx + r do
-      if (Sqr(IX - cx) + Sqr(IY - cy)) <= Sqr(r) then
-        ImageDrawPixel(img, IX, IY, ColorCreate(c.R, c.G, c.B, c.A));
+   for IY := cy - r to cy + r do
+      for IX := cx - r to cx + r do
+         if (Sqr(IX - cx) + Sqr(IY - cy)) <= Sqr(r) then
+            ImageDrawPixel(img, IX, IY, ColorCreate(c.R, c.G, c.B, c.A));
 end;
 
-// ---------------------------------------------------------------------------
-// Goomba – 16x16, 2 frames
-// ---------------------------------------------------------------------------
+{ ── Goomba (32×16, 2 frames 16×16) ──────────────────────────────────────── }
 procedure MakeEnemy;
 var
    img: TImage;
-   BX: Integer;
+   BX : Integer;
 begin
    img := GenImageColor(32, 16, ColorCreate(0,0,0,0));
    for BX := 0 to 1 do
    begin
-      // Body (brown)
-      FillRect(@img, BX*16+1, 4, 14, 11, ColorCreate(150,75,0, 255));
-      // Eyes
-      FillRect(@img, BX*16+3, 5, 4, 4, ColorCreate(255,255,255, 255));
-      FillRect(@img, BX*16+9, 5, 4, 4, ColorCreate(255,255,255, 255));
-      FillRect(@img, BX*16+4, 6, 2, 2, ColorCreate(10,10,10, 255));
-      FillRect(@img, BX*16+10,6, 2, 2, ColorCreate(10,10,10, 255));
-      // Feet (alternate per frame)
+      FillRect(@img, BX*16+1,  4, 14, 11, ColorCreate(150, 75,   0, 255));
+      FillRect(@img, BX*16+3,  5,  4,  4, ColorCreate(255,255, 255, 255));
+      FillRect(@img, BX*16+9,  5,  4,  4, ColorCreate(255,255, 255, 255));
+      FillRect(@img, BX*16+4,  6,  2,  2, ColorCreate( 10, 10,  10, 255));
+      FillRect(@img, BX*16+10, 6,  2,  2, ColorCreate( 10, 10,  10, 255));
       if BX = 0 then
       begin
-         FillRect(@img, BX*16+2, 13, 4, 3, ColorCreate(80,40,0, 255));
-         FillRect(@img, BX*16+10,13, 4, 3, ColorCreate(80,40,0, 255));
+         FillRect(@img, BX*16+2,  13, 4, 3, ColorCreate(80,40,0, 255));
+         FillRect(@img, BX*16+10, 13, 4, 3, ColorCreate(80,40,0, 255));
       end
       else
       begin
-         FillRect(@img, BX*16+0, 13, 5, 3, ColorCreate(80,40,0, 255));
-         FillRect(@img, BX*16+11,13, 5, 3, ColorCreate(80,40,0, 255));
+         FillRect(@img, BX*16+0,  13, 5, 3, ColorCreate(80,40,0, 255));
+         FillRect(@img, BX*16+11, 13, 5, 3, ColorCreate(80,40,0, 255));
       end;
+      FillRect(@img, BX*16+3, 4, 4, 1, ColorCreate(60,30,0, 255));
+      FillRect(@img, BX*16+9, 4, 4, 1, ColorCreate(60,30,0, 255));
    end;
-   // Eyebrows (angry)
-   FillRect(@img, BX*16+3, 4, 4, 1, ColorCreate(60,30,0, 255));
-   FillRect(@img, BX*16+9, 4, 4, 1, ColorCreate(60,30,0, 255));
-
    TexEnemy := LoadTextureFromImage(img);
    UnloadImage(img);
 end;
 
-// ---------------------------------------------------------------------------
-// Tileset – 16x16 per tile, 4 tiles in a row:
-//   0=ground  1=brick  2=question-block  3=coin-tile
-// ---------------------------------------------------------------------------
+{ ── Tileset (64×16, 4 tiles of 16×16) ───────────────────────────────────── }
 procedure MakeTiles;
 var
    Img: TImage;
    X  : Integer;
 begin
-   Img := GenImageColor(64, 16, ColorCreate(0, 0, 0, 0));
+   Img := GenImageColor(64, 16, ColorCreate(0,0,0,0));
 
-   { ── Tile 0 (TileID 1): Solid ground ─────────────────────────────────────── }
-   FillRect(@Img,  0, 0, 16, 16, ColorCreate(139, 101,  62, 255)); { dirt brown  }
-   FillRect(@Img,  0, 0, 16,  4, ColorCreate( 80, 160,  50, 255)); { grass strip }
-   { Subtle grid lines to break up the surface }
-   for X := 0 to 15 do
-      ImageDrawPixel(@Img, X, 4, ColorCreate(60, 130, 40, 255));
+   { Tile 0 — solid ground }
+   FillRect(@Img,  0, 0, 16, 16, ColorCreate(139,101, 62, 255));
+   FillRect(@Img,  0, 0, 16,  4, ColorCreate( 80,160, 50, 255));
+   for X := 0 to 15 do ImageDrawPixel(@Img, X, 4, ColorCreate(60,130,40,255));
 
-   { ── Tile 1 (TileID 2): Semi-solid one-way platform ──────────────────────── }
-   { Visually distinct: a lighter wood-plank look with a clear top edge         }
-   FillRect(@Img, 16,  0, 16, 16, ColorCreate(210, 170, 100, 255)); { plank base  }
-   FillRect(@Img, 16,  0, 16,  3, ColorCreate(240, 200, 120, 255)); { bright top  }
-   FillRect(@Img, 16,  3, 16,  1, ColorCreate(160, 120,  60, 255)); { top border  }
-   { Vertical plank separators }
-   ImageDrawPixel(@Img, 20,  4, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 20,  5, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 20,  6, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 24,  4, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 24,  5, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 24,  6, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 28,  4, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 28,  5, ColorCreate(160, 120, 60, 255));
-   ImageDrawPixel(@Img, 28,  6, ColorCreate(160, 120, 60, 255));
+   { Tile 1 — semi-solid plank }
+   FillRect(@Img, 16,  0, 16, 16, ColorCreate(210,170,100, 255));
+   FillRect(@Img, 16,  0, 16,  3, ColorCreate(240,200,120, 255));
+   FillRect(@Img, 16,  3, 16,  1, ColorCreate(160,120, 60, 255));
+   ImageDrawPixel(@Img, 20, 4, ColorCreate(160,120,60,255));
+   ImageDrawPixel(@Img, 20, 5, ColorCreate(160,120,60,255));
+   ImageDrawPixel(@Img, 24, 4, ColorCreate(160,120,60,255));
+   ImageDrawPixel(@Img, 24, 5, ColorCreate(160,120,60,255));
+   ImageDrawPixel(@Img, 28, 4, ColorCreate(160,120,60,255));
+   ImageDrawPixel(@Img, 28, 5, ColorCreate(160,120,60,255));
 
-   { ── Tile 2 (TileID 3): ? Block ──────────────────────────────────────────── }
-   FillRect(@Img, 32,  0, 16, 16, ColorCreate(220, 170,   0, 255)); { gold body   }
-   FillRect(@Img, 32,  0, 16,  1, ColorCreate(255, 210,  80, 255)); { top shine   }
-   FillRect(@Img, 32,  0,  1, 16, ColorCreate(255, 210,  80, 255)); { left shine  }
-   FillRect(@Img, 47,  0,  1, 16, ColorCreate(160, 110,   0, 255)); { right dark  }
-   FillRect(@Img, 32, 15, 16,  1, ColorCreate(160, 110,   0, 255)); { bottom dark }
-   { "?" mark — 3 small rectangles forming the glyph }
-   FillRect(@Img, 37,  3,  6,  2, ColorCreate(255, 255, 255, 255)); { top bar     }
-   FillRect(@Img, 41,  5,  2,  3, ColorCreate(255, 255, 255, 255)); { right leg   }
-   FillRect(@Img, 38,  8,  4,  2, ColorCreate(255, 255, 255, 255)); { middle bar  }
-   FillRect(@Img, 38, 11,  4,  2, ColorCreate(255, 255, 255, 255)); { dot         }
+   { Tile 2 — ? block }
+   FillRect(@Img, 32,  0, 16, 16, ColorCreate(220,170,  0, 255));
+   FillRect(@Img, 32,  0, 16,  1, ColorCreate(255,210, 80, 255));
+   FillRect(@Img, 32,  0,  1, 16, ColorCreate(255,210, 80, 255));
+   FillRect(@Img, 47,  0,  1, 16, ColorCreate(160,110,  0, 255));
+   FillRect(@Img, 32, 15, 16,  1, ColorCreate(160,110,  0, 255));
+   FillRect(@Img, 37,  3,  6,  2, ColorCreate(255,255,255, 255));
+   FillRect(@Img, 41,  5,  2,  3, ColorCreate(255,255,255, 255));
+   FillRect(@Img, 38,  8,  4,  2, ColorCreate(255,255,255, 255));
+   FillRect(@Img, 38, 11,  4,  2, ColorCreate(255,255,255, 255));
 
-   { ── Tile 3 (TileID 4): Coin tile ────────────────────────────────────────── }
-   DrawCircleImg(@Img, 56, 8, 6, ColorCreate(255, 200,   0, 255)); { gold circle  }
-   DrawCircleImg(@Img, 56, 8, 4, ColorCreate(255, 230,  80, 255)); { inner shine  }
+   { Tile 3 — coin tile }
+   DrawCircleImg(@Img, 56, 8, 6, ColorCreate(255,200,  0, 255));
+   DrawCircleImg(@Img, 56, 8, 4, ColorCreate(255,230, 80, 255));
 
    TexTiles := LoadTextureFromImage(Img);
    UnloadImage(Img);
 end;
 
-// ---------------------------------------------------------------------------
-// Background – sky + hills + clouds (512 x 240)
-// ---------------------------------------------------------------------------
+{ ── Background layer 0 — sky + distant hills + clouds (512×240) ──────────
+  Scroll factor ≈ 0.10 (barely moves — the far horizon).                  }
 procedure MakeBackground;
 var
-   img: TImage;
-   IX, IY, Dist: Integer;
+   img       : TImage;
+   IX, IY    : Integer;
 begin
    img := GenImageColor(512, 240, ColorCreate(92,148,252,255));
 
-   // Ground strip
-   FillRect(@img, 0, 210, 512, 30, ColorCreate(80,160,50, 255));
-   FillRect(@img, 0, 218, 512, 22, ColorCreate(140,100,60, 255));
+   { Ground base strip }
+   FillRect(@img, 0, 210, 512, 30, ColorCreate( 80,160, 50, 255));
+   FillRect(@img, 0, 218, 512, 22, ColorCreate(140,100, 60, 255));
 
-   // Hills
+   { Far hills (large, light green) }
    for IX := 0 to 511 do
-   begin
       for IY := 150 to 209 do
       begin
-         Dist := Sqr(IX - 80) + Sqr(IY - 210);
-         if Dist < Sqr(80) then
-            ImageDrawPixel(@img, IX, IY, ColorCreate(50,140,30,255));
-         Dist := Sqr(IX - 320) + Sqr(IY - 210);
-         if Dist < Sqr(110) then
-            ImageDrawPixel(@img, IX, IY, ColorCreate(50,140,30,255));
+         if Sqr(IX -  80) + Sqr(IY - 210) < Sqr(80) then
+            ImageDrawPixel(@img, IX, IY, ColorCreate( 50,140,30,255));
+         if Sqr(IX - 320) + Sqr(IY - 210) < Sqr(110) then
+            ImageDrawPixel(@img, IX, IY, ColorCreate( 50,140,30,255));
+         if Sqr(IX - 460) + Sqr(IY - 210) < Sqr(65) then
+            ImageDrawPixel(@img, IX, IY, ColorCreate( 50,140,30,255));
       end;
-   end;
 
-   // Clouds
-   DrawCircleImg(@img,100, 60, 20, ColorCreate(255, 255, 255, 255));
-   DrawCircleImg(@img,125, 55, 25, ColorCreate(255, 255, 255, 255));
-   DrawCircleImg(@img,150, 60, 20, ColorCreate(255, 255, 255, 255));
-
-   DrawCircleImg(@img,350, 40, 18, ColorCreate(255, 255, 255, 255));
-   DrawCircleImg(@img,372, 35, 22, ColorCreate(255, 255, 255, 255));
-   DrawCircleImg(@img,394, 40, 18, ColorCreate(255, 255, 255, 255));
+   { Clouds }
+   DrawCircleImg(@img, 100, 60, 20, WHITE);
+   DrawCircleImg(@img, 125, 55, 25, WHITE);
+   DrawCircleImg(@img, 150, 60, 20, WHITE);
+   DrawCircleImg(@img, 350, 40, 18, WHITE);
+   DrawCircleImg(@img, 372, 35, 22, WHITE);
+   DrawCircleImg(@img, 394, 40, 18, WHITE);
 
    TexBackground := LoadTextureFromImage(img);
    UnloadImage(img);
 end;
 
-// ---------------------------------------------------------------------------
+{ ── Background layer 1 — closer hills + bushes (256×120) ─────────────────
+  Scroll factor ≈ 0.35 (mid-distance parallax layer).
+  Drawn tiled horizontally; anchored just above the ground strip.        }
+procedure MakeBackground2;
+var
+   img    : TImage;
+   IX, IY : Integer;
+begin
+   img := GenImageColor(256, 120, ColorCreate(0,0,0,0));  { transparent bg }
+
+   { Rounded hills (darker green to stand out against sky) }
+   for IX := 0 to 255 do
+      for IY := 50 to 119 do
+      begin
+         if Sqr(IX -  50) + Sqr(IY - 120) < Sqr(55) then
+            ImageDrawPixel(@img, IX, IY, ColorCreate(40,120,20,255));
+         if Sqr(IX - 180) + Sqr(IY - 120) < Sqr(70) then
+            ImageDrawPixel(@img, IX, IY, ColorCreate(40,120,20,255));
+      end;
+
+   { Simple bushes: two overlapping circles }
+   DrawCircleImg(@img, 115, 110, 10, ColorCreate(30,110,10,255));
+   DrawCircleImg(@img, 128, 107, 13, ColorCreate(30,110,10,255));
+   DrawCircleImg(@img, 141, 110, 10, ColorCreate(30,110,10,255));
+
+   DrawCircleImg(@img, 210, 113,  8, ColorCreate(30,110,10,255));
+   DrawCircleImg(@img, 222, 110, 11, ColorCreate(30,110,10,255));
+   DrawCircleImg(@img, 234, 113,  8, ColorCreate(30,110,10,255));
+
+   TexBackground2 := LoadTextureFromImage(img);
+   UnloadImage(img);
+end;
+
+{ ── Public API ────────────────────────────────────────────────────────────── }
 procedure GenerateAssets;
 begin
-   MakeEnemy;
-   MakeTiles;
-   MakeBackground;
+  MakeEnemy;
+  MakeTiles;
+  MakeBackground;
+  MakeBackground2;
 end;
 
 procedure UnloadAssets;
 begin
-   if TexEnemy.Id > 0 then
-      UnloadTexture(TexEnemy);
-   if TexTiles.Id > 0 then
-      UnloadTexture(TexTiles);
-   if TexBackground.Id > 0 then
-      UnloadTexture(TexBackground);
+  if TexEnemy.Id > 0 then
+     UnloadTexture(TexEnemy);
+  if TexTiles.Id > 0 then
+     UnloadTexture(TexTiles);
+  if TexBackground.Id > 0 then
+     UnloadTexture(TexBackground);
+  if TexBackground2.Id > 0 then
+     UnloadTexture(TexBackground2);
 end;
 
 end.

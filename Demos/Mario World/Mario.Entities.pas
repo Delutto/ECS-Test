@@ -241,6 +241,14 @@ begin
    Col.Tag    := ctEnemy;
    Col.Offset := Vector2Create(1, 0);
    Col.Size   := Vector2Create(14, 16);
+   Col.IsTrigger := True;
+ { A Goomba is a TRIGGER, not a physical solid.
+   IsTrigger = True means: "detect overlap and publish TEntityOverlapEvent, but let game logic (TGameRulesSystem) decide the outcome — do NOT apply PushEntitiesApart."
+   Consequences:
+   • TEntityOverlapEvent is still published for Player-vs-Goomba ✓
+   • SolveTileCollision still runs (Goomba lands on platforms)    ✓
+   • PushEntitiesApart NOT called for Player-vs-Goomba: Velocity.Y is NOT zeroed before TGameRulesSystem reads it  ✓
+   • PushEntitiesApart NOT called for Goomba-vs-Goomba: Goombas walk through each other (correct for this demo)    ✓ }
 
    Anim := TAnimationComponent(E.AddComponent(TAnimationComponent.Create));
 
@@ -265,8 +273,7 @@ begin
 
    { ── FSM: gsWalking (0) or gsStomped (1) ──────────────────────────────────
     Callbacks assigned by TEnemySystem.Init.
-    SetInitialState avoids a spurious OnEnter(gsWalking) before callbacks
-    are attached. }
+    SetInitialState avoids a spurious OnEnter(gsWalking) before callbacks are attached. }
    FSM := TStateMachineComponent2D(E.AddComponent(TStateMachineComponent2D.Create));
    FSM.OwnerID := E.ID;
    FSM.SetInitialState(Ord(gsWalking));

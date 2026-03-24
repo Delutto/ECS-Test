@@ -199,7 +199,7 @@ begin
    AddFrame(Clip, 10, 0, FRAME_W, FRAME_H, 0.5);
    Anim.AddAnimation(Clip);
 
-   Clip := TAnimation.Create('swimming', False);
+   Clip := TAnimation.Create('swimming', True);
    AddFrame(Clip, 10, 0, FRAME_W, FRAME_H, 0.08);
    AddFrame(Clip, 11, 0, FRAME_W, FRAME_H, 0.08);
    AddFrame(Clip, 12, 0, FRAME_W, FRAME_H, 0.08);
@@ -234,12 +234,12 @@ begin
   { Attach swimmer component — TSwimSystem.Init reads it and applies overrides }
    SW := TSwimmerComponent(E.AddComponent(TSwimmerComponent.Create));
   { Custom tuning for this level (defaults in TSwimmerComponent.Create are fine) }
-   SW.UnderwaterGravityScale := 0.10;   { barely any sinking }
+   SW.UnderwaterGravityScale := 0.15;   { barely any sinking }
    SW.UnderwaterDragX := 5.5;    { noticeable resistance }
-   SW.UnderwaterDragY := 4.5;
-   SW.UnderwaterMaxFallSpeed := 50.0;
+   SW.UnderwaterDragY := 4.0;
+   SW.UnderwaterMaxFallSpeed := 90.0;
    SW.UnderwaterMaxSpeedX := 85.0;
-   SW.SwimUpForce := -1100.0; { strong enough to overcome gravity }
+   SW.SwimUpForce := -7000.0; { strong enough to overcome gravity }
 
   { Start in underwater idle state }
    FSM := TStateMachineComponent2D(E.GetComponent(TStateMachineComponent2D));

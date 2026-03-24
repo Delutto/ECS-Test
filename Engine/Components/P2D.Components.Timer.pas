@@ -1,6 +1,7 @@
 unit P2D.Components.Timer;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { ─────────────────────────────────────────────────────────────────────────────
   TTimerComponent2D — general-purpose multi-timer component.
@@ -28,53 +29,54 @@ unit P2D.Components.Timer;
 interface
 
 uses
-  SysUtils, P2D.Core.Component;
+   SysUtils,
+   P2D.Core.Component;
 
 const
-  MAX_TIMERS = 8;
+   MAX_TIMERS = 8;
 
 type
-  TOnTimerFiredProc = procedure(const ATimerName: string) of object;
+   TOnTimerFiredProc = procedure(const ATimerName: String) of object;
 
-  TTimerEntry = record
-    Name     : string[31];   // short string for O(1) compare
-    Duration : Single;
-    Remaining: Single;
-    Active   : Boolean;
-    Repeat_  : Boolean;      // True = auto-reset on expiry
-    OnFired  : TOnTimerFiredProc;
-  end;
+   TTimerEntry = record
+      Name: String[31];   // short string for O(1) compare
+      Duration: Single;
+      Remaining: Single;
+      Active: Boolean;
+      Repeat_: Boolean;      // True = auto-reset on expiry
+      OnFired: TOnTimerFiredProc;
+   end;
 
-  TTimerComponent2D = class(TComponent2D)
-  private
-    FTimers: array[0..MAX_TIMERS - 1] of TTimerEntry;
-    FCount : Integer;
+   TTimerComponent2D = class(TComponent2D)
+   private
+      FTimers: array[0..MAX_TIMERS - 1] of TTimerEntry;
+      FCount: Integer;
 
-    function FindTimer(const AName: string): Integer;
-  public
-    constructor Create; override;
+      function FindTimer(const AName: String): Integer;
+   public
+      constructor Create; override;
 
     { Start or restart a named timer.
       ARepeat=True → auto-resets on expiry (good for recurring cooldowns).
       AOnFired     → optional callback; nil = no callback. }
-    procedure Start(const AName: string; ADuration: Single; ARepeat: Boolean = False; AOnFired: TOnTimerFiredProc = nil);
+      procedure Start(const AName: String; ADuration: Single; ARepeat: Boolean = False; AOnFired: TOnTimerFiredProc = nil);
 
     { Stop the timer without firing the callback. }
-    procedure Stop(const AName: string);
+      procedure Stop(const AName: String);
 
     { Returns True while the timer is running (Remaining > 0). }
-    function  IsActive(const AName: string): Boolean;
+      function IsActive(const AName: String): Boolean;
 
     { Returns the normalised progress [0..1] of a named timer.
       0.0 = just started; 1.0 = expired. }
-    function  Progress(const AName: string): Single;
+      function Progress(const AName: String): Single;
 
     { Returns remaining seconds; 0 if timer not found or inactive. }
-    function  Remaining(const AName: string): Single;
+      function Remaining(const AName: String): Single;
 
     { Internal — called by TTimerSystem2D every frame. }
-    procedure Tick(ADelta: Single);
-  end;
+      procedure Tick(ADelta: Single);
+   end;
 
 implementation
 
@@ -83,110 +85,135 @@ uses
 
 constructor TTimerComponent2D.Create;
 var
-  I: Integer;
+   I: Integer;
 begin
-  inherited Create;
-  
-  FCount := 0;
-  for I := 0 to MAX_TIMERS - 1 do
-    FillChar(FTimers[I], SizeOf(FTimers[I]), 0);
+   inherited Create;
+
+   FCount := 0;
+   for I := 0 to MAX_TIMERS - 1 do
+   begin
+      FillChar(FTimers[I], SizeOf(FTimers[I]), 0)
+   end;
 end;
 
-function TTimerComponent2D.FindTimer(const AName: string): Integer;
+function TTimerComponent2D.FindTimer(const AName: String): Integer;
 var
-  I: Integer;
+   I: Integer;
 begin
-  Result := -1;
-  for I := 0 to FCount - 1 do
-    if FTimers[I].Name = AName then
-    begin
-      Result := I;
-      Exit;
-    end;
+   Result := -1;
+   for I := 0 to FCount - 1 do
+   begin
+      if FTimers[I].Name = AName then
+      begin
+         Result := I;
+         Exit;
+      end
+   end;
 end;
 
-procedure TTimerComponent2D.Start(const AName: string; ADuration: Single; ARepeat: Boolean; AOnFired: TOnTimerFiredProc);
+procedure TTimerComponent2D.Start(const AName: String; ADuration: Single; ARepeat: Boolean; AOnFired: TOnTimerFiredProc);
 var
-  Idx: Integer;
+   Idx: Integer;
 begin
-  Idx := FindTimer(AName);
-  if Idx < 0 then
-  begin
-    if FCount >= MAX_TIMERS then
-      raise Exception.CreateFmt('TTimerComponent2D: max %d timers reached. Cannot add "%s".', [MAX_TIMERS, AName]);
-    Idx := FCount;
-    Inc(FCount);
-    FTimers[Idx].Name := AName;
-  end;
+   Idx := FindTimer(AName);
+   if Idx < 0 then
+   begin
+      if FCount >= MAX_TIMERS then
+      begin
+         raise Exception.CreateFmt('TTimerComponent2D: max %d timers reached. Cannot add "%s".', [MAX_TIMERS, AName])
+      end;
+      Idx := FCount;
+      Inc(FCount);
+      FTimers[Idx].Name := AName;
+   end;
 
-  FTimers[Idx].Duration  := ADuration;
-  FTimers[Idx].Remaining := ADuration;
-  FTimers[Idx].Active    := True;
-  FTimers[Idx].Repeat_   := ARepeat;
-  FTimers[Idx].OnFired   := AOnFired;
+   FTimers[Idx].Duration := ADuration;
+   FTimers[Idx].Remaining := ADuration;
+   FTimers[Idx].Active := True;
+   FTimers[Idx].Repeat_ := ARepeat;
+   FTimers[Idx].OnFired := AOnFired;
 end;
 
-procedure TTimerComponent2D.Stop(const AName: string);
+procedure TTimerComponent2D.Stop(const AName: String);
 var
-  Idx: Integer;
+   Idx: Integer;
 begin
-  Idx := FindTimer(AName);
-  if Idx >= 0 then
-    FTimers[Idx].Active := False;
+   Idx := FindTimer(AName);
+   if Idx >= 0 then
+   begin
+      FTimers[Idx].Active := False
+   end;
 end;
 
-function TTimerComponent2D.IsActive(const AName: string): Boolean;
+function TTimerComponent2D.IsActive(const AName: String): Boolean;
 var
-  Idx: Integer;
+   Idx: Integer;
 begin
-  Idx := FindTimer(AName);
-  Result := (Idx >= 0) and FTimers[Idx].Active;
+   Idx := FindTimer(AName);
+   Result := (Idx >= 0) And FTimers[Idx].Active;
 end;
 
-function TTimerComponent2D.Progress(const AName: string): Single;
+function TTimerComponent2D.Progress(const AName: String): Single;
 var
-  Idx: Integer;
+   Idx: Integer;
 begin
-  Idx := FindTimer(AName);
-  if (Idx < 0) or (FTimers[Idx].Duration <= 0) then
-    Result := 0
-  else
-    Result := 1.0 - (FTimers[Idx].Remaining / FTimers[Idx].Duration);
+   Idx := FindTimer(AName);
+   if (Idx < 0) Or (FTimers[Idx].Duration <= 0) then
+   begin
+      Result := 0
+   end
+   else
+   begin
+      Result := 1.0 - (FTimers[Idx].Remaining / FTimers[Idx].Duration)
+   end;
 end;
 
-function TTimerComponent2D.Remaining(const AName: string): Single;
+function TTimerComponent2D.Remaining(const AName: String): Single;
 var
-  Idx: Integer;
+   Idx: Integer;
 begin
-  Idx := FindTimer(AName);
-  if (Idx < 0) or not FTimers[Idx].Active then
-    Result := 0
-  else
-    Result := FTimers[Idx].Remaining;
+   Idx := FindTimer(AName);
+   if (Idx < 0) Or Not FTimers[Idx].Active then
+   begin
+      Result := 0
+   end
+   else
+   begin
+      Result := FTimers[Idx].Remaining
+   end;
 end;
 
 procedure TTimerComponent2D.Tick(ADelta: Single);
 var
-  I: Integer;
+   I: Integer;
 begin
-  for I := 0 to FCount - 1 do
-  begin
-    if not FTimers[I].Active then Continue;
+   for I := 0 to FCount - 1 do
+   begin
+      if Not FTimers[I].Active then
+      begin
+         Continue
+      end;
 
-    FTimers[I].Remaining := FTimers[I].Remaining - ADelta;
-    if FTimers[I].Remaining <= 0 then
-    begin
-      FTimers[I].Remaining := 0;
+      FTimers[I].Remaining := FTimers[I].Remaining - ADelta;
+      if FTimers[I].Remaining <= 0 then
+      begin
+         FTimers[I].Remaining := 0;
 
-      if Assigned(FTimers[I].OnFired) then
-        FTimers[I].OnFired(FTimers[I].Name);
+         if Assigned(FTimers[I].OnFired) then
+         begin
+            FTimers[I].OnFired(FTimers[I].Name)
+         end;
 
-      if FTimers[I].Repeat_ then
-        FTimers[I].Remaining := FTimers[I].Duration   // auto-reset
-      else
-        FTimers[I].Active := False;                   // one-shot: stop
-    end;
-  end;
+         if FTimers[I].Repeat_ then
+         begin
+            FTimers[I].Remaining := FTimers[I].Duration
+         end   // auto-reset
+         else
+         begin
+            FTimers[I].Active := False
+         end;                   // one-shot: stop
+      end;
+   end;
 end;
 
 initialization

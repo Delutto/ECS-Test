@@ -1,6 +1,7 @@
 unit P2D.Components.ParallaxLayer;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { =============================================================================
   TParallaxLayerComponent2D
@@ -25,10 +26,10 @@ type
       { Texture to tile across the background.
       Non-owning reference — the texture is managed externally
       (e.g. by TResourceManager2D or a global ProceduralArt variable). }
-      Texture      : TTexture2D;
+      Texture: TTexture2D;
 
       { Colour modulation applied to every draw call (WHITE = no tint). }
-      Tint         : TColor;
+      Tint: TColor;
 
       { Scroll factors: 0.0 = fixed on screen, 1.0 = moves with the camera.
       Values between 0 and 1 create the parallax depth illusion.
@@ -49,7 +50,7 @@ type
       ZOrder: Integer;
 
       constructor Create; override;
-  end;
+   end;
 
 implementation
 
@@ -61,16 +62,15 @@ begin
    inherited Create;
 
    FillChar(Texture, SizeOf(Texture), 0);
-   Tint          := WHITE;
+   Tint := WHITE;
    ScrollFactorX := 0.3;
    ScrollFactorY := 0.0;
-   TileH         := True;
-   TileV         := False;
-   ZOrder        := 0;
+   TileH := True;
+   TileV := False;
+   ZOrder := 0;
 end;
 
 initialization
    ComponentRegistry.Register(TParallaxLayerComponent2D);
 
 end.
-

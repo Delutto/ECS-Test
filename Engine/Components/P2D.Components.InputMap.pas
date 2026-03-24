@@ -1,6 +1,7 @@
 unit P2D.Components.InputMap;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { ============================================================================
   TInputMapComponent
@@ -16,24 +17,27 @@ unit P2D.Components.InputMap;
 interface
 
 uses
-  SysUtils, P2D.Core.Component, P2D.Core.InputAction, P2D.Core.InputManager;
+   SysUtils,
+   P2D.Core.Component,
+   P2D.Core.InputAction,
+   P2D.Core.InputManager;
 
 type
    TInputMapComponent = class(TComponent2D)
    private
-      FMapName : string;
+      FMapName: String;
       function GetMap: TInputActionMap;
    public
       constructor Create; override;
       { Atalhos que delegam para o InputManager }
-      function IsDown    (const AAction: string): Boolean;
-      function IsPressed (const AAction: string): Boolean;
-      function IsReleased(const AAction: string): Boolean;
-      function AxisValue (const AAction: string): Single;
+      function IsDown(const AAction: String): Boolean;
+      function IsPressed(const AAction: String): Boolean;
+      function IsReleased(const AAction: String): Boolean;
+      function AxisValue(const AAction: String): Single;
       { Nome do mapa no InputManager }
-      property MapName : string           read FMapName write FMapName;
+      property MapName: String read FMapName write FMapName;
       { Acesso direto ao mapa (pode ser nil se não encontrado) }
-      property Map     : TInputActionMap  read GetMap;
+      property Map: TInputActionMap read GetMap;
    end;
 
 implementation
@@ -53,23 +57,23 @@ begin
    Result := InputManager.GetMap(FMapName);
 end;
 
-function TInputMapComponent.IsDown(const AAction: string): Boolean;
+function TInputMapComponent.IsDown(const AAction: String): Boolean;
 begin
    Result := InputManager.IsDown(FMapName, AAction);
 end;
 
-function TInputMapComponent.IsPressed(const AAction: string): Boolean;
+function TInputMapComponent.IsPressed(const AAction: String): Boolean;
 begin
    Result := False;
    Result := InputManager.IsPressed(FMapName, AAction);
 end;
 
-function TInputMapComponent.IsReleased(const AAction: string): Boolean;
+function TInputMapComponent.IsReleased(const AAction: String): Boolean;
 begin
    Result := InputManager.IsReleased(FMapName, AAction);
 end;
 
-function TInputMapComponent.AxisValue(const AAction: string): Single;
+function TInputMapComponent.AxisValue(const AAction: String): Single;
 begin
    Result := InputManager.AxisValue(FMapName, AAction);
 end;

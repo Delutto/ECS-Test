@@ -1,11 +1,13 @@
 unit P2D.Utils.Logger;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   SysUtils, Classes;
+   SysUtils,
+   Classes;
 
 type
    TLogLevel = (llDebug, llInfo, llWarn, llError);
@@ -14,9 +16,9 @@ type
    TLogger = class
    private
       class var FInstance: TLogger;
-      FLog: TStringList;
-      FLevel: TLogLevel;
-      FLogFile: string;
+         FLog: TStringList;
+         FLevel: TLogLevel;
+         FLogFile: String;
       constructor CreateInstance;
       function GetLevel: TLogLevel;
       procedure SetLevel(Value: TLogLevel);
@@ -24,16 +26,16 @@ type
       class function Instance: TLogger;
       class destructor DestroyClass;
 
-      procedure Log(ALevel: TLogLevel; const AMsg: string);
-      procedure Debug(const AMsg: string); inline;
-      procedure Info(const AMsg: string);  inline;
-      procedure Warn(const AMsg: string);  inline;
-      procedure Error(const AMsg: string); inline;
-      procedure SaveToFile(const APath: string);
+      procedure Log(ALevel: TLogLevel; const AMsg: String);
+      procedure Debug(const AMsg: String); inline;
+      procedure Info(const AMsg: String); inline;
+      procedure Warn(const AMsg: String); inline;
+      procedure Error(const AMsg: String); inline;
+      procedure SaveToFile(const APath: String);
 
-      procedure SetLogFile(const APath: string);
+      procedure SetLogFile(const APath: String);
       procedure Clear;
-      function GetLogText: string;
+      function GetLogText: String;
       function GetLogCount: Integer;
 
       property Level: TLogLevel read GetLevel write SetLevel;
@@ -46,10 +48,10 @@ implementation
 
 constructor TLogger.CreateInstance;
 begin
-  inherited Create;
+   inherited Create;
 
-  FLog   := TStringList.Create;
-  FLevel := llDebug;
+   FLog := TStringList.Create;
+   FLevel := llDebug;
 end;
 
 function TLogger.GetLevel: TLogLevel;
@@ -64,30 +66,32 @@ end;
 
 class function TLogger.Instance: TLogger;
 begin
-  if not Assigned(FInstance) then
-  begin
-    FInstance := TLogger.CreateInstance;
-    Logger    := FInstance;
-  end;
-  Result := FInstance;
+   if Not Assigned(FInstance) then
+   begin
+      FInstance := TLogger.CreateInstance;
+      Logger := FInstance;
+   end;
+   Result := FInstance;
 end;
 
 class destructor TLogger.DestroyClass;
 begin
-  FreeAndNil(FInstance);
+   FreeAndNil(FInstance);
 end;
 
-procedure TLogger.Log(ALevel: TLogLevel; const AMsg: string);
+procedure TLogger.Log(ALevel: TLogLevel; const AMsg: String);
 const
-  TAGS: array[TLogLevel] of string = ('[DEBUG]', '[INFO] ', '[WARN] ', '[ERROR]');
-  {$IFDEF WIN}
-  COLORS: array[TLogLevel] of Byte = (7, 10, 14, 12); // Gray, Green, Yellow, Red
-  {$ENDIF}
+   TAGS: array[TLogLevel] of String = ('[DEBUG]', '[INFO] ', '[WARN] ', '[ERROR]');
+   {$IFDEF WIN}
+   COLORS: array[TLogLevel] of Byte = (7, 10, 14, 12); // Gray, Green, Yellow, Red
+   {$ENDIF}
 var
-   Line: string;
+   Line: String;
 begin
    if ALevel < FLevel then
-      Exit;
+   begin
+      Exit
+   end;
 
    Line := Format('%s %s %s', [FormatDateTime('hh:nn:ss.zzz', Now), TAGS[ALevel], AMsg]);
    FLog.Add(Line);
@@ -105,36 +109,38 @@ begin
    if ALevel = llError then
    begin
       if FLogFile <> '' then
-         SaveToFile(FLogFile);
+      begin
+         SaveToFile(FLogFile)
+      end;
    end;
 end;
 
-procedure TLogger.Debug(const AMsg: string);
+procedure TLogger.Debug(const AMsg: String);
 begin
    Log(llDebug, AMsg);
 end;
 
-procedure TLogger.Info(const AMsg: string);
+procedure TLogger.Info(const AMsg: String);
 begin
-   Log(llInfo,  AMsg);
+   Log(llInfo, AMsg);
 end;
 
-procedure TLogger.Warn(const AMsg: string);
+procedure TLogger.Warn(const AMsg: String);
 begin
-   Log(llWarn,  AMsg);
+   Log(llWarn, AMsg);
 end;
 
-procedure TLogger.Error(const AMsg: string);
+procedure TLogger.Error(const AMsg: String);
 begin
    Log(llError, AMsg);
 end;
 
-procedure TLogger.SaveToFile(const APath: string);
+procedure TLogger.SaveToFile(const APath: String);
 begin
    FLog.SaveToFile(APath);
 end;
 
-procedure TLogger.SetLogFile(const APath: string);
+procedure TLogger.SetLogFile(const APath: String);
 begin
    FLogFile := APath;
    {$IFDEF DEBUG}
@@ -150,7 +156,7 @@ begin
    {$ENDIF}
 end;
 
-function TLogger.GetLogText: string;
+function TLogger.GetLogText: String;
 begin
    Result := FLog.Text;
 end;

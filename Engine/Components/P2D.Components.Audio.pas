@@ -1,6 +1,7 @@
 unit P2D.Components.Audio;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { ============================================================================
   TAudioSourceComponent
@@ -25,26 +26,26 @@ uses
 type
    TAudioComponent = class(TComponent2D)
    private
-      FSound      : String;
-      FMusic      : String;
-      FVolume     : Single;
-      FPitch      : Single;
-      FPan        : Single;
-      FLoop       : Boolean;
-      FAutoPlay   : Boolean;
+      FSound: String;
+      FMusic: String;
+      FVolume: Single;
+      FPitch: Single;
+      FPan: Single;
+      FLoop: Boolean;
+      FAutoPlay: Boolean;
       FPlayOnAwake: Boolean;
-      FPlaying    : Boolean;
+      FPlaying: Boolean;
    public
       constructor Create; override;
-      property Sound: String          read FSound       write FSound;
-      property Music: String          read FMusic       write FMusic;
-      property Volume: Single         read FVolume      write FVolume;
-      property Pitch: Single          read FPitch       write FPitch;
-      property Pan: Single            read FPan         write FPan;
-      property Loop: Boolean          read FLoop        write FLoop;
-      property AutoPlay: Boolean      read FAutoPlay    write FAutoPlay;
-      property PlayOnAwake: Boolean   read FPlayOnAwake write FPlayOnAwake;
-      property Playing: Boolean       read FPlaying     write FPlaying;
+      property Sound: String read FSound write FSound;
+      property Music: String read FMusic write FMusic;
+      property Volume: Single read FVolume write FVolume;
+      property Pitch: Single read FPitch write FPitch;
+      property Pan: Single read FPan write FPan;
+      property Loop: Boolean read FLoop write FLoop;
+      property AutoPlay: Boolean read FAutoPlay write FAutoPlay;
+      property PlayOnAwake: Boolean read FPlayOnAwake write FPlayOnAwake;
+      property Playing: Boolean read FPlaying write FPlaying;
    end;
 
 implementation
@@ -56,16 +57,16 @@ constructor TAudioComponent.Create;
 begin
    inherited Create;
 
-   FSound       := '';
-   FMusic       := '';
-   FVolume      := 1.0;
-   FPitch       := 1.0;
-   FPan         := 0.5;
-   FLoop        := False;
-   FLoop        := False;
-   FAutoPlay    := False;
+   FSound := '';
+   FMusic := '';
+   FVolume := 1.0;
+   FPitch := 1.0;
+   FPan := 0.5;
+   FLoop := False;
+   FLoop := False;
+   FAutoPlay := False;
    FPlayOnAwake := False;
-   FPlaying     := False;
+   FPlaying := False;
 end;
 
 initialization

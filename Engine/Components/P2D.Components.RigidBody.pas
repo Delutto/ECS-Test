@@ -1,6 +1,7 @@
 unit P2D.Components.RigidBody;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { =============================================================================
   TRigidBodyComponent — expanded physics data bag.
@@ -46,44 +47,45 @@ interface
 
 uses
    P2D.Common,
-   P2D.Core.Component, P2D.Core.Types;
+   P2D.Core.Component,
+   P2D.Core.Types;
 
 type
    TRigidBodyComponent = class(TComponent2D)
    public
       { ── Core kinematics (original fields — unchanged semantics) ────────── }
-      Velocity    : TVector2;   { world-units / second                        }
+      Velocity: TVector2;   { world-units / second                        }
       Acceleration: TVector2;   { world-units / second²  (persistent force)   }
-      Mass        : Single;     { kg — now used: Acceleration / Mass = a      }
+      Mass: Single;     { kg — now used: Acceleration / Mass = a      }
 
       { ── Gravity ─────────────────────────────────────────────────────────── }
       GravityScale: Single;     { multiplier on the global GRAVITY constant    }
-      UseGravity  : Boolean;
+      UseGravity: Boolean;
 
       { ── Speed limits ────────────────────────────────────────────────────── }
       MaxFallSpeed: Single;     { terminal velocity on Y (positive = downward) }
-      MaxSpeedX   : Single;     { ① horizontal speed cap; 0 = unlimited        }
+      MaxSpeedX: Single;     { ① horizontal speed cap; 0 = unlimited        }
 
       { ── Contact state (set by TCollisionSystem each FixedUpdate) ─────────── }
-      Grounded    : Boolean;
-      OnWall      : Boolean;
-      OnCeiling   : Boolean;    { ① True when pushed down from a tile above    }
+      Grounded: Boolean;
+      OnWall: Boolean;
+      OnCeiling: Boolean;    { ① True when pushed down from a tile above    }
 
       { ── Drag ────────────────────────────────────────────────────────────── }
-      LinearDragX : Single;     { ③ horizontal drag coefficient (≥ 0)          }
-      LinearDragY : Single;     { ③ vertical drag coefficient  (≥ 0)           }
+      LinearDragX: Single;     { ③ horizontal drag coefficient (≥ 0)          }
+      LinearDragY: Single;     { ③ vertical drag coefficient  (≥ 0)           }
 
       { ── Restitution ─────────────────────────────────────────────────────── }
-      Restitution : Single;     { ④ bounciness [0=inelastic .. 1=elastic]      }
+      Restitution: Single;     { ④ bounciness [0=inelastic .. 1=elastic]      }
 
       { ── Force accumulator (cleared by TPhysicsSystem each step) ─────────── }
-      ForceAccum  : TVector2;   { ② sum of AddForce() calls this step          }
+      ForceAccum: TVector2;   { ② sum of AddForce() calls this step          }
 
       { ── Platform-feel timers (managed by TPhysicsSystem) ─────────────────── }
-      CoyoteTime     : Single;  { ⑥ max coyote window in seconds               }
-      CoyoteTimeLeft : Single;  { ⑥ remaining coyote seconds (> 0 = can jump)  }
-      JumpBuffer     : Single;  { ⑥ max jump-buffer window in seconds          }
-      JumpBufferLeft : Single;  { ⑥ remaining buffer seconds (> 0 = buffered)  }
+      CoyoteTime: Single;  { ⑥ max coyote window in seconds               }
+      CoyoteTimeLeft: Single;  { ⑥ remaining coyote seconds (> 0 = can jump)  }
+      JumpBuffer: Single;  { ⑥ max jump-buffer window in seconds          }
+      JumpBufferLeft: Single;  { ⑥ remaining buffer seconds (> 0 = buffered)  }
 
       { ── Previous-step snapshot (used for render interpolation) ───────────── }
       PrevVelocity: TVector2;   { ⑦ velocity at start of last FixedUpdate      }
@@ -120,29 +122,29 @@ constructor TRigidBodyComponent.Create;
 begin
    inherited Create;
 
-   Velocity.X    := 0;
-   Velocity.Y    := 0;
-   Acceleration.X:= 0;
-   Acceleration.Y:= 0;
-   ForceAccum.X  := 0;
-   ForceAccum.Y  := 0;
-   PrevVelocity.X:= 0;
-   PrevVelocity.Y:= 0;
-   Mass          := 1.0;
-   GravityScale  := 1.0;
-   MaxFallSpeed  := 600.0;
-   MaxSpeedX     := 0.0;      { 0 = unlimited }
-   Grounded      := False;
-   OnWall        := False;
-   OnCeiling     := False;
-   UseGravity    := True;
-   LinearDragX   := 0.0;
-   LinearDragY   := 0.0;
-   Restitution   := 0.0;
-   CoyoteTime    := DEFAULT_COYOTE_TIME;
-   CoyoteTimeLeft:= 0.0;
-   JumpBuffer    := DEFAULT_JUMP_BUFFER;
-   JumpBufferLeft:= 0.0;
+   Velocity.X := 0;
+   Velocity.Y := 0;
+   Acceleration.X := 0;
+   Acceleration.Y := 0;
+   ForceAccum.X := 0;
+   ForceAccum.Y := 0;
+   PrevVelocity.X := 0;
+   PrevVelocity.Y := 0;
+   Mass := 1.0;
+   GravityScale := 1.0;
+   MaxFallSpeed := 600.0;
+   MaxSpeedX := 0.0;      { 0 = unlimited }
+   Grounded := False;
+   OnWall := False;
+   OnCeiling := False;
+   UseGravity := True;
+   LinearDragX := 0.0;
+   LinearDragY := 0.0;
+   Restitution := 0.0;
+   CoyoteTime := DEFAULT_COYOTE_TIME;
+   CoyoteTimeLeft := 0.0;
+   JumpBuffer := DEFAULT_JUMP_BUFFER;
+   JumpBufferLeft := 0.0;
 end;
 
 procedure TRigidBodyComponent.AddForce(const AForce: TVector2);
@@ -164,8 +166,8 @@ end;
 
 procedure TRigidBodyComponent.ResetContacts;
 begin
-   Grounded  := False;
-   OnWall    := False;
+   Grounded := False;
+   OnWall := False;
    OnCeiling := False;
 end;
 

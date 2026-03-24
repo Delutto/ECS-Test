@@ -1,11 +1,15 @@
 unit P2D.Core.ResourceManager;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 interface
 
 uses
-   Classes, SysUtils, fgl, raylib;
+   Classes,
+   SysUtils,
+   fgl,
+   raylib;
 
 type
    { TResourceType2D }
@@ -14,15 +18,15 @@ type
    { TResource2D — reference-counted base wrapper for any engine resource }
    TResource2D = class
    private
-      FName        : string;
-      FRefCount    : Integer;
+      FName: String;
+      FRefCount: Integer;
       FResourceType: TResourceType2D;
    public
-      constructor Create(const AName: string; AType: TResourceType2D);
-      procedure   AddRef;
-      function    Release: Integer;
-      property Name        : string          read FName;
-      property RefCount    : Integer         read FRefCount;
+      constructor Create(const AName: String; AType: TResourceType2D);
+      procedure AddRef;
+      function Release: Integer;
+      property Name: String read FName;
+      property RefCount: Integer read FRefCount;
       property ResourceType: TResourceType2D read FResourceType;
    end;
 
@@ -31,8 +35,8 @@ type
    private
       FTexture: TTexture2D;
    public
-      constructor Create(const AName: string; const ATexture: TTexture2D);
-      destructor  Destroy; override;
+      constructor Create(const AName: String; const ATexture: TTexture2D);
+      destructor Destroy; override;
       property Texture: TTexture2D read FTexture;
    end;
 
@@ -41,8 +45,8 @@ type
    private
       FSound: TSound;
    public
-      constructor Create(const AName: string; const ASound: TSound);
-      destructor  Destroy; override;
+      constructor Create(const AName: String; const ASound: TSound);
+      destructor Destroy; override;
       property Sound: TSound read FSound;
    end;
 
@@ -51,8 +55,8 @@ type
    private
       FMusic: TMusic;
    public
-      constructor Create(const AName: string; const AMusic: TMusic);
-      destructor  Destroy; override;
+      constructor Create(const AName: String; const AMusic: TMusic);
+      destructor Destroy; override;
       property Music: TMusic read FMusic;
    end;
 
@@ -63,8 +67,8 @@ type
    private
       FFont: TFont;
    public
-      constructor Create(const AName: string; const AFont: TFont);
-      destructor  Destroy; override;
+      constructor Create(const AName: String; const AFont: TFont);
+      destructor Destroy; override;
       property Font: TFont read FFont;
    end;
 
@@ -75,13 +79,13 @@ type
    private
       FShader: TShader;
    public
-      constructor Create(const AName: string; const AShader: TShader);
-      destructor  Destroy; override;
+      constructor Create(const AName: String; const AShader: TShader);
+      destructor Destroy; override;
       property Shader: TShader read FShader;
    end;
 
    { TResourceMap2D }
-   TResourceMap2D = specialize TFPGMap<string, TResource2D>;
+   TResourceMap2D = specialize TFPGMap<String, TResource2D>;
 
    { TResourceManager2D — singleton resource cache with reference counting }
    TResourceManager2D = class
@@ -92,20 +96,20 @@ type
    public
       destructor Destroy; override;
 
-      class function  Instance: TResourceManager2D;
+      class function Instance: TResourceManager2D;
       class procedure FreeInstance;
 
       { ── Texture ─────────────────────────────────────────────────────────── }
-      function  LoadTexture(const AFileName: string): TTexture2D;
-      procedure UnloadTexture(const AFileName: string);
+      function LoadTexture(const AFileName: String): TTexture2D;
+      procedure UnloadTexture(const AFileName: String);
 
       { ── Sound ───────────────────────────────────────────────────────────── }
-      function  LoadSound(const AFileName: string): TSound;
-      procedure UnloadSound(const AFileName: string);
+      function LoadSound(const AFileName: String): TSound;
+      procedure UnloadSound(const AFileName: String);
 
       { ── Music ───────────────────────────────────────────────────────────── }
-      function  LoadMusic(const AFileName: string): TMusic;
-      procedure UnloadMusic(const AFileName: string);
+      function LoadMusic(const AFileName: String): TMusic;
+      procedure UnloadMusic(const AFileName: String);
 
       { ── Font ─────────────────────────────────────────────────────────────
       Key format: <AFileName>#<AFontSize>
@@ -119,8 +123,8 @@ type
 
       AFontSize controls the rasterisation resolution; the same file at
       different sizes produces distinct cached resources.               }
-      function  LoadFont(const AFileName: string; AFontSize: Integer = 32): TFont;
-      procedure UnloadFont(const AFileName: string; AFontSize: Integer = 32);
+      function LoadFont(const AFileName: String; AFontSize: Integer = 32): TFont;
+      procedure UnloadFont(const AFileName: String; AFontSize: Integer = 32);
 
       { ── Shader (from files) ──────────────────────────────────────────────
       AKey     : caller-defined cache identifier.
@@ -128,27 +132,27 @@ type
       AFsFile  : path to the fragment shader (empty = use raylib default FS).
       If both paths are empty the result is raylib's default pass-through
       shader.  A failed load returns Default(TShader) (id = 0).          }
-      function  LoadShaderFromFile(const AKey, AVsFile, AFsFile: string): TShader;
+      function LoadShaderFromFile(const AKey, AVsFile, AFsFile: String): TShader;
 
       { ── Shader (from GLSL source strings) ───────────────────────────────
       AKey    : caller-defined cache identifier.
       AVsCode : GLSL vertex shader source   (empty = use raylib default VS).
       AFsCode : GLSL fragment shader source (empty = use raylib default FS).
       Returns Default(TShader) if compilation fails.                       }
-      function  LoadShaderFromMemory(const AKey, AVsCode, AFsCode: string): TShader;
+      function LoadShaderFromMemory(const AKey, AVsCode, AFsCode: String): TShader;
 
       { Decrement the reference count for a shader identified by AKey.
       The shader is unloaded from GPU when the count reaches zero.         }
-      procedure UnloadShader(const AKey: string);
+      procedure UnloadShader(const AKey: String);
 
       { ── Generic helpers ─────────────────────────────────────────────────── }
       procedure AddResource(AResource: TResource2D);
-      function  GetResource(const AName: string): TResource2D;
+      function GetResource(const AName: String): TResource2D;
       procedure Clear;
 
       { ── Debug & stats ───────────────────────────────────────────────────── }
-      function  GetResourceCount: Integer;
-      function  GetMemoryUsage: Int64;
+      function GetResourceCount: Integer;
+      function GetMemoryUsage: Int64;
       procedure PrintResourceStats;
    end;
 
@@ -160,29 +164,46 @@ uses
 { ══════════════════════════════════════════════════════════════════════════════
   Internal helper: human-readable name for each resource type.
   ══════════════════════════════════════════════════════════════════════════════ }
-function ResourceTypeName(AType: TResourceType2D): string;
+function ResourceTypeName(AType: TResourceType2D): String;
 begin
    case AType of
-      rtTexture: Result := 'Texture';
-      rtSound  : Result := 'Sound';
-      rtMusic  : Result := 'Music';
-      rtFont   : Result := 'Font';
-      rtShader : Result := 'Shader';
+      rtTexture:
+      begin
+         Result := 'Texture'
+      end;
+      rtSound:
+      begin
+         Result := 'Sound'
+      end;
+      rtMusic:
+      begin
+         Result := 'Music'
+      end;
+      rtFont:
+      begin
+         Result := 'Font'
+      end;
+      rtShader:
+      begin
+         Result := 'Shader'
+      end;
       else
-         Result := 'Unknown';
+      begin
+         Result := 'Unknown'
+      end;
    end;
 end;
 
 { ══════════════════════════════════════════════════════════════════════════════
   TResource2D
   ══════════════════════════════════════════════════════════════════════════════ }
-constructor TResource2D.Create(const AName: string; AType: TResourceType2D);
+constructor TResource2D.Create(const AName: String; AType: TResourceType2D);
 begin
    inherited Create;
 
-   FName         := AName;
+   FName := AName;
    FResourceType := AType;
-   FRefCount     := 1;
+   FRefCount := 1;
 end;
 
 procedure TResource2D.AddRef;
@@ -199,7 +220,7 @@ end;
 { ══════════════════════════════════════════════════════════════════════════════
   TTextureResource2D
   ══════════════════════════════════════════════════════════════════════════════ }
-constructor TTextureResource2D.Create(const AName: string; const ATexture: TTexture2D);
+constructor TTextureResource2D.Create(const AName: String; const ATexture: TTexture2D);
 begin
    inherited Create(AName, rtTexture);
 
@@ -219,7 +240,7 @@ end;
 { ══════════════════════════════════════════════════════════════════════════════
   TSoundResource2D
   ══════════════════════════════════════════════════════════════════════════════ }
-constructor TSoundResource2D.Create(const AName: string; const ASound: TSound);
+constructor TSoundResource2D.Create(const AName: String; const ASound: TSound);
 begin
    inherited Create(AName, rtSound);
 
@@ -239,7 +260,7 @@ end;
 { ══════════════════════════════════════════════════════════════════════════════
   TMusicResource2D
   ══════════════════════════════════════════════════════════════════════════════ }
-constructor TMusicResource2D.Create(const AName: string; const AMusic: TMusic);
+constructor TMusicResource2D.Create(const AName: String; const AMusic: TMusic);
 begin
    inherited Create(AName, rtMusic);
 
@@ -259,7 +280,7 @@ end;
 { ══════════════════════════════════════════════════════════════════════════════
   TFontResource2D
   ══════════════════════════════════════════════════════════════════════════════ }
-constructor TFontResource2D.Create(const AName: string; const AFont: TFont);
+constructor TFontResource2D.Create(const AName: String; const AFont: TFont);
 begin
    inherited Create(AName, rtFont);
 
@@ -279,7 +300,7 @@ end;
 { ══════════════════════════════════════════════════════════════════════════════
   TShaderResource2D
   ══════════════════════════════════════════════════════════════════════════════ }
-constructor TShaderResource2D.Create(const AName: string; const AShader: TShader);
+constructor TShaderResource2D.Create(const AName: String; const AShader: TShader);
 begin
    inherited Create(AName, rtShader);
 
@@ -301,7 +322,7 @@ constructor TResourceManager2D.Create;
 begin
    inherited Create;
 
-   FResources        := TResourceMap2D.Create;
+   FResources := TResourceMap2D.Create;
    FResources.Sorted := True;
    {$IFDEF DEBUG}
    Logger.Info('ResourceManager initialized');
@@ -322,7 +343,9 @@ end;
 class function TResourceManager2D.Instance: TResourceManager2D;
 begin
    if FInstance = nil then
-      FInstance := TResourceManager2D.Create;
+   begin
+      FInstance := TResourceManager2D.Create
+   end;
    Result := FInstance;
 end;
 
@@ -336,15 +359,19 @@ end;
 { Tries to find AKey in the map.
   If found: increments RefCount and returns True (ARes is set).
   If not found: returns False (ARes = nil).                        }
-function TResourceManager2D.GetResource(const AName: string): TResource2D;
+function TResourceManager2D.GetResource(const AName: String): TResource2D;
 var
    Idx: Integer;
 begin
    Idx := FResources.IndexOf(AName);
    if Idx >= 0 then
+   begin
       Result := FResources.Data[Idx]
+   end
    else
-      Result := nil;
+   begin
+      Result := nil
+   end;
 end;
 
 procedure TResourceManager2D.AddResource(AResource: TResource2D);
@@ -353,14 +380,16 @@ begin
 end;
 
 { Shared unload logic: decrement refcount; free + remove when it hits zero. }
-procedure UnloadByKey(FResources: TResourceMap2D; const AKey: string);
+procedure UnloadByKey(FResources: TResourceMap2D; const AKey: String);
 var
    Idx: Integer;
    Res: TResource2D;
 begin
    Idx := FResources.IndexOf(AKey);
    if Idx < 0 then
-      Exit;
+   begin
+      Exit
+   end;
    Res := FResources.Data[Idx];
    if Res.Release <= 0 then
    begin
@@ -371,7 +400,7 @@ end;
 
 { ── Texture ─────────────────────────────────────────────────────────────── }
 
-function TResourceManager2D.LoadTexture(const AFileName: string): TTexture2D;
+function TResourceManager2D.LoadTexture(const AFileName: String): TTexture2D;
 var
    Idx: Integer;
    Res: TResource2D;
@@ -388,9 +417,9 @@ begin
       Exit;
    end;
 
-   if FileExists(PChar(AFileName)) then
+   if FileExists(Pchar(AFileName)) then
    begin
-      Result := raylib.LoadTexture(PChar(AFileName));
+      Result := raylib.LoadTexture(Pchar(AFileName));
       AddResource(TTextureResource2D.Create(AFileName, Result));
       {$IFDEF DEBUG}
       Logger.Info('Texture loaded: ' + AFileName);
@@ -405,7 +434,7 @@ begin
    end;
 end;
 
-procedure TResourceManager2D.UnloadTexture(const AFileName: string);
+procedure TResourceManager2D.UnloadTexture(const AFileName: String);
 begin
    UnloadByKey(FResources, AFileName);
    {$IFDEF DEBUG}
@@ -415,7 +444,7 @@ end;
 
 { ── Sound ───────────────────────────────────────────────────────────────── }
 
-function TResourceManager2D.LoadSound(const AFileName: string): TSound;
+function TResourceManager2D.LoadSound(const AFileName: String): TSound;
 var
    Idx: Integer;
    Res: TResource2D;
@@ -428,14 +457,14 @@ begin
       Result := TSoundResource2D(Res).Sound;
       {$IFDEF DEBUG}
       Logger.Debug(Format('Sound reused: %s (RefCount: %d)',
-                  [AFileName, Res.RefCount]));
+         [AFileName, Res.RefCount]));
       {$ENDIF}
       Exit;
    end;
 
-   if FileExists(PChar(AFileName)) then
+   if FileExists(Pchar(AFileName)) then
    begin
-      Result := raylib.LoadSound(PChar(AFileName));
+      Result := raylib.LoadSound(Pchar(AFileName));
       AddResource(TSoundResource2D.Create(AFileName, Result));
       {$IFDEF DEBUG}
       Logger.Info('Sound loaded: ' + AFileName);
@@ -450,14 +479,14 @@ begin
    end;
 end;
 
-procedure TResourceManager2D.UnloadSound(const AFileName: string);
+procedure TResourceManager2D.UnloadSound(const AFileName: String);
 begin
    UnloadByKey(FResources, AFileName);
 end;
 
 { ── Music ───────────────────────────────────────────────────────────────── }
 
-function TResourceManager2D.LoadMusic(const AFileName: string): TMusic;
+function TResourceManager2D.LoadMusic(const AFileName: String): TMusic;
 var
    Idx: Integer;
    Res: TResource2D;
@@ -474,9 +503,9 @@ begin
       Exit;
    end;
 
-   if FileExists(PChar(AFileName)) then
+   if FileExists(Pchar(AFileName)) then
    begin
-      Result := raylib.LoadMusicStream(PChar(AFileName));
+      Result := raylib.LoadMusicStream(Pchar(AFileName));
       AddResource(TMusicResource2D.Create(AFileName, Result));
       {$IFDEF DEBUG}
       Logger.Info('Music loaded: ' + AFileName);
@@ -491,19 +520,19 @@ begin
    end;
 end;
 
-procedure TResourceManager2D.UnloadMusic(const AFileName: string);
+procedure TResourceManager2D.UnloadMusic(const AFileName: String);
 begin
    UnloadByKey(FResources, AFileName);
 end;
 
 { ── Font ─────────────────────────────────────────────────────────────────── }
 
-function TResourceManager2D.LoadFont(const AFileName: string; AFontSize: Integer): TFont;
+function TResourceManager2D.LoadFont(const AFileName: String; AFontSize: Integer): TFont;
 var
-   Key : string;
-   Idx : Integer;
-   Res : TResource2D;
-   Fnt : TFont;
+   Key: String;
+   Idx: Integer;
+   Res: TResource2D;
+   Fnt: TFont;
 begin
    { Build unique cache key: path + rasterisation size }
    Key := AFileName + '#' + IntToStr(AFontSize);
@@ -522,10 +551,10 @@ begin
    end;
 
    { ── Cache miss: attempt to load from file ── }
-   if (AFileName <> '') and FileExists(PChar(AFileName)) then
+   if (AFileName <> '') And FileExists(Pchar(AFileName)) then
    begin
       { LoadFontEx: nil codepoints = load the full default charset }
-      Fnt := raylib.LoadFontEx(PChar(AFileName), AFontSize, nil, 0);
+      Fnt := raylib.LoadFontEx(Pchar(AFileName), AFontSize, nil, 0);
       if IsFontValid(Fnt) then
       begin
          AddResource(TFontResource2D.Create(Key, Fnt));
@@ -541,16 +570,20 @@ begin
    We do NOT store it — the engine does not own it. ── }
    {$IFDEF DEBUG}
    if AFileName = '' then
+   begin
       Logger.Warn('LoadFont: empty filename, using raylib default font')
+   end
    else
-      Logger.Warn('Font file not found or failed to load: ' + AFileName + ' — using raylib default font');
+   begin
+      Logger.Warn('Font file not found or failed to load: ' + AFileName + ' — using raylib default font')
+   end;
    {$ENDIF}
    Result := GetFontDefault;
 end;
 
-procedure TResourceManager2D.UnloadFont(const AFileName: string; AFontSize: Integer);
+procedure TResourceManager2D.UnloadFont(const AFileName: String; AFontSize: Integer);
 var
-   Key: string;
+   Key: String;
 begin
    Key := AFileName + '#' + IntToStr(AFontSize);
    UnloadByKey(FResources, Key);
@@ -558,13 +591,13 @@ end;
 
 { ── Shader (from files) ──────────────────────────────────────────────────── }
 
-function TResourceManager2D.LoadShaderFromFile(const AKey, AVsFile, AFsFile: string): TShader;
+function TResourceManager2D.LoadShaderFromFile(const AKey, AVsFile, AFsFile: String): TShader;
 var
-   Idx    : Integer;
-   Res    : TResource2D;
-   Shader : TShader;
-   VsPtr  : PChar;
-   FsPtr  : PChar;
+   Idx: Integer;
+   Res: TResource2D;
+   Shader: TShader;
+   VsPtr: Pchar;
+   FsPtr: Pchar;
 begin
    { ── Cache hit ── }
    Idx := FResources.IndexOf(AKey);
@@ -575,20 +608,28 @@ begin
       Result := TShaderResource2D(Res).Shader;
       {$IFDEF DEBUG}
       Logger.Debug(Format('Shader reused: %s (RefCount: %d)',
-                  [AKey, Res.RefCount]));
+         [AKey, Res.RefCount]));
       {$ENDIF}
       Exit;
    end;
 
    { ── Cache miss: build PChar pointers (nil = use raylib default) ── }
    if AVsFile <> '' then
-      VsPtr := PChar(AVsFile)
+   begin
+      VsPtr := Pchar(AVsFile)
+   end
    else
-      VsPtr := nil;
+   begin
+      VsPtr := nil
+   end;
    if AFsFile <> '' then
-      FsPtr := PChar(AFsFile)
+   begin
+      FsPtr := Pchar(AFsFile)
+   end
    else
-      FsPtr := nil;
+   begin
+      FsPtr := nil
+   end;
 
    Shader := raylib.LoadShader(VsPtr, FsPtr);
 
@@ -611,13 +652,13 @@ end;
 
 { ── Shader (from GLSL source strings) ───────────────────────────────────── }
 
-function TResourceManager2D.LoadShaderFromMemory(const AKey, AVsCode, AFsCode: string): TShader;
+function TResourceManager2D.LoadShaderFromMemory(const AKey, AVsCode, AFsCode: String): TShader;
 var
-   Idx    : Integer;
-   Res    : TResource2D;
-   Shader : TShader;
-   VsPtr  : PChar;
-   FsPtr  : PChar;
+   Idx: Integer;
+   Res: TResource2D;
+   Shader: TShader;
+   VsPtr: Pchar;
+   FsPtr: Pchar;
 begin
    { ── Cache hit ── }
    Idx := FResources.IndexOf(AKey);
@@ -634,13 +675,21 @@ begin
 
    { ── Cache miss: compile from source strings ── }
    if AVsCode <> '' then
-      VsPtr := PChar(AVsCode)
+   begin
+      VsPtr := Pchar(AVsCode)
+   end
    else
-      VsPtr := nil;
+   begin
+      VsPtr := nil
+   end;
    if AFsCode <> '' then
-      FsPtr := PChar(AFsCode)
+   begin
+      FsPtr := Pchar(AFsCode)
+   end
    else
-      FsPtr := nil;
+   begin
+      FsPtr := nil
+   end;
 
    Shader := raylib.LoadShaderFromMemory(VsPtr, FsPtr);
 
@@ -661,7 +710,7 @@ begin
    end;
 end;
 
-procedure TResourceManager2D.UnloadShader(const AKey: string);
+procedure TResourceManager2D.UnloadShader(const AKey: String);
 begin
    UnloadByKey(FResources, AKey);
 end;
@@ -673,7 +722,9 @@ var
    I: Integer;
 begin
    for I := FResources.Count - 1 downto 0 do
-      FResources.Data[I].Free;
+   begin
+      FResources.Data[I].Free
+   end;
    FResources.Clear;
    {$IFDEF DEBUG}
    Logger.Info('All resources cleared');
@@ -688,25 +739,30 @@ end;
 { Estimates GPU memory used by texture and font atlas resources (RGBA = 4 B/px) }
 function TResourceManager2D.GetMemoryUsage: Int64;
 var
-   I  : Integer;
+   I: Integer;
    Res: TResource2D;
 begin
    Result := 0;
    for I := 0 to FResources.Count - 1 do
    begin
       Res := FResources.Data[I];
-      if Res is TTextureResource2D then
-      Inc(Result, TTextureResource2D(Res).Texture.Width * TTextureResource2D(Res).Texture.Height * 4)
-      else if Res is TFontResource2D then
+      if Res Is TTextureResource2D then
+      begin
+         Inc(Result, TTextureResource2D(Res).Texture.Width * TTextureResource2D(Res).Texture.Height * 4)
+      end
+      else
+      if Res Is TFontResource2D then
       { Font atlas texture — same RGBA estimate }
-      Inc(Result, TFontResource2D(Res).Font.Texture.Width * TFontResource2D(Res).Font.Texture.Height * 4);
+      begin
+         Inc(Result, TFontResource2D(Res).Font.Texture.Width * TFontResource2D(Res).Font.Texture.Height * 4)
+      end;
       { Shaders and sounds/music: negligible or unmeasurable here }
    end;
 end;
 
 procedure TResourceManager2D.PrintResourceStats;
 var
-   I  : Integer;
+   I: Integer;
    Res: TResource2D;
 begin
    {$IFDEF DEBUG}

@@ -1,6 +1,7 @@
 unit P2D.Systems.Parallax;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { =============================================================================
   TParallaxSystem2D — screen-space parallax background renderer.
@@ -39,9 +40,13 @@ unit P2D.Systems.Parallax;
 interface
 
 uses
-   SysUtils, Math, raylib,
+   SysUtils,
+   Math,
+   raylib,
    P2D.Core.ComponentRegistry,
-   P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
    P2D.Components.Transform,
    P2D.Components.ParallaxLayer,
    P2D.Components.Camera2D;
@@ -53,32 +58,32 @@ type
       ZOrder: Integer;
    end;
 
-  TParallaxSystem2D = class(TSystem2D)
-  private
-    FParallaxID : Integer;
-    FTransformID: Integer;
-    FCameraID   : Integer;
-    FCamEntity  : TEntity;
-    FScreenW    : Integer;
-    FScreenH    : Integer;
+   TParallaxSystem2D = class(TSystem2D)
+   private
+      FParallaxID: Integer;
+      FTransformID: Integer;
+      FCameraID: Integer;
+      FCamEntity: TEntity;
+      FScreenW: Integer;
+      FScreenH: Integer;
 
     { Reusable sort buffer — grows as needed, never shrinks. }
-    FSortBuf    : array of TLayerEntry;
-    FSortCount  : Integer;
+      FSortBuf: array of TLayerEntry;
+      FSortCount: Integer;
 
-    procedure FindCameraEntity;
-    function  GetCamTargetX: Single;
-    function  GetCamTargetY: Single;
+      procedure FindCameraEntity;
+      function GetCamTargetX: Single;
+      function GetCamTargetY: Single;
 
     { Insertion sort on FSortBuf[0..FSortCount-1] by ZOrder (ascending).
       In practice FSortCount is 2-4, so O(n²) is perfectly fast. }
-    procedure SortLayers;
-  public
-    constructor Create(AWorld: TWorldBase; AScreenW, AScreenH: Integer); reintroduce;
-    procedure Init;     override;
-    procedure Render;   override;
-    procedure Shutdown; override;
-  end;
+      procedure SortLayers;
+   public
+      constructor Create(AWorld: TWorldBase; AScreenW, AScreenH: Integer); reintroduce;
+      procedure Init; override;
+      procedure Render; override;
+      procedure Shutdown; override;
+   end;
 
 implementation
 
@@ -86,13 +91,13 @@ constructor TParallaxSystem2D.Create(AWorld: TWorldBase; AScreenW, AScreenH: Int
 begin
    inherited Create(AWorld);
 
-   Priority    := 10;
-   Name        := 'ParallaxSystem';
+   Priority := 10;
+   Name := 'ParallaxSystem';
    RenderLayer := rlBackground;
-   FScreenW    := AScreenW;
-   FScreenH    := AScreenH;
-   FCamEntity  := nil;
-   FSortCount  := 0;
+   FScreenW := AScreenW;
+   FScreenH := AScreenH;
+   FCamEntity := nil;
+   FSortCount := 0;
    SetLength(FSortBuf, 8);
 end;
 
@@ -101,12 +106,14 @@ var
    E: TEntity;
 begin
    FCamEntity := nil;
-   for E in World.Entities.GetAll do
-      if E.Alive and E.HasComponent(TCamera2DComponent) then
+   for E In World.Entities.GetAll do
+   begin
+      if E.Alive And E.HasComponent(TCamera2DComponent) then
       begin
          FCamEntity := E;
          Exit;
-      end;
+      end
+   end;
 end;
 
 function TParallaxSystem2D.GetCamTargetX: Single;
@@ -114,11 +121,15 @@ var
    Cam: TCamera2DComponent;
 begin
    Result := 0;
-   if not (Assigned(FCamEntity) and FCamEntity.Alive) then
-      Exit;
+   if Not (Assigned(FCamEntity) And FCamEntity.Alive) then
+   begin
+      Exit
+   end;
    Cam := TCamera2DComponent(FCamEntity.GetComponentByID(FCameraID));
    if Assigned(Cam) then
-      Result := Cam.RaylibCamera.Target.X;
+   begin
+      Result := Cam.RaylibCamera.Target.X
+   end;
 end;
 
 function TParallaxSystem2D.GetCamTargetY: Single;
@@ -126,23 +137,27 @@ var
    Cam: TCamera2DComponent;
 begin
    Result := 0;
-   if not (Assigned(FCamEntity) and FCamEntity.Alive) then
-      Exit;
+   if Not (Assigned(FCamEntity) And FCamEntity.Alive) then
+   begin
+      Exit
+   end;
    Cam := TCamera2DComponent(FCamEntity.GetComponentByID(FCameraID));
    if Assigned(Cam) then
-      Result := Cam.RaylibCamera.Target.Y;
+   begin
+      Result := Cam.RaylibCamera.Target.Y
+   end;
 end;
 
 procedure TParallaxSystem2D.SortLayers;
 var
    I, J: Integer;
-   Tmp : TLayerEntry;
+   Tmp: TLayerEntry;
 begin
    for I := 1 to FSortCount - 1 do
    begin
       Tmp := FSortBuf[I];
-      J   := I - 1;
-      while (J >= 0) and (FSortBuf[J].ZOrder > Tmp.ZOrder) do
+      J := I - 1;
+      while (J >= 0) And (FSortBuf[J].ZOrder > Tmp.ZOrder) do
       begin
          FSortBuf[J + 1] := FSortBuf[J];
          Dec(J);
@@ -161,51 +176,57 @@ begin
    RequireComponent(TParallaxLayerComponent2D);
    RequireComponent(TTransformComponent);
 
-   FParallaxID  := ComponentRegistry.GetComponentID(TParallaxLayerComponent2D);
+   FParallaxID := ComponentRegistry.GetComponentID(TParallaxLayerComponent2D);
    FTransformID := ComponentRegistry.GetComponentID(TTransformComponent);
-   FCameraID    := ComponentRegistry.GetComponentID(TCamera2DComponent);
+   FCameraID := ComponentRegistry.GetComponentID(TCamera2DComponent);
 
    FindCameraEntity;
 end;
 
 procedure TParallaxSystem2D.Render;
 var
-   E       : TEntity;
-   PL      : TParallaxLayerComponent2D;
-   Tr      : TTransformComponent;
-   CamX    : Single;
-   CamY    : Single;
+   E: TEntity;
+   PL: TParallaxLayerComponent2D;
+   Tr: TTransformComponent;
+   CamX: Single;
+   CamY: Single;
    { Per-layer drawing state }
-   TexW    : Integer;
-   TexH    : Integer;
-   DrawW   : Single;
-   DrawH   : Single;
-   RawOffX : Single;
-   RawOffY : Single;
-   TexOffX : Single;
-   TexOffY : Single;
-   NumCols : Integer;
-   NumRows : Integer;
-   ColIdx  : Integer;
-   RowIdx  : Integer;
-   DrawX   : Single;
-   DrawY   : Single;
-   Src     : TRectangle;
-   Dst     : TRectangle;
-   I       : Integer;
+   TexW: Integer;
+   TexH: Integer;
+   DrawW: Single;
+   DrawH: Single;
+   RawOffX: Single;
+   RawOffY: Single;
+   TexOffX: Single;
+   TexOffY: Single;
+   NumCols: Integer;
+   NumRows: Integer;
+   ColIdx: Integer;
+   RowIdx: Integer;
+   DrawX: Single;
+   DrawY: Single;
+   Src: TRectangle;
+   Dst: TRectangle;
+   I: Integer;
 begin
    { ── Phase 1: collect matching entities into sort buffer ────────────────── }
    FSortCount := 0;
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       PL := TParallaxLayerComponent2D(E.GetComponentByID(FParallaxID));
-      if not Assigned(PL) or not PL.Enabled then
-         Continue;
+      if Not Assigned(PL) Or Not PL.Enabled then
+      begin
+         Continue
+      end;
       if PL.Texture.Id = 0 then
-         Continue;  { no texture yet }
+      begin
+         Continue
+      end;  { no texture yet }
 
       if FSortCount >= Length(FSortBuf) then
-         SetLength(FSortBuf, FSortCount * 2);
+      begin
+         SetLength(FSortBuf, FSortCount * 2)
+      end;
 
       FSortBuf[FSortCount].Entity := E;
       FSortBuf[FSortCount].ZOrder := PL.ZOrder;
@@ -213,7 +234,9 @@ begin
    end;
 
    if FSortCount = 0 then
-      Exit;
+   begin
+      Exit
+   end;
 
    { ── Phase 2: sort by ZOrder ascending (far → near) ─────────────────────── }
    SortLayers;
@@ -225,22 +248,28 @@ begin
    { ── Phase 4: draw layers in sorted order ───────────────────────────────── }
    for I := 0 to FSortCount - 1 do
    begin
-      E  := FSortBuf[I].Entity;
+      E := FSortBuf[I].Entity;
       PL := TParallaxLayerComponent2D(E.GetComponentByID(FParallaxID));
       Tr := TTransformComponent(E.GetComponentByID(FTransformID));
 
-      if not (Assigned(PL) and Assigned(Tr)) then
-         Continue;
-      if not (PL.Enabled and Tr.Enabled) then
-         Continue;
+      if Not (Assigned(PL) And Assigned(Tr)) then
+      begin
+         Continue
+      end;
+      if Not (PL.Enabled And Tr.Enabled) then
+      begin
+         Continue
+      end;
 
-      TexW  := PL.Texture.Width;
-      TexH  := PL.Texture.Height;
+      TexW := PL.Texture.Width;
+      TexH := PL.Texture.Height;
       DrawW := TexW * Tr.Scale.X;
       DrawH := TexH * Tr.Scale.Y;
 
-      if (DrawW <= 0) or (DrawH <= 0) then
-         Continue;
+      if (DrawW <= 0) Or (DrawH <= 0) then
+      begin
+         Continue
+      end;
 
       { Scroll offset in screen pixels }
       RawOffX := CamX * PL.ScrollFactorX;
@@ -271,27 +300,35 @@ begin
       end;
 
       { Source = full texture, always }
-      Src.X      := 0;  Src.Y      := 0;
-      Src.Width  := TexW;  Src.Height := TexH;
+      Src.X := 0;
+      Src.Y := 0;
+      Src.Width := TexW;
+      Src.Height := TexH;
 
       for RowIdx := 0 to NumRows - 1 do
       begin
          DrawY := Tr.Position.Y - TexOffY + RowIdx * DrawH;
 
          { Skip rows entirely outside the canvas }
-         if (DrawY + DrawH < 0) or (DrawY > FScreenH) then
-            Continue;
+         if (DrawY + DrawH < 0) Or (DrawY > FScreenH) then
+         begin
+            Continue
+         end;
 
          for ColIdx := 0 to NumCols - 1 do
          begin
             DrawX := Tr.Position.X - TexOffX + ColIdx * DrawW;
 
             { Skip columns entirely outside the canvas }
-            if (DrawX + DrawW < 0) or (DrawX > FScreenW) then
-               Continue;
+            if (DrawX + DrawW < 0) Or (DrawX > FScreenW) then
+            begin
+               Continue
+            end;
 
-            Dst.X      := DrawX;   Dst.Y      := DrawY;
-            Dst.Width  := DrawW;   Dst.Height := DrawH;
+            Dst.X := DrawX;
+            Dst.Y := DrawY;
+            Dst.Width := DrawW;
+            Dst.Height := DrawH;
 
             DrawTexturePro(PL.Texture, Src, Dst, Vector2Create(0, 0), Tr.Rotation, ColorCreate(PL.Tint.R, PL.Tint.G, PL.Tint.B, PL.Tint.A));
          end;

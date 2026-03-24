@@ -1,11 +1,14 @@
 program mario_demo;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 uses
-   {$IFDEF UNIX}cthreads,{$ENDIF}
+   {$IFDEF UNIX}
+   cthreads,
+   {$ENDIF}
    SysUtils,
-   Mario.Game in 'Mario.Game.pas';
+   Mario.Game In 'Mario.Game.pas';
 
 var
    Game: TMarioGame;

@@ -1,6 +1,7 @@
 unit Mario.Systems.HUD;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { ══════════════════════════════════════════════════════════════════════════════
   Mario.Systems.HUD
@@ -19,8 +20,11 @@ unit Mario.Systems.HUD;
 interface
 
 uses
-   SysUtils, raylib,
-   P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
+   SysUtils,
+   raylib,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
    P2D.Core.ResourceManager,
    Mario.Common,
    Mario.Components.Player;
@@ -28,26 +32,26 @@ uses
 type
    THUDSystem = class(TSystem2D)
    private
-      PlayerID             : Integer;
+      PlayerID: Integer;
 
-      FScreenW            : Integer;
-      FScreenH            : Integer;
+      FScreenW: Integer;
+      FScreenH: Integer;
 
       { ── Font ── }
-      FFont               : TFont;
-      FFontSize           : Single;   { draw size (may differ from load size)  }
+      FFont: TFont;
+      FFontSize: Single;   { draw size (may differ from load size)  }
 
       { ── CRT shader ── }
-      FShader             : TShader;
-      FShaderReady        : Boolean;
+      FShader: TShader;
+      FShaderReady: Boolean;
       FShaderLocScreenSize: Integer;
 
-      FShaderActive       : Boolean;
+      FShaderActive: Boolean;
 
       { Draws one line of text with the custom font (or default fallback). }
-      procedure DrawHUDText(const AText: string; AX, AY: Integer; ASize: Single; AColor: TColor);
+      procedure DrawHUDText(const AText: String; AX, AY: Integer; ASize: Single; AColor: TColor);
       { Returns the pixel width of AText at ASize. }
-      function MeasureHUDText(const AText: string; ASize: Single): Single;
+      function MeasureHUDText(const AText: String; ASize: Single): Single;
    public
       constructor Create(AWorld: TWorldBase; AW, AH: Integer); reintroduce;
       procedure Init; override;
@@ -129,7 +133,9 @@ begin
       {$ENDIF}
    end
    else
-      FShaderActive := False;
+   begin
+      FShaderActive := False
+   end;
 end;
 
 { ══════════════════════════════════════════════════════════════════════════════
@@ -139,26 +145,30 @@ procedure THUDSystem.Update(ADelta: Single);
 begin
    { Toggle do shader via tecla G }
    if IsKeyPressed(KEY_G) then
-      FShaderActive := not FShaderActive;
+   begin
+      FShaderActive := Not FShaderActive
+   end;
 end;
 
 { Render }
 procedure THUDSystem.Render;
 var
-   E       : TEntity;
-   PC      : TPlayerComponent;
-   HUD     : string;
-   TextW   : Single;
-   SizeVec : array[0..1] of Single;
+   E: TEntity;
+   PC: TPlayerComponent;
+   HUD: String;
+   TextW: Single;
+   SizeVec: array[0..1] of Single;
 begin
    PC := nil;
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       PC := TPlayerComponent(E.GetComponentByID(PlayerID));
       Break;
    end;
-   if not Assigned(PC) then
-      Exit;
+   if Not Assigned(PC) then
+   begin
+      Exit
+   end;
 
    { ── Barra superior ─────────────────────────────────────────────────── }
    DrawRectangle(0, 0, FScreenW, 34, ColorCreate(0, 0, 0, 180));
@@ -166,11 +176,11 @@ begin
    HUD := Format('SCORE %07d', [PC.Score]);
    DrawHUDText(HUD, 12, 10, FFontSize, YELLOW);
 
-   HUD   := Format('x%02d', [PC.Coins]);
+   HUD := Format('x%02d', [PC.Coins]);
    TextW := MeasureHUDText('COINS ' + HUD, FFontSize);
-   DrawHUDText('COINS ' + HUD, (FScreenW div 2) - Trunc(TextW * 0.5), 10, FFontSize, WHITE);
+   DrawHUDText('COINS ' + HUD, (FScreenW Div 2) - Trunc(TextW * 0.5), 10, FFontSize, WHITE);
 
-   HUD   := Format('LIVES %d', [PC.Lives]);
+   HUD := Format('LIVES %d', [PC.Lives]);
    TextW := MeasureHUDText(HUD, FFontSize);
    DrawHUDText(HUD, FScreenW - Trunc(TextW) - 12, 10, FFontSize, WHITE);
 
@@ -181,14 +191,14 @@ begin
    { ── Overlay CRT ─────────────────────────────────────────────────────
      O uniforme screenSize precisa das dimensões ATUAIS para que as coordenadas do shader (gl_FragCoord)
      sejam normalizadas corretamente, especialmente após um toggle de fullscreen. }
-   if FShaderReady and (FShaderLocScreenSize >= 0) and FShaderActive then
+   if FShaderReady And (FShaderLocScreenSize >= 0) And FShaderActive then
    begin
       SizeVec[0] := FScreenW;
       SizeVec[1] := FScreenH;
       SetShaderValue(FShader, FShaderLocScreenSize, @SizeVec[0], 1);
 
       BeginShaderMode(FShader);
-         DrawRectangle(0, 0, FScreenW, FScreenH, WHITE);
+      DrawRectangle(0, 0, FScreenW, FScreenH, WHITE);
       EndShaderMode;
    end;
 
@@ -197,13 +207,13 @@ begin
    begin
       DrawRectangle(0, 0, FScreenW, FScreenH, ColorCreate(0, 0, 0, 160));
 
-      HUD   := 'GAME OVER';
+      HUD := 'GAME OVER';
       TextW := MeasureHUDText(HUD, 32.0);
-      DrawHUDText(HUD, (FScreenW div 2) - Trunc(TextW * 0.5), (FScreenH div 2) - 24, 32.0, RED);
+      DrawHUDText(HUD, (FScreenW Div 2) - Trunc(TextW * 0.5), (FScreenH Div 2) - 24, 32.0, RED);
 
-      HUD   := 'Press R to restart';
+      HUD := 'Press R to restart';
       TextW := MeasureHUDText(HUD, FFontSize);
-      DrawHUDText(HUD, (FScreenW div 2) - Trunc(TextW * 0.5), (FScreenH div 2) + 20, FFontSize, WHITE);
+      DrawHUDText(HUD, (FScreenW Div 2) - Trunc(TextW * 0.5), (FScreenH Div 2) + 20, FFontSize, WHITE);
    end;
 end;
 
@@ -220,25 +230,25 @@ end;
 
 { Private helpers }
 
-procedure THUDSystem.DrawHUDText(const AText: string; AX, AY: Integer; ASize: Single; AColor: TColor);
+procedure THUDSystem.DrawHUDText(const AText: String; AX, AY: Integer; ASize: Single; AColor: TColor);
 var
-   Pos    : TVector2;
+   Pos: TVector2;
    Spacing: Single;
 begin
-   Pos.X   := AX;
-   Pos.Y   := AY;
+   Pos.X := AX;
+   Pos.Y := AY;
    Spacing := ASize * 0.05;  { 5% of font size — compact but readable }
-   DrawTextEx(FFont, PChar(AText), Pos, ASize, Spacing, AColor);
+   DrawTextEx(FFont, Pchar(AText), Pos, ASize, Spacing, AColor);
 end;
 
-function THUDSystem.MeasureHUDText(const AText: string; ASize: Single): Single;
+function THUDSystem.MeasureHUDText(const AText: String; ASize: Single): Single;
 var
-   Sz     : TVector2;
+   Sz: TVector2;
    Spacing: Single;
 begin
    Spacing := ASize * 0.05;
-   Sz      := MeasureTextEx(FFont, PChar(AText), ASize, Spacing);
-   Result  := Sz.X;
+   Sz := MeasureTextEx(FFont, Pchar(AText), ASize, Spacing);
+   Result := Sz.X;
 end;
 
 end.

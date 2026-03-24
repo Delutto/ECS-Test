@@ -1,6 +1,7 @@
 unit Mario.Systems.Audio;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { ============================================================================
    TMarioAudioSystem
@@ -37,15 +38,15 @@ type
    { TMarioAudioSystem }
    TMarioAudioSystem = class(TAudioSystem)
    private
-      procedure OnCoinCollected (AEvent: TEvent2D);
-      procedure OnEnemyStomped  (AEvent: TEvent2D);
-      procedure OnPlayerJump    (AEvent: TEvent2D);
-      procedure OnPlayerSpin    (AEvent: TEvent2D);
-      procedure OnPlayerDamaged (AEvent: TEvent2D);
-      procedure OnPlayerDied    (AEvent: TEvent2D);
+      procedure OnCoinCollected(AEvent: TEvent2D);
+      procedure OnEnemyStomped(AEvent: TEvent2D);
+      procedure OnPlayerJump(AEvent: TEvent2D);
+      procedure OnPlayerSpin(AEvent: TEvent2D);
+      procedure OnPlayerDamaged(AEvent: TEvent2D);
+      procedure OnPlayerDied(AEvent: TEvent2D);
    public
       constructor Create(AWorld: TWorldBase); override;
-      procedure Init;     override;
+      procedure Init; override;
       procedure Shutdown; override;
    end;
 
@@ -64,21 +65,21 @@ begin
 
    { Subscreve eventos de gameplay do Mario }
    World.EventBus.Subscribe(TCoinCollectedEvent, @OnCoinCollected);
-   World.EventBus.Subscribe(TEnemyStompedEvent,  @OnEnemyStomped);
-   World.EventBus.Subscribe(TPlayerJumpEvent,    @OnPlayerJump);
-   World.EventBus.Subscribe(TPlayerSpinEvent,    @OnPlayerSpin);
+   World.EventBus.Subscribe(TEnemyStompedEvent, @OnEnemyStomped);
+   World.EventBus.Subscribe(TPlayerJumpEvent, @OnPlayerJump);
+   World.EventBus.Subscribe(TPlayerSpinEvent, @OnPlayerSpin);
    World.EventBus.Subscribe(TPlayerDamagedEvent, @OnPlayerDamaged);
-   World.EventBus.Subscribe(TPlayerDiedEvent,    @OnPlayerDied);
+   World.EventBus.Subscribe(TPlayerDiedEvent, @OnPlayerDied);
 end;
 
 procedure TMarioAudioSystem.Shutdown;
 begin
    World.EventBus.Unsubscribe(TCoinCollectedEvent, @OnCoinCollected);
-   World.EventBus.Unsubscribe(TEnemyStompedEvent,  @OnEnemyStomped);
-   World.EventBus.Unsubscribe(TPlayerJumpEvent,    @OnPlayerJump);
-   World.EventBus.Unsubscribe(TPlayerSpinEvent,    @OnPlayerSpin);
+   World.EventBus.Unsubscribe(TEnemyStompedEvent, @OnEnemyStomped);
+   World.EventBus.Unsubscribe(TPlayerJumpEvent, @OnPlayerJump);
+   World.EventBus.Unsubscribe(TPlayerSpinEvent, @OnPlayerSpin);
    World.EventBus.Unsubscribe(TPlayerDamagedEvent, @OnPlayerDamaged);
-   World.EventBus.Unsubscribe(TPlayerDiedEvent,    @OnPlayerDied);
+   World.EventBus.Unsubscribe(TPlayerDiedEvent, @OnPlayerDied);
    { Pai cancela subscrições de áudio e para músicas }
    inherited;
 end;

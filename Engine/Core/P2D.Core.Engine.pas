@@ -1,13 +1,18 @@
 unit P2D.Core.Engine;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   SysUtils, Math, raylib,
+   SysUtils,
+   Math,
+   raylib,
    P2D.Common,
-   P2D.Core.Types, P2D.Core.World, P2D.Core.InputManager;
+   P2D.Core.Types,
+   P2D.Core.World,
+   P2D.Core.InputManager;
 
 type
    { -------------------------------------------------------------------------
@@ -26,19 +31,19 @@ type
 
    TEngine2D = class
    private
-      FWorld         : TWorld;
-      FTitle         : string;
-      FVirtualW      : Integer;
-      FVirtualH      : Integer;
-      FTargetFPS     : Integer;
-      FRunning       : Boolean;
-      FAlpha    : Single; // Fração do passo físico atual (0..1) para interpolação
-      FRenderTexture : TRenderTexture2D;
-      FRTScale       : Single;
-      FRTOffsetX     : Single;
-      FRTOffsetY     : Single;
-      FLastPhysW     : Integer;
-      FLastPhysH     : Integer;
+      FWorld: TWorld;
+      FTitle: String;
+      FVirtualW: Integer;
+      FVirtualH: Integer;
+      FTargetFPS: Integer;
+      FRunning: Boolean;
+      FAlpha: Single; // Fração do passo físico atual (0..1) para interpolação
+      FRenderTexture: TRenderTexture2D;
+      FRTScale: Single;
+      FRTOffsetX: Single;
+      FRTOffsetY: Single;
+      FLastPhysW: Integer;
+      FLastPhysH: Integer;
 
       procedure RecalcScale;
       procedure BlitVirtualCanvas;
@@ -52,7 +57,7 @@ type
       procedure OnShutdown; virtual;
       procedure OnScreenResized(ANewW, ANewH: Integer); virtual;
    public
-      constructor Create(AWindowW, AWindowH: Integer; const ATitle: string; AFPS: Integer = 60; AVirtualW: Integer = 0; AVirtualH: Integer = 0);
+      constructor Create(AWindowW, AWindowH: Integer; const ATitle: String; AFPS: Integer = 60; AVirtualW: Integer = 0; AVirtualH: Integer = 0);
       destructor Destroy; override;
 
     { Inicia a janela, o áudio e o loop principal.
@@ -68,34 +73,34 @@ type
       function ScreenToVirtual(const APhysical: TVector2): TVector2;
       function VirtualToScreen(const AVirtual: TVector2): TVector2;
 
-      property World    : TWorld   read FWorld;
-      property ScreenW  : Integer  read FVirtualW;
-      property ScreenH  : Integer  read FVirtualH;
-      property WindowW  : Integer  read FLastPhysW;
-      property WindowH  : Integer  read FLastPhysH;
-      property Running  : Boolean  read FRunning;
+      property World: TWorld read FWorld;
+      property ScreenW: Integer read FVirtualW;
+      property ScreenH: Integer read FVirtualH;
+      property WindowW: Integer read FLastPhysW;
+      property WindowH: Integer read FLastPhysH;
+      property Running: Boolean read FRunning;
     { Fração do passo físico pendente (0..1). Use em OnRender para interpolar posições visuais entre passos físicos (ver P2D.Components.Transform.PrevPosition). }
-      property Alpha    : Single   read FAlpha;
-      property RTScale  : Single   read FRTScale;
+      property Alpha: Single read FAlpha;
+      property RTScale: Single read FRTScale;
    end;
 
 implementation
 
 { TEngine2D }
-constructor TEngine2D.Create(AWindowW, AWindowH: Integer; const ATitle: string; AFPS: Integer; AVirtualW: Integer; AVirtualH: Integer);
+constructor TEngine2D.Create(AWindowW, AWindowH: Integer; const ATitle: String; AFPS: Integer; AVirtualW: Integer; AVirtualH: Integer);
 begin
    inherited Create;
-   FTitle     := ATitle;
+   FTitle := ATitle;
    FTargetFPS := AFPS;
-   FWorld     := TWorld.Create;
-   FRunning   := False;
-   FAlpha     := 0.0;
+   FWorld := TWorld.Create;
+   FRunning := False;
+   FAlpha := 0.0;
    FLastPhysW := AWindowW;
    FLastPhysH := AWindowH;
-   FRTScale   := 1.0;
+   FRTScale := 1.0;
    FRTOffsetX := 0.0;
    FRTOffsetY := 0.0;
-   if (AVirtualW > 0) and (AVirtualH > 0) then
+   if (AVirtualW > 0) And (AVirtualH > 0) then
    begin
       FVirtualW := AVirtualW;
       FVirtualH := AVirtualH;
@@ -115,14 +120,14 @@ end;
 
 procedure TEngine2D.RecalcScale;
 var
-   PhysW, PhysH  : Integer;
+   PhysW, PhysH: Integer;
    ScaleX, ScaleY: Single;
 begin
-   PhysW  := GetScreenWidth;
-   PhysH  := GetScreenHeight;
+   PhysW := GetScreenWidth;
+   PhysH := GetScreenHeight;
    ScaleX := PhysW / FVirtualW;
    ScaleY := PhysH / FVirtualH;
-   FRTScale   := Min(ScaleX, ScaleY);
+   FRTScale := Min(ScaleX, ScaleY);
    FRTOffsetX := (PhysW - FVirtualW * FRTScale) * 0.5;
    FRTOffsetY := (PhysH - FVirtualH * FRTScale) * 0.5;
    FLastPhysW := PhysW;
@@ -133,23 +138,27 @@ procedure TEngine2D.BlitVirtualCanvas;
 var
    Src, Dst: TRectangle;
 begin
-   Src.X      :=  0;
-   Src.Y      :=  0;
-   Src.Width  :=  FVirtualW;
+   Src.X := 0;
+   Src.Y := 0;
+   Src.Width := FVirtualW;
    Src.Height := -FVirtualH;   { negative flips the Y axis }
-   Dst.X      := FRTOffsetX;
-   Dst.Y      := FRTOffsetY;
-   Dst.Width  := FVirtualW * FRTScale;
+   Dst.X := FRTOffsetX;
+   Dst.Y := FRTOffsetY;
+   Dst.Width := FVirtualW * FRTScale;
    Dst.Height := FVirtualH * FRTScale;
    DrawTexturePro(FRenderTexture.Texture, Src, Dst, Vector2Create(0, 0), 0, WHITE);
 end;
 
 procedure TEngine2D.HandleFullscreenToggle;
 begin
-   if not (IsKeyDown(KEY_LEFT_ALT) or IsKeyDown(KEY_RIGHT_ALT)) then
-      Exit;
-   if not IsKeyPressed(KEY_ENTER) then
-      Exit;
+   if Not (IsKeyDown(KEY_LEFT_ALT) Or IsKeyDown(KEY_RIGHT_ALT)) then
+   begin
+      Exit
+   end;
+   if Not IsKeyPressed(KEY_ENTER) then
+   begin
+      Exit
+   end;
 
    ToggleFullscreen;
    RecalcScale;
@@ -159,10 +168,12 @@ end;
 procedure TEngine2D.SetWindowResolution(AWidth, AHeight: Integer);
 begin
    if IsWindowFullscreen then
-      ToggleFullscreen;
+   begin
+      ToggleFullscreen
+   end;
 
    SetWindowSize(AWidth, AHeight);
-   SetWindowPosition((GetMonitorWidth(GetCurrentMonitor)  - AWidth)  div 2, (GetMonitorHeight(GetCurrentMonitor) - AHeight) div 2);
+   SetWindowPosition((GetMonitorWidth(GetCurrentMonitor) - AWidth) Div 2, (GetMonitorHeight(GetCurrentMonitor) - AHeight) Div 2);
    RecalcScale;
    OnScreenResized(AWidth, AHeight);
 end;
@@ -214,15 +225,19 @@ var
    Delta, Accumulator: Single;
 begin
    { --- Inicialização de janela e áudio ------------------------------------ }
-   InitWindow(FLastPhysW, FLastPhysH, PChar(FTitle));
-   if not IsWindowReady then
-      raise Exception.Create('TEngine2D: Falha ao inicializar janela raylib.');
+   InitWindow(FLastPhysW, FLastPhysH, Pchar(FTitle));
+   if Not IsWindowReady then
+   begin
+      raise Exception.Create('TEngine2D: Falha ao inicializar janela raylib.')
+   end;
 
    SetTargetFPS(FTargetFPS);
 
    InitAudioDevice;
-   if not IsAudioDeviceReady then
-      raise Exception.Create('TEngine2D: Falha ao inicializar áudio raylib.');
+   if Not IsAudioDeviceReady then
+   begin
+      raise Exception.Create('TEngine2D: Falha ao inicializar áudio raylib.')
+   end;
 
    { RenderTexture2D requires an active GL context — create after InitWindow. }
    FRenderTexture := LoadRenderTexture(FVirtualW, FVirtualH);
@@ -235,17 +250,19 @@ begin
       Deve vir APÓS OnInit para que as entidades já existam quando os sistemas as buscarem (ex: TCameraSystem.Init localiza câmera e player). }
       FWorld.Init;
 
-      FRunning    := True;
+      FRunning := True;
       Accumulator := 0.0;
 
       { --- Loop principal --------------------------------------------------- }
-      while FRunning and not WindowShouldClose do
+      while FRunning And Not WindowShouldClose do
       begin
          { Detect OS-level window resize. }
-         if (GetScreenWidth <> FLastPhysW) or (GetScreenHeight <> FLastPhysH) then
-            RecalcScale;
+         if (GetScreenWidth <> FLastPhysW) Or (GetScreenHeight <> FLastPhysH) then
+         begin
+            RecalcScale
+         end;
 
-         Delta       := Min(GetFrameTime, MAX_DELTA);
+         Delta := Min(GetFrameTime, MAX_DELTA);
          Accumulator := Accumulator + Delta;
 
        { Passos físicos fixos: Physics + Collision rodam aqui. }
@@ -273,34 +290,37 @@ begin
 
        { Render game into the virtual canvas. }
          BeginTextureMode(FRenderTexture);
-            OnRender;
+         OnRender;
          EndTextureMode;
 
          { Blit scaled canvas onto the physical screen. }
          BeginDrawing;
-            ClearBackground(BLACK);
-            BlitVirtualCanvas;
+         ClearBackground(BLACK);
+         BlitVirtualCanvas;
          EndDrawing;
       end;
 
-   except on E: Exception do
-   begin
-      {$IFDEF DEBUG}
-      TraceLog(LOG_ERROR, PChar('TEngine2D — Erro fatal: ' + E.Message));
-      {$ENDIF}
-      try
-         FWorld.Shutdown;
-         OnShutdown;
-         if FRenderTexture.Id > 0 then
-         UnloadRenderTexture(FRenderTexture);
-         CloseAudioDevice;
-         CloseWindow;
-      except
-      {$IFDEF DEBUG}
-         TraceLog(LOG_ERROR, PChar('TEngine2D — Erro fatal: ' + E.Message));
-      {$ENDIF}
+   except
+      on E: Exception do
+      begin
+         {$IFDEF DEBUG}
+         TraceLog(LOG_ERROR, Pchar('TEngine2D — Erro fatal: ' + E.Message));
+         {$ENDIF}
+         try
+            FWorld.Shutdown;
+            OnShutdown;
+            if FRenderTexture.Id > 0 then
+            begin
+               UnloadRenderTexture(FRenderTexture)
+            end;
+            CloseAudioDevice;
+            CloseWindow;
+         except
+            {$IFDEF DEBUG}
+            TraceLog(LOG_ERROR, Pchar('TEngine2D — Erro fatal: ' + E.Message));
+            {$ENDIF}
+         end;
       end;
-   end;
    end;
 
    { --- Encerramento -------------------------------------------------------- }
@@ -317,4 +337,3 @@ begin
 end;
 
 end.
-

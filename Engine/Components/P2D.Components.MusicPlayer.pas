@@ -1,6 +1,7 @@
 unit P2D.Components.MusicPlayer;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { ============================================================================
   TMusicPlayerComponent
@@ -19,27 +20,28 @@ unit P2D.Components.MusicPlayer;
 interface
 
 uses
-  SysUtils, raylib,
-  P2D.Core.Component;
+   SysUtils,
+   raylib,
+   P2D.Core.Component;
 
 type
-  TMusicPlayerComponent = class(TComponent2D)
-  private
-    FMusic    : TMusic;
-    FVolume   : Single;
-    FPitch    : Single;
-    FAutoPlay : Boolean;
-    FLoop     : Boolean;
-    FPlaying  : Boolean;
-  public
-    constructor Create; override;
-    property Music    : TMusic  read FMusic    write FMusic;
-    property Volume   : Single  read FVolume   write FVolume;
-    property Pitch    : Single  read FPitch    write FPitch;
-    property AutoPlay : Boolean read FAutoPlay write FAutoPlay;
-    property Loop     : Boolean read FLoop     write FLoop;
-    property Playing  : Boolean read FPlaying  write FPlaying;
-  end;
+   TMusicPlayerComponent = class(TComponent2D)
+   private
+      FMusic: TMusic;
+      FVolume: Single;
+      FPitch: Single;
+      FAutoPlay: Boolean;
+      FLoop: Boolean;
+      FPlaying: Boolean;
+   public
+      constructor Create; override;
+      property Music: TMusic read FMusic write FMusic;
+      property Volume: Single read FVolume write FVolume;
+      property Pitch: Single read FPitch write FPitch;
+      property AutoPlay: Boolean read FAutoPlay write FAutoPlay;
+      property Loop: Boolean read FLoop write FLoop;
+      property Playing: Boolean read FPlaying write FPlaying;
+   end;
 
 implementation
 
@@ -48,13 +50,13 @@ uses
 
 constructor TMusicPlayerComponent.Create;
 begin
-  inherited Create;
-  FMusic    := Default(TMusic);
-  FVolume   := 1.0;
-  FPitch    := 1.0;
-  FAutoPlay := False;
-  FLoop     := True;
-  FPlaying  := False;
+   inherited Create;
+   FMusic := Default(TMusic);
+   FVolume := 1.0;
+   FPitch := 1.0;
+   FAutoPlay := False;
+   FLoop := True;
+   FPlaying := False;
 end;
 
 initialization

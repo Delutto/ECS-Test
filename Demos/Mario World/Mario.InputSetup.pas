@@ -1,6 +1,7 @@
 unit Mario.InputSetup;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { ============================================================================
   Mario.InputSetup
@@ -28,8 +29,8 @@ uses
 
 procedure SetupPlayerInput;
 var
-   Map     : TInputActionMap;
-   Action  : TInputAction;
+   Map: TInputActionMap;
+   Action: TInputAction;
 begin
    Map := InputManager.AddMap(PLAYER_MAP);
 

@@ -1,6 +1,7 @@
 unit P2D.Core.Scene;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { =============================================================================
   P2D.Core.Scene — Scene Management System
@@ -62,7 +63,8 @@ unit P2D.Core.Scene;
 interface
 
 uses
-   SysUtils, Math,
+   SysUtils,
+   Math,
    P2D.Core.World,
    P2D.Core.System;
 
@@ -74,21 +76,21 @@ type
   ========================================================================= }
    TScene2D = class
    private
-      FWorld : TWorld;
-      FName  : string;
+      FWorld: TWorld;
+      FName: String;
       FActive: Boolean;
       FPaused: Boolean;
 
       FAccumulator: Single;
    protected
       { Override these in subclasses — all are safe no-ops by default. }
-      procedure DoLoad;   virtual;  { build ECS world: systems + entities }
+      procedure DoLoad; virtual;  { build ECS world: systems + entities }
       procedure DoUnload; virtual;  { free extra assets not owned by World }
-      procedure DoEnter;  virtual;  { reset transient state, start music, etc. }
-      procedure DoExit;   virtual;  { stop music, save state, etc. }
+      procedure DoEnter; virtual;  { reset transient state, start music, etc. }
+      procedure DoExit; virtual;  { stop music, save state, etc. }
    public
-      constructor Create(const AName: string);
-      destructor  Destroy; override;
+      constructor Create(const AName: String);
+      destructor Destroy; override;
 
       procedure Load;
       procedure Unload;
@@ -105,10 +107,10 @@ type
       procedure Pause;
       procedure Resume;
 
-      property World  : TWorld  read FWorld;
-      property Name   : string  read FName;
-      property Active : Boolean read FActive;
-      property Paused : Boolean read FPaused;
+      property World: TWorld read FWorld;
+      property Name: String read FName;
+      property Active: Boolean read FActive;
+      property Paused: Boolean read FPaused;
    end;
 
    { =========================================================================
@@ -117,17 +119,17 @@ type
    ========================================================================= }
    TSceneManager = class
    private
-      FScenes       : array of TScene2D;
-      FCurrentScene : TScene2D;
-      FNextScene    : TScene2D;    { non-nil = deferred transition pending }
+      FScenes: array of TScene2D;
+      FCurrentScene: TScene2D;
+      FNextScene: TScene2D;    { non-nil = deferred transition pending }
       FTransitioning: Boolean;
 
       class var FInstance: TSceneManager;
    public
       constructor Create;
-      destructor  Destroy; override;
+      destructor Destroy; override;
 
-      class function  Instance: TSceneManager;
+      class function Instance: TSceneManager;
       class procedure FreeInstance;
 
       { RegisterScene: calls AScene.Load and adds it to the internal list.
@@ -135,19 +137,19 @@ type
       procedure RegisterScene(AScene: TScene2D);
 
       { UnregisterScene: calls Unload on the named scene and removes it from the list. Does NOT free the scene object. }
-      procedure UnregisterScene(const AName: string);
+      procedure UnregisterScene(const AName: String);
 
       { GetScene: returns the registered scene with the given name, or nil. }
-      function  GetScene(const AName: string): TScene2D;
+      function GetScene(const AName: String): TScene2D;
 
       { ChangeScene: schedules a deferred transition.
       The current scene will Exit and the new scene will Enter at the start of the NEXT Update call. Safe to call from inside Update/Render. }
-      procedure ChangeScene(const AName: string);
+      procedure ChangeScene(const AName: String);
 
       { ChangeSceneImmediate: synchronous transition in the same call.
       Exits the current scene immediately and enters the new one.
       Do NOT call from inside the current scene's Update or Render. }
-      procedure ChangeSceneImmediate(const AName: string);
+      procedure ChangeSceneImmediate(const AName: String);
 
       { Update: processes any pending deferred transition, then updates the active scene. Call once per frame from TEngine2D.OnUpdate. }
       procedure Update(ADelta: Single);
@@ -156,8 +158,8 @@ type
       Call from TEngine2D.OnRender, inside BeginDrawing/EndDrawing. }
       procedure Render;
 
-      property CurrentScene   : TScene2D read FCurrentScene;
-      property IsTransitioning: Boolean  read FTransitioning;
+      property CurrentScene: TScene2D read FCurrentScene;
+      property IsTransitioning: Boolean read FTransitioning;
    end;
 
 { Global singleton accessor — mirrors the pattern used by InputManager. }
@@ -171,12 +173,12 @@ uses
    P2D.Utils.Logger;
 
 { TScene2D }
-constructor TScene2D.Create(const AName: string);
+constructor TScene2D.Create(const AName: String);
 begin
    inherited Create;
 
-   FName   := AName;
-   FWorld  := TWorld.Create;
+   FName := AName;
+   FWorld := TWorld.Create;
    FActive := False;
    FPaused := False;
    FAccumulator := 0;
@@ -254,8 +256,10 @@ procedure TScene2D.Update(ADelta: Single);
 var
    Delta: Single;
 begin
-   if not (FActive and not FPaused) then
-      Exit;
+   if Not (FActive And Not FPaused) then
+   begin
+      Exit
+   end;
 
    Delta := Min(ADelta, MAX_DELTA);
    FAccumulator := FAccumulator + Delta;
@@ -301,8 +305,8 @@ begin
    inherited Create;
 
    SetLength(FScenes, 0);
-   FCurrentScene  := nil;
-   FNextScene     := nil;
+   FCurrentScene := nil;
+   FNextScene := nil;
    FTransitioning := False;
    {$IFDEF DEBUG}
    Logger.Info('[SceneManager] Created');
@@ -320,7 +324,7 @@ begin
    end;
 
    FCurrentScene := nil;
-   FNextScene    := nil;
+   FNextScene := nil;
    {$IFDEF DEBUG}
    Logger.Info('[SceneManager] Destroyed');
    {$ENDIF}
@@ -331,7 +335,9 @@ end;
 class function TSceneManager.Instance: TSceneManager;
 begin
    if FInstance = nil then
-      FInstance := TSceneManager.Create;
+   begin
+      FInstance := TSceneManager.Create
+   end;
    Result := FInstance;
 end;
 
@@ -350,57 +356,69 @@ begin
    {$ENDIF}
 end;
 
-procedure TSceneManager.UnregisterScene(const AName: string);
+procedure TSceneManager.UnregisterScene(const AName: String);
 var
    I: Integer;
 begin
    for I := 0 to High(FScenes) do
+   begin
       if FScenes[I].Name = AName then
       begin
          { Exit the scene if it is currently active. }
          if FScenes[I].Active then
-         FScenes[I].Exit;
+         begin
+            FScenes[I].Exit
+         end;
 
          { Unload: calls DoUnload — release assets while context is open. }
          FScenes[I].Unload;
 
          { Nil the CurrentScene pointer if this was the active scene. }
          if FScenes[I] = FCurrentScene then
-            FCurrentScene := nil;
+         begin
+            FCurrentScene := nil
+         end;
          if FScenes[I] = FNextScene then
-            FNextScene := nil;
+         begin
+            FNextScene := nil
+         end;
 
          { Remove the entry from the array. }
          if I < High(FScenes) then
-            Move(FScenes[I + 1], FScenes[I], (High(FScenes) - I) * SizeOf(TScene2D));
+         begin
+            Move(FScenes[I + 1], FScenes[I], (High(FScenes) - I) * SizeOf(TScene2D))
+         end;
          SetLength(FScenes, Length(FScenes) - 1);
          {$IFDEF DEBUG}
          Logger.Info('[SceneManager] Unregistered: ' + AName);
          {$ENDIF}
          Exit;
-      end;
+      end
+   end;
    {$IFDEF DEBUG}
    Logger.Warn('[SceneManager] UnregisterScene: not found: ' + AName);
    {$ENDIF}
 end;
 
-function TSceneManager.GetScene(const AName: string): TScene2D;
+function TSceneManager.GetScene(const AName: String): TScene2D;
 var
    I: Integer;
 begin
    Result := nil;
    for I := 0 to High(FScenes) do
+   begin
       if FScenes[I].Name = AName then
       begin
          Result := FScenes[I];
          Exit;
-      end;
+      end
+   end;
 end;
 
-procedure TSceneManager.ChangeScene(const AName: string);
+procedure TSceneManager.ChangeScene(const AName: String);
 begin
    FNextScene := GetScene(AName);
-   if not Assigned(FNextScene) then
+   if Not Assigned(FNextScene) then
    begin
       {$IFDEF DEBUG}
       Logger.Error('[SceneManager] ChangeScene: not found: ' + AName);
@@ -413,12 +431,12 @@ begin
    {$ENDIF}
 end;
 
-procedure TSceneManager.ChangeSceneImmediate(const AName: string);
+procedure TSceneManager.ChangeSceneImmediate(const AName: String);
 var
    NewScene: TScene2D;
 begin
    NewScene := GetScene(AName);
-   if not Assigned(NewScene) then
+   if Not Assigned(NewScene) then
    begin
       {$IFDEF DEBUG}
       Logger.Error('[SceneManager] ChangeSceneImmediate: not found: ' + AName);
@@ -426,7 +444,9 @@ begin
       Exit;
    end;
    if Assigned(FCurrentScene) then
-      FCurrentScene.Exit;
+   begin
+      FCurrentScene.Exit
+   end;
    FCurrentScene := NewScene;
    FCurrentScene.Enter;
    {$IFDEF DEBUG}
@@ -437,24 +457,30 @@ end;
 procedure TSceneManager.Update(ADelta: Single);
 begin
    { Process pending deferred transition BEFORE the scene updates, so that the new scene's first Update sees a fully initialised state. }
-   if FTransitioning and Assigned(FNextScene) then
+   if FTransitioning And Assigned(FNextScene) then
    begin
       if Assigned(FCurrentScene) then
-         FCurrentScene.Exit;
-      FCurrentScene  := FNextScene;
-      FNextScene     := nil;
+      begin
+         FCurrentScene.Exit
+      end;
+      FCurrentScene := FNextScene;
+      FNextScene := nil;
       FTransitioning := False;
       FCurrentScene.Enter;
    end;
 
    if Assigned(FCurrentScene) then
-      FCurrentScene.Update(ADelta);
+   begin
+      FCurrentScene.Update(ADelta)
+   end;
 end;
 
 procedure TSceneManager.Render;
 begin
    if Assigned(FCurrentScene) then
-      FCurrentScene.Render;
+   begin
+      FCurrentScene.Render
+   end;
 end;
 
 initialization
@@ -465,4 +491,3 @@ finalization
    SceneManager := nil;
 
 end.
-

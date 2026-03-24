@@ -1,18 +1,20 @@
 unit P2D.Components.Collider;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   P2D.Core.Component, P2D.Core.Types;
+   P2D.Core.Component,
+   P2D.Core.Types;
 
 type
    TColliderComponent = class(TComponent2D)
    public
-      Offset  : TVector2;     // relative to transform position
-      Size    : TVector2;
-      Tag     : TColliderTag;
+      Offset: TVector2;     // relative to transform position
+      Size: TVector2;
+      Tag: TColliderTag;
       IsTrigger: Boolean;     // trigger = detect only, no physics response
       constructor Create; override;
       function GetWorldRect(const APosition: TVector2): TRectF;

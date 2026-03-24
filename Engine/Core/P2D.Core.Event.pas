@@ -1,11 +1,13 @@
 unit P2D.Core.Event;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   SysUtils, fgl;
+   SysUtils,
+   fgl;
 
 type
  { -------------------------------------------------------------------------
@@ -35,8 +37,8 @@ type
    end;
 
    TSubscriberList = specialize TFPGObjectList<TEventSubscriber>;
-   TEventQueue     = specialize TFPGObjectList<TEvent2D>;
-   THandlerMap     = specialize TFPGMap<Pointer, TSubscriberList>;
+   TEventQueue = specialize TFPGObjectList<TEvent2D>;
+   THandlerMap = specialize TFPGMap<Pointer, TSubscriberList>;
 
    {══════════════════════════════════════════════════════════════════════
     TEventBus
@@ -79,15 +81,15 @@ type
    { TEventBus }
    TEventBus = class
    private
-      FHandlers    : THandlerMap;
-      FReadQueue   : TEventQueue;
-      FWriteQueue  : TEventQueue;
-      FDispatching : Boolean;
+      FHandlers: THandlerMap;
+      FReadQueue: TEventQueue;
+      FWriteQueue: TEventQueue;
+      FDispatching: Boolean;
       { Exchanges FReadQueue and FWriteQueue by swapping their reference variables. }
       procedure SwapQueues;
    public
       constructor Create;
-      destructor  Destroy; override;
+      destructor Destroy; override;
 
     { Registra ACallback para receber eventos do tipo AEventClass.
       Chamado tipicamente em TSystem2D.Init. }
@@ -132,8 +134,8 @@ procedure TEventBus.SwapQueues;
 var
    Tmp: TEventQueue;
 begin
-   Tmp         := FReadQueue;
-   FReadQueue  := FWriteQueue;
+   Tmp := FReadQueue;
+   FReadQueue := FWriteQueue;
    FWriteQueue := Tmp;
 end;
 
@@ -142,12 +144,12 @@ constructor TEventBus.Create;
 begin
    inherited Create;
 
-   FHandlers    := THandlerMap.Create;
+   FHandlers := THandlerMap.Create;
    FHandlers.Sorted := True;
 
    { Instancia as filas uma ÚNICA vez na vida útil da Engine }
-   FReadQueue   := TEventQueue.Create(True); { True = owns events → libera ao limpar }
-   FWriteQueue  := TEventQueue.Create(True);
+   FReadQueue := TEventQueue.Create(True); { True = owns events → libera ao limpar }
+   FWriteQueue := TEventQueue.Create(True);
 
    FDispatching := False;
 end;
@@ -159,7 +161,9 @@ begin
    Clear;
    { Libera cada TSubscriberList (THandlerMap não é owner das values) }
    for I := 0 to FHandlers.Count - 1 do
-      FHandlers.Data[I].Free;
+   begin
+      FHandlers.Data[I].Free
+   end;
    FHandlers.Free;
 
    FReadQueue.Free;
@@ -170,8 +174,8 @@ end;
 
 procedure TEventBus.Subscribe(AEventClass: TClass; const ACallback: TEventCallback);
 var
-   Key : Pointer;
-   Idx : Integer;
+   Key: Pointer;
+   Idx: Integer;
    List: TSubscriberList;
 begin
    Key := Pointer(AEventClass);
@@ -183,28 +187,32 @@ begin
       FHandlers[Key] := List;
    end
    else
-      List := FHandlers.Data[Idx];
+   begin
+      List := FHandlers.Data[Idx]
+   end;
 
    List.Add(TEventSubscriber.Create(ACallback));
 end;
 
 procedure TEventBus.Unsubscribe(AEventClass: TClass; const ACallback: TEventCallback);
 var
-   Key : Pointer;
-   Idx , I: Integer;
+   Key: Pointer;
+   Idx, I: Integer;
    List: TSubscriberList;
 begin
    Key := Pointer(AEventClass);
    Idx := FHandlers.IndexOf(Key);
    if Idx < 0 then
-      Exit;
+   begin
+      Exit
+   end;
 
    List := FHandlers.Data[Idx];
 
    { Compara as duas partes do method pointer: Code (endereço do método) e Data (ponteiro para a instância — o Self do subscriber). }
    for I := List.Count - 1 downto 0 do
    begin
-      if (TMethod(List[I].Callback).Code = TMethod(ACallback).Code) and (TMethod(List[I].Callback).Data = TMethod(ACallback).Data) then
+      if (TMethod(List[I].Callback).Code = TMethod(ACallback).Code) And (TMethod(List[I].Callback).Data = TMethod(ACallback).Data) then
       begin
          List.Delete(I);
          Break;
@@ -220,15 +228,17 @@ end;
 
 procedure TEventBus.Dispatch;
 var
-   Event : TEvent2D;
-   Cls   : TClass;
-   Idx   : Integer;
-   List  : TSubscriberList;
-   Sub   : TEventSubscriber;
-   I     : Integer;
+   Event: TEvent2D;
+   Cls: TClass;
+   Idx: Integer;
+   List: TSubscriberList;
+   Sub: TEventSubscriber;
+   I: Integer;
 begin
-   if FDispatching or (FWriteQueue.Count = 0) then
-      Exit;
+   if FDispatching Or (FWriteQueue.Count = 0) then
+   begin
+      Exit
+   end;
 
    { Step 1: swap queues so newly published events are isolated }
    SwapQueues;
@@ -241,23 +251,27 @@ begin
 
          { Step 2: walk the class hierarchy from the concrete type upward }
          Cls := Event.ClassType;
-         while Assigned(Cls) and (Cls <> TObject) do
+         while Assigned(Cls) And (Cls <> TObject) do
          begin
             Idx := FHandlers.IndexOf(Pointer(Cls));
             if Idx >= 0 then
             begin
                List := FHandlers.Data[Idx];
-               for Sub in List do
+               for Sub In List do
                begin
                   if Event.Handled then
-                     Break;  { stop subscriber loop }
+                  begin
+                     Break
+                  end;  { stop subscriber loop }
                   Sub.Callback(Event);
                end;
             end;
 
             { Stop the hierarchy walk if any handler marked the event handled }
             if Event.Handled then
-               Break;
+            begin
+               Break
+            end;
 
             Cls := Cls.ClassParent;
          end;

@@ -1,6 +1,7 @@
 unit P2D.Components.Text;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { ─────────────────────────────────────────────────────────────────────────────
   TTextComponent2D — ECS component for rendering text in world or screen space.
@@ -21,42 +22,44 @@ unit P2D.Components.Text;
 interface
 
 uses
-   SysUtils, raylib,
-   P2D.Core.Component, P2D.Core.ComponentRegistry;
+   SysUtils,
+   raylib,
+   P2D.Core.Component,
+   P2D.Core.ComponentRegistry;
 
 type
-  TTextAlignment = (taLeft, taCenter, taRight);
+   TTextAlignment = (taLeft, taCenter, taRight);
 
-  TTextComponent2D = class(TComponent2D)
-  public
-    Text      : string;
-    FontKey   : string;     // ResourceManager key ('' = default raylib font)
-    FontSize  : Single;
-    Spacing   : Single;     // letter spacing
-    Color     : TColor;
-    Alignment : TTextAlignment;
-    ZOrder    : Integer;
-    Shadow    : Boolean;    // draw a 1-px offset shadow for readability
-    ShadowColor: TColor;
+   TTextComponent2D = class(TComponent2D)
+   public
+      Text: String;
+      FontKey: String;     // ResourceManager key ('' = default raylib font)
+      FontSize: Single;
+      Spacing: Single;     // letter spacing
+      Color: TColor;
+      Alignment: TTextAlignment;
+      ZOrder: Integer;
+      Shadow: Boolean;    // draw a 1-px offset shadow for readability
+      ShadowColor: TColor;
 
-    constructor Create; override;
-  end;
+      constructor Create; override;
+   end;
 
 implementation
 
 constructor TTextComponent2D.Create;
 begin
-  inherited Create;
-  
-  Text        := '';
-  FontKey     := '';
-  FontSize    := 16.0;
-  Spacing     := 1.0;
-  Color       := WHITE;
-  Alignment   := taLeft;
-  ZOrder      := 50;
-  Shadow      := False;
-  ShadowColor := ColorCreate(0, 0, 0, 180);
+   inherited Create;
+
+   Text := '';
+   FontKey := '';
+   FontSize := 16.0;
+   Spacing := 1.0;
+   Color := WHITE;
+   Alignment := taLeft;
+   ZOrder := 50;
+   Shadow := False;
+   ShadowColor := ColorCreate(0, 0, 0, 180);
 end;
 
 initialization

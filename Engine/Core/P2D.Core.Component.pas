@@ -1,6 +1,7 @@
 unit P2D.Core.Component;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
@@ -16,11 +17,11 @@ type
    TComponent2D = class
    private
       FOwnerEntity: TEntityID;
-      FEnabled    : Boolean;
+      FEnabled: Boolean;
    public
       constructor Create; virtual;
       property OwnerEntity: TEntityID read FOwnerEntity write FOwnerEntity;
-      property Enabled    : Boolean   read FEnabled     write FEnabled;
+      property Enabled: Boolean read FEnabled write FEnabled;
    end;
 
    TComponent2DClass = class of TComponent2D;

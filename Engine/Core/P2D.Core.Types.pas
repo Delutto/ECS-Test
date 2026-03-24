@@ -1,25 +1,28 @@
 unit P2D.Core.Types;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 {$modeswitch ADVANCEDRECORDS}
 
 interface
 
 uses
-  SysUtils, Math, raylib;
+   SysUtils,
+   Math,
+   raylib;
 
 // ---------------------------------------------------------------------------
 // Basic scalar / identifier types
 // ---------------------------------------------------------------------------
 type
-   TEntityID   = Cardinal;
+   TEntityID = Cardinal;
    TComponentID = Cardinal;
    TSystemPriority = Integer;
 
    TVector2 = raylib.TVector2;
    //TRectF   = raylib.TRectangle;
    TRectangle = raylib.TRectangle;
-   TColor   = raylib.TColor;
+   TColor = raylib.TColor;
 
 // ---------------------------------------------------------------------------
 // Axis-aligned bounding rectangle
@@ -37,7 +40,7 @@ type
    end;
 
 const
-   INVALID_ENTITY : TEntityID = 0;
+   INVALID_ENTITY: TEntityID = 0;
 
 implementation
 
@@ -62,12 +65,12 @@ end;
 
 function TRectF.Overlaps(const Other: TRectF): Boolean;
 begin
-   Result := (X < Other.Right) and (Right > Other.X) and (Y < Other.Bottom) and (Bottom > Other.Y);
+   Result := (X < Other.Right) And (Right > Other.X) And (Y < Other.Bottom) And (Bottom > Other.Y);
 end;
 
 function TRectF.Contains(const P: TVector2): Boolean;
 begin
-   Result := (P.X >= X) and (P.X <= Right) and (P.Y >= Y) and (P.Y <= Bottom);
+   Result := (P.X >= X) And (P.X <= Right) And (P.Y >= Y) And (P.Y <= Bottom);
 end;
 
 end.

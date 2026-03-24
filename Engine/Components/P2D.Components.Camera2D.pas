@@ -1,6 +1,7 @@
 unit P2D.Components.Camera2D;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
@@ -14,11 +15,11 @@ type
    TCamera2DComponent = class(TComponent2D)
    public
       RaylibCamera: TCamera2D;
-      Zoom        : Single;
-      FollowSpeed : Single;
-      Bounds      : TRectF;   // world limits (0,0,0,0 = unlimited)
-      UseBounds   : Boolean;
-      Target      : TEntity;
+      Zoom: Single;
+      FollowSpeed: Single;
+      Bounds: TRectF;   // world limits (0,0,0,0 = unlimited)
+      UseBounds: Boolean;
+      Target: TEntity;
       constructor Create; override;
    end;
 
@@ -33,9 +34,9 @@ begin
 
    FillChar(RaylibCamera, SizeOf(RaylibCamera), 0);
    RaylibCamera.Zoom := 1.0;
-   Zoom        := 3.0;
+   Zoom := 3.0;
    FollowSpeed := 5.0;
-   UseBounds   := False;
+   UseBounds := False;
    Bounds.Create(0, 0, 0, 0);
 
    Target := nil;

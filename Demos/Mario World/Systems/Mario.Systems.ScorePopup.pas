@@ -1,6 +1,7 @@
 unit Mario.Systems.ScorePopup;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { ── Score popup system ──────────────────────────────────────────────────────
   Spawns short-lived floating text entities (+100, +200, COIN!) over
@@ -16,18 +17,26 @@ unit Mario.Systems.ScorePopup;
 interface
 
 uses
-   SysUtils, raylib,
+   SysUtils,
+   raylib,
    Mario.Events,
    Mario.Common,
-   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World, P2D.Core.Event,
-   P2D.Components.Transform, P2D.Components.Text, P2D.Components.Lifetime, P2D.Components.Tween;
+   P2D.Core.Types,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
+   P2D.Core.Event,
+   P2D.Components.Transform,
+   P2D.Components.Text,
+   P2D.Components.Lifetime,
+   P2D.Components.Tween;
 
 type
    TScorePopupSystem = class(TSystem2D)
    private
       procedure OnEnemyStomp(AEvent: TEvent2D);
       procedure OnCoinCollected(AEvent: TEvent2D);
-      procedure SpawnPopup(AWorldX, AWorldY: Single; const AText: string; AColor: TColor);
+      procedure SpawnPopup(AWorldX, AWorldY: Single; const AText: String; AColor: TColor);
    public
       constructor Create(AWorld: TWorldBase); override;
       procedure Init; override;
@@ -40,8 +49,8 @@ constructor TScorePopupSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
 
-   Priority    := 26;    // after TGameRulesSystem (25), before TTileMapSystem (30)
-   Name        := 'ScorePopupSystem';
+   Priority := 26;    // after TGameRulesSystem (25), before TTileMapSystem (30)
+   Name := 'ScorePopupSystem';
    RenderLayer := rlWorld; // popups live in world space
 end;
 
@@ -49,13 +58,13 @@ procedure TScorePopupSystem.Init;
 begin
    inherited;
    // No RequireComponent — this system works entirely through events.
-   World.EventBus.Subscribe(TEnemyStompedEvent,  @OnEnemyStomp);
+   World.EventBus.Subscribe(TEnemyStompedEvent, @OnEnemyStomp);
    World.EventBus.Subscribe(TCoinCollectedEvent, @OnCoinCollected);
 end;
 
 procedure TScorePopupSystem.Shutdown;
 begin
-   World.EventBus.Unsubscribe(TEnemyStompedEvent,  @OnEnemyStomp);
+   World.EventBus.Unsubscribe(TEnemyStompedEvent, @OnEnemyStomp);
    World.EventBus.Unsubscribe(TCoinCollectedEvent, @OnCoinCollected);
 
    inherited;
@@ -64,41 +73,41 @@ end;
 // ─────────────────────────────────────────────────────────────────────────────
 // SpawnPopup — creates a self-contained, auto-destroying text entity.
 // ─────────────────────────────────────────────────────────────────────────────
-procedure TScorePopupSystem.SpawnPopup(AWorldX, AWorldY: Single; const AText: string; AColor: TColor);
+procedure TScorePopupSystem.SpawnPopup(AWorldX, AWorldY: Single; const AText: String; AColor: TColor);
 const
    POPUP_DURATION = 0.85;   // seconds the label is visible
-   POPUP_RISE     = 24.0;   // pixels it rises upward during its lifetime
+   POPUP_RISE = 24.0;   // pixels it rises upward during its lifetime
 var
-   E  : TEntity;
-   Tr : TTransformComponent;
-   TC : TTextComponent2D;
-   LT : TLifetimeComponent2D;
-   TW : TTweenComponent2D;
+   E: TEntity;
+   Tr: TTransformComponent;
+   TC: TTextComponent2D;
+   LT: TLifetimeComponent2D;
+   TW: TTweenComponent2D;
 begin
    E := World.CreateEntity('ScorePopup');
 
    // ── Transform: world position of the source (enemy/coin) ─────────────────
-   Tr            := TTransformComponent.Create;
+   Tr := TTransformComponent.Create;
    Tr.Position.X := AWorldX;
    Tr.Position.Y := AWorldY;
-   Tr.Scale.X    := 1.0;
-   Tr.Scale.Y    := 1.0;
+   Tr.Scale.X := 1.0;
+   Tr.Scale.Y := 1.0;
    E.AddComponent(Tr);
 
    // ── Text: the label to display ────────────────────────────────────────────
-   TC           := TTextComponent2D.Create;
-   TC.Text      := AText;
-   TC.FontKey   := FONT_HUD;      // reuses the same pixel font as the HUD
-   TC.FontSize  := 8.0;
-   TC.Color     := AColor;
+   TC := TTextComponent2D.Create;
+   TC.Text := AText;
+   TC.FontKey := FONT_HUD;      // reuses the same pixel font as the HUD
+   TC.FontSize := 8.0;
+   TC.Color := AColor;
    TC.Alignment := taCenter;
-   TC.ZOrder    := 150;           // above sprites (Z=10) but below HUD (rlScreen)
-   TC.Shadow    := True;
+   TC.ZOrder := 150;           // above sprites (Z=10) but below HUD (rlScreen)
+   TC.Shadow := True;
    E.AddComponent(TC);
 
    // ── Lifetime: entity auto-destroys after POPUP_DURATION seconds ───────────
-   LT           := TLifetimeComponent2D.Create;
-   LT.Duration  := POPUP_DURATION;
+   LT := TLifetimeComponent2D.Create;
+   LT.Duration := POPUP_DURATION;
    LT.Remaining := POPUP_DURATION;
    E.AddComponent(LT);
 

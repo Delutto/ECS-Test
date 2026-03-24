@@ -1,6 +1,7 @@
 unit Mario.Systems.Input;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 interface
 
@@ -28,7 +29,7 @@ begin
    inherited Create(AWorld);
 
    Priority := 1;
-   Name     := 'PlayerInputSystem';
+   Name := 'PlayerInputSystem';
 end;
 
 procedure TPlayerInputSystem.Init;
@@ -41,42 +42,50 @@ end;
 
 procedure TPlayerInputSystem.Update(ADelta: Single);
 var
-   E  : TEntity;
-   PC : TPlayerComponent;
-   IM : TInputMapComponent;
+   E: TEntity;
+   PC: TPlayerComponent;
+   IM: TInputMapComponent;
 begin
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       PC := TPlayerComponent(E.GetComponent(TPlayerComponent));
       IM := TInputMapComponent(E.GetComponent(TInputMapComponent));
 
-      if PC.State in [psDead, psVictory, psPipe] then
-         Continue;
+      if PC.State In [psDead, psVictory, psPipe] then
+      begin
+         Continue
+      end;
 
       { Contador de invulnerabilidade }
       if PC.InvFrames > 0 then
-         PC.InvFrames := PC.InvFrames - ADelta;
+      begin
+         PC.InvFrames := PC.InvFrames - ADelta
+      end;
 
       { Intenções de movimento }
-      PC.WantsRun       := IM.IsDown('Run');
-      PC.WantsMoveLeft  := IM.IsDown('MoveLeft');
+      PC.WantsRun := IM.IsDown('Run');
+      PC.WantsMoveLeft := IM.IsDown('MoveLeft');
       PC.WantsMoveRight := IM.IsDown('MoveRight');
-      PC.WantsDuck      := IM.IsDown('Duck');
+      PC.WantsDuck := IM.IsDown('Duck');
 
       { Pulo: preserva a flag até ser consumida pela física }
-      if IM.IsPressed('Jump') and not (PC.State in [psJumping, psRunJumping, psSpinJump, psFalling]) then
-         PC.WantsJump := True;
+      if IM.IsPressed('Jump') And Not (PC.State In [psJumping, psRunJumping, psSpinJump, psFalling]) then
+      begin
+         PC.WantsJump := True
+      end;
 
       { Spin Jump }
-      if IM.IsPressed('Spin') and not (PC.State in [psJumping, psRunJumping, psSpinJump, psFalling]) then
+      if IM.IsPressed('Spin') And Not (PC.State In [psJumping, psRunJumping, psSpinJump, psFalling]) then
       begin
          PC.WantsJump := True;
          PC.WantsSpin := True;
       end;
 
       { Corte de pulo (short-hop) }
-      if IM.IsReleased('Jump') or IM.IsReleased('Spin') then
-         PC.WantsJumpCut := True;
+      if IM.IsReleased('Jump') Or IM.IsReleased('Spin') then
+      begin
+         PC.WantsJumpCut := True
+      end;
 
    end;
 end;

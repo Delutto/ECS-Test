@@ -1,11 +1,13 @@
 unit P2D.Core.System;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   SysUtils, fgl,
+   SysUtils,
+   fgl,
    P2D.Core.Event,
    P2D.Core.Types,
    P2D.Core.Entity,
@@ -65,7 +67,7 @@ type
       function GetEventBus: TEventBus; virtual; abstract;
    public
       { Cria uma nova entidade no mundo. }
-      function  CreateEntity(const AName: string = ''): TEntity; virtual; abstract;
+      function CreateEntity(const AName: String = ''): TEntity; virtual; abstract;
 
       { Marca a entidade para destruição ao final do frame. }
       procedure DestroyEntity(AID: TEntityID); virtual; abstract;
@@ -74,7 +76,7 @@ type
       procedure DestroyAllEntities; virtual; abstract;
 
       { Busca uma entidade pelo ID. Retorna nil se não encontrada. }
-      function  GetEntity(AID: TEntityID): TEntity; virtual; abstract;
+      function GetEntity(AID: TEntityID): TEntity; virtual; abstract;
 
       { Renderiza apenas os sistemas cuja RenderLayer = ALayer. }
       procedure RenderByLayer(ALayer: TRenderLayer); virtual; abstract;
@@ -88,7 +90,7 @@ type
       { Acesso ao gerenciador de entidades (GetAll, PurgeDestroyed, etc.). }
       property Entities: TEntityManager read GetEntities;
       property EventBus: TEventBus read GetEventBus;
-  end;
+   end;
 
   {---------------------------------------------------------------------------
    TComponentClassList
@@ -112,20 +114,20 @@ type
 
    TSystem2D = class
    private
-      FWorld          : TWorldBase;
-      FPriority       : TSystemPriority;
-      FEnabled        : Boolean;
-      FName           : String;
-      FRenderLayer    : TRenderLayer;
+      FWorld: TWorldBase;
+      FPriority: TSystemPriority;
+      FEnabled: Boolean;
+      FName: String;
+      FRenderLayer: TRenderLayer;
       FRequiredClasses: TComponentClassList;
-      FMatchCache     : TEntityRefList;
-      FCacheDirty     : Boolean;
+      FMatchCache: TEntityRefList;
+      FCacheDirty: Boolean;
 
       { Otimizações de Query }
       FRequiredSignature: TComponentSignature;
-      FSignatureDirty   : Boolean;
-      FCacheStats       : TCacheStats;
-      FLastCacheSize    : Integer;
+      FSignatureDirty: Boolean;
+      FCacheStats: TCacheStats;
+      FLastCacheSize: Integer;
    protected
       { Registra um tipo de componente como obrigatório para este sistema. Chamado na implementação de Init pelas subclasses. Idempotente: duplicatas são ignoradas silenciosamente. }
       procedure RequireComponent(AClass: TComponent2DClass);
@@ -136,7 +138,7 @@ type
       procedure RecordCacheMiss; inline;
    public
       constructor Create(AWorld: TWorldBase); virtual;
-      destructor  Destroy; override;
+      destructor Destroy; override;
 
       procedure Init; virtual;
       procedure Update(ADelta: Single); virtual;
@@ -160,7 +162,7 @@ type
       property World: TWorldBase read FWorld;
       property Priority: TSystemPriority read FPriority write FPriority;
       property Enabled: Boolean read FEnabled write FEnabled;
-      property Name: string read FName write FName;
+      property Name: String read FName write FName;
       { Camada de render deste sistema.
       Padrão: rlWorld — a grande maioria dos sistemas opera no espaço do mundo.
       Sistemas de UI/overlay devem sobrescrever para rlScreen. }
@@ -172,23 +174,24 @@ type
 implementation
 
 uses
-   P2D.Utils.Logger, DateUtils;
+   P2D.Utils.Logger,
+   DateUtils;
 
 constructor TSystem2D.Create(AWorld: TWorldBase);
 begin
    inherited Create;
 
-   FWorld           := AWorld;
-   FPriority        := 0;
-   FEnabled         := True;
-   FName            := '';
-   FRenderLayer     := rlWorld;
+   FWorld := AWorld;
+   FPriority := 0;
+   FEnabled := True;
+   FName := '';
+   FRenderLayer := rlWorld;
    FRequiredClasses := TComponentClassList.Create;
-   FMatchCache      := TEntityRefList.Create;
-   FCacheDirty      := True;
-   FSignatureDirty  := True;
+   FMatchCache := TEntityRefList.Create;
+   FCacheDirty := True;
+   FSignatureDirty := True;
    FRequiredSignature := [];
-   FLastCacheSize   := 0;
+   FLastCacheSize := 0;
 
    // Inicializa estatísticas
    FillChar(FCacheStats, SizeOf(FCacheStats), 0);
@@ -210,9 +213,13 @@ end;
 procedure TSystem2D.RequireComponent(AClass: TComponent2DClass);
 begin
    if AClass = nil then
-      raise EArgumentNilException.Create('TSystem2D.RequireComponent: AClass não pode ser nil.');
+   begin
+      raise EArgumentNilException.Create('TSystem2D.RequireComponent: AClass não pode ser nil.')
+   end;
    if FRequiredClasses.IndexOf(AClass) >= 0 then
-      Exit; { idempotente }
+   begin
+      Exit
+   end; { idempotente }
    FRequiredClasses.Add(AClass);
    FSignatureDirty := True;
    InvalidateCache;
@@ -255,9 +262,13 @@ begin
    TotalAccess := FCacheStats.HitCount + FCacheStats.MissCount;
 
    if TotalAccess > 0 then
+   begin
       HitRate := (FCacheStats.HitCount / TotalAccess) * 100.0
+   end
    else
-      HitRate := 0.0;
+   begin
+      HitRate := 0.0
+   end;
 
    Logger.Info(Format('=== Cache Stats: %s ===', [Self.ClassName]));
    Logger.Info(Format('  Cached Entities: %d', [FCacheStats.EntityCount]));
@@ -274,35 +285,37 @@ end;
 // -----------------------------------------------------------------------------
 function TSystem2D.EntityMatches(AEntity: TEntity): Boolean;
 var
-  RequiredClass: TComponent2DClass;
+   RequiredClass: TComponent2DClass;
 begin
-  if not Assigned(AEntity) or not AEntity.Alive then
-  begin
-    Result := False;
-    Exit;
-  end;
+   if Not Assigned(AEntity) Or Not AEntity.Alive then
+   begin
+      Result := False;
+      Exit;
+   end;
 
   { Sistema sem requisitos recebe TODAS as entidades vivas (ex.: câmera, HUD). }
-  if FRequiredClasses.Count = 0 then
-  begin
-    Result := True;
-    Exit;
-  end;
+   if FRequiredClasses.Count = 0 then
+   begin
+      Result := True;
+      Exit;
+   end;
 
-  Result := True;
-  for RequiredClass in FRequiredClasses do
-    if not AEntity.HasComponent(RequiredClass) then
-    begin
-      Result := False;
-      Exit; { curto-circuito }
-    end;
+   Result := True;
+   for RequiredClass In FRequiredClasses do
+   begin
+      if Not AEntity.HasComponent(RequiredClass) then
+      begin
+         Result := False;
+         Exit; { curto-circuito }
+      end
+   end;
 end;
 
 function TSystem2D.EntityMatchesFast(AEntity: TEntity): Boolean;
 var
    EntitySig: TComponentSignature;
 begin
-   if not Assigned(AEntity) or not AEntity.Alive then
+   if Not Assigned(AEntity) Or Not AEntity.Alive then
    begin
       Result := False;
       Exit;
@@ -345,10 +358,12 @@ begin
    UpdateRequiredSignature;
 
    // Popula cache
-   for E in FWorld.Entities.GetAll do
+   for E In FWorld.Entities.GetAll do
    begin
       if EntityMatchesFast(E) then
-         FMatchCache.Add(E);
+      begin
+         FMatchCache.Add(E)
+      end;
    end;
 
    NewCount := FMatchCache.Count;
@@ -363,13 +378,19 @@ begin
 
    // Calcula média móvel do tempo de refresh
    if FCacheStats.RefreshCount = 1 then
+   begin
       FCacheStats.AverageRefreshTime := ElapsedMs
+   end
    else
+   begin
       FCacheStats.AverageRefreshTime :=
-         (FCacheStats.AverageRefreshTime * 0.9) + (ElapsedMs * 0.1);
+         (FCacheStats.AverageRefreshTime * 0.9) + (ElapsedMs * 0.1)
+   end;
 
    if OldCount <> NewCount then
-      Logger.Debug(Format('[System %s] Cache refreshed: %d -> %d entities (%.2fms)', [Self.ClassName, OldCount, NewCount, ElapsedMs]));
+   begin
+      Logger.Debug(Format('[System %s] Cache refreshed: %d -> %d entities (%.2fms)', [Self.ClassName, OldCount, NewCount, ElapsedMs]))
+   end;
    {$ENDIF}
 end;
 
@@ -378,19 +399,23 @@ var
    ComponentClass: TComponent2DClass;
    ComponentID: Integer;
 begin
-   if not FSignatureDirty then
-      Exit;
+   if Not FSignatureDirty then
+   begin
+      Exit
+   end;
 
    // ═══════════════════════════════════════════════════════════════
    // Criar signature a partir das classes requeridas
    // ═══════════════════════════════════════════════════════════════
    FRequiredSignature := [];
 
-   for ComponentClass in FRequiredClasses do
+   for ComponentClass In FRequiredClasses do
    begin
       ComponentID := ComponentRegistry.GetComponentID(ComponentClass);
       if ComponentID >= 0 then
+      begin
          Include(FRequiredSignature, ComponentID)
+      end
       else
       begin
          ComponentID := ComponentRegistry.Register(ComponentClass);
@@ -425,7 +450,9 @@ begin
       RefreshCache;
    end
    else
-      RecordCacheHit;
+   begin
+      RecordCacheHit
+   end;
 
    Result := FMatchCache;
 end;

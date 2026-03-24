@@ -1,6 +1,7 @@
 unit P2D.Core.Events;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { ── Eventos genéricos da engine Pascal2D ────────────────────────────────────
   Este unit define apenas eventos do DOMÍNIO DA ENGINE:
@@ -33,10 +34,10 @@ type
     ------------------------------------------------------------------------- }
    TEntityOverlapEvent = class(TEvent2D)
    public
-      EntityAID : TEntityID;
-      EntityBID : TEntityID;
-      TagA      : TColliderTag;
-      TagB      : TColliderTag;
+      EntityAID: TEntityID;
+      EntityBID: TEntityID;
+      TagA: TColliderTag;
+      TagB: TColliderTag;
       IsTriggerA: Boolean;
       IsTriggerB: Boolean;
 
@@ -49,10 +50,10 @@ constructor TEntityOverlapEvent.Create(AEntityAID: TEntityID; AEntityBID: TEntit
 begin
    inherited Create;
 
-   EntityAID  := AEntityAID;
-   EntityBID  := AEntityBID;
-   TagA       := ATagA;
-   TagB       := ATagB;
+   EntityAID := AEntityAID;
+   EntityBID := AEntityBID;
+   TagA := ATagA;
+   TagB := ATagB;
    IsTriggerA := AIsTriggerA;
    IsTriggerB := AIsTriggerB;
 end;

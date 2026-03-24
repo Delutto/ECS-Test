@@ -1,6 +1,7 @@
 unit P2D.Systems.Physics;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { =============================================================================
   TPhysicsSystem — expanded fixed-step integrator.
@@ -50,10 +51,16 @@ unit P2D.Systems.Physics;
 interface
 
 uses
-   SysUtils, Math,
+   SysUtils,
+   Math,
    P2D.Common,
-   P2D.Core.ComponentRegistry, P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.RigidBody;
+   P2D.Core.ComponentRegistry,
+   P2D.Core.Types,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
+   P2D.Components.Transform,
+   P2D.Components.RigidBody;
 
 type
    TPhysicsSystem = class(TSystem2D)
@@ -62,8 +69,8 @@ type
       FRigidBodyID: Integer;
    public
       constructor Create(AWorld: TWorldBase); override;
-      procedure Init;                          override;
-      procedure Update(ADelta: Single);        override;
+      procedure Init; override;
+      procedure Update(ADelta: Single); override;
       procedure FixedUpdate(AFixedDelta: Single); override;
    end;
 
@@ -74,7 +81,7 @@ begin
    inherited Create(AWorld);
 
    Priority := 10;
-   Name     := 'PhysicsSystem';
+   Name := 'PhysicsSystem';
 end;
 
 procedure TPhysicsSystem.Init;
@@ -94,23 +101,27 @@ end;
 
 procedure TPhysicsSystem.FixedUpdate(AFixedDelta: Single);
 var
-   E          : TEntity;
-   Tr         : TTransformComponent;
-   RB         : TRigidBodyComponent;
+   E: TEntity;
+   Tr: TTransformComponent;
+   RB: TRigidBodyComponent;
    WasGrounded: Boolean;
-   SafeMass   : Single;
+   SafeMass: Single;
    DragFactorX: Single;
    DragFactorY: Single;
 begin
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       Tr := TTransformComponent(E.GetComponentByID(FTransformID));
       RB := TRigidBodyComponent(E.GetComponentByID(FRigidBodyID));
 
-      if not Assigned(Tr) or not Assigned(RB) then
-         Continue;
-      if not (Tr.Enabled and RB.Enabled) then
-         Continue;
+      if Not Assigned(Tr) Or Not Assigned(RB) then
+      begin
+         Continue
+      end;
+      if Not (Tr.Enabled And RB.Enabled) then
+      begin
+         Continue
+      end;
 
       { ── 1. Snapshot position for render interpolation ──────────────────── }
       Tr.PrevPosition := Tr.Position;
@@ -123,19 +134,26 @@ begin
 
       { Coyote time: refill while standing on ground, tick down when airborne. }
       if WasGrounded then
+      begin
          RB.CoyoteTimeLeft := RB.CoyoteTime
-      else if RB.CoyoteTimeLeft > 0 then
-         RB.CoyoteTimeLeft := Max(0, RB.CoyoteTimeLeft - AFixedDelta);
+      end
+      else
+      if RB.CoyoteTimeLeft > 0 then
+      begin
+         RB.CoyoteTimeLeft := Max(0, RB.CoyoteTimeLeft - AFixedDelta)
+      end;
 
       { Jump buffer: tick down every step regardless of ground state. }
       if RB.JumpBufferLeft > 0 then
-         RB.JumpBufferLeft := Max(0, RB.JumpBufferLeft - AFixedDelta);
+      begin
+         RB.JumpBufferLeft := Max(0, RB.JumpBufferLeft - AFixedDelta)
+      end;
 
       { ── 4. Force accumulator → velocity (F = ma → a = F/m) ────────────── }
       { Guard against zero / negative mass to avoid division by zero. }
       SafeMass := Max(RB.Mass, 0.001);
 
-      if (RB.ForceAccum.X <> 0) or (RB.ForceAccum.Y <> 0) then
+      if (RB.ForceAccum.X <> 0) Or (RB.ForceAccum.Y <> 0) then
       begin
          RB.Velocity.X := RB.Velocity.X + (RB.ForceAccum.X / SafeMass) * AFixedDelta;
          RB.Velocity.Y := RB.Velocity.Y + (RB.ForceAccum.Y / SafeMass) * AFixedDelta;
@@ -144,7 +162,7 @@ begin
       end;
 
       { ── 5. Persistent acceleration (wind, conveyors, etc.) ─────────────── }
-      if (RB.Acceleration.X <> 0) or (RB.Acceleration.Y <> 0) then
+      if (RB.Acceleration.X <> 0) Or (RB.Acceleration.Y <> 0) then
       begin
          RB.Velocity.X := RB.Velocity.X + RB.Acceleration.X * AFixedDelta;
          RB.Velocity.Y := RB.Velocity.Y + RB.Acceleration.Y * AFixedDelta;
@@ -155,38 +173,44 @@ begin
       tile surface — TCollisionSystem (priority 20) then corrects this and
       re-sets Grounded := True.  Removing the guard was intentional. }
       if RB.UseGravity then
-         RB.Velocity.Y := RB.Velocity.Y + GRAVITY * RB.GravityScale * AFixedDelta;
+      begin
+         RB.Velocity.Y := RB.Velocity.Y + GRAVITY * RB.GravityScale * AFixedDelta
+      end;
 
       { ── 7. Linear drag (exponential decay, frame-rate-independent) ──────── }
       { exp(-drag * dt) approaches 0 as drag→∞, never produces negative V.
       A drag of 0 is a no-op (exp(0)=1). Typical values: 1..8.             }
       if RB.LinearDragX > 0 then
       begin
-         DragFactorX   := Exp(-RB.LinearDragX * AFixedDelta);
+         DragFactorX := Exp(-RB.LinearDragX * AFixedDelta);
          RB.Velocity.X := RB.Velocity.X * DragFactorX;
       end;
 
       if RB.LinearDragY > 0 then
       begin
-         DragFactorY   := Exp(-RB.LinearDragY * AFixedDelta);
+         DragFactorY := Exp(-RB.LinearDragY * AFixedDelta);
          RB.Velocity.Y := RB.Velocity.Y * DragFactorY;
       end;
 
       { ── 8. Speed clamping ───────────────────────────────────────────────── }
       { Vertical: clamp downward (positive Y) velocity only. }
       if RB.Velocity.Y > RB.MaxFallSpeed then
-         RB.Velocity.Y := RB.MaxFallSpeed;
+      begin
+         RB.Velocity.Y := RB.MaxFallSpeed
+      end;
 
       { Horizontal: symmetric clamp; skip if MaxSpeedX = 0 (unlimited). }
-      if (RB.MaxSpeedX > 0) and (Abs(RB.Velocity.X) > RB.MaxSpeedX) then
-         RB.Velocity.X := Sign(RB.Velocity.X) * RB.MaxSpeedX;
+      if (RB.MaxSpeedX > 0) And (Abs(RB.Velocity.X) > RB.MaxSpeedX) then
+      begin
+         RB.Velocity.X := Sign(RB.Velocity.X) * RB.MaxSpeedX
+      end;
 
       { ── 9. Semi-implicit Euler position integration ─────────────────────── }
       { PrevVelocity stored after all modifications so interpolated frames
       use the velocity that was actually applied this step. }
       RB.PrevVelocity := RB.Velocity;
-      Tr.Position.X   := Tr.Position.X + RB.Velocity.X * AFixedDelta;
-      Tr.Position.Y   := Tr.Position.Y + RB.Velocity.Y * AFixedDelta;
+      Tr.Position.X := Tr.Position.X + RB.Velocity.X * AFixedDelta;
+      Tr.Position.Y := Tr.Position.Y + RB.Velocity.Y * AFixedDelta;
    end;
 end;
 

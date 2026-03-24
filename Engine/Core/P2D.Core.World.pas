@@ -1,13 +1,19 @@
 unit P2D.Core.World;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   SysUtils, fgl,
-   P2D.Core.Component, P2D.Core.ComponentRegistry,
-   P2D.Core.Event, P2D.Core.Types, P2D.Core.Entity, P2D.Core.System;
+   SysUtils,
+   fgl,
+   P2D.Core.Component,
+   P2D.Core.ComponentRegistry,
+   P2D.Core.Event,
+   P2D.Core.Types,
+   P2D.Core.Entity,
+   P2D.Core.System;
 
 type
    TSystemList = specialize TFPGObjectList<TSystem2D>;
@@ -16,9 +22,9 @@ type
 
    TWorld = class(TWorldBase)
    private
-      FEntities      : TEntityManager;
-      FSystems       : TSystemList;
-      FEventBus      : TEventBus;
+      FEntities: TEntityManager;
+      FSystems: TSystemList;
+      FEventBus: TEventBus;
       FShutdownCalled: Boolean;
       FStructureDirty: Boolean;
 
@@ -28,34 +34,33 @@ type
    protected
       function GetEntities: TEntityManager; override;
       function GetEventBus: TEventBus; override;
-
    public
       constructor Create;
-      destructor  Destroy; override;
+      destructor Destroy; override;
 
       { --- Entidades --------------------------------------------------------- }
-      function  CreateEntity(const AName: string = ''): TEntity; override;
+      function CreateEntity(const AName: String = ''): TEntity; override;
 
       { Criação com pooling }
-      function  CreatePooledEntity(const ATag: string; const AName: string = ''): TEntity;
+      function CreatePooledEntity(const ATag: String; const AName: String = ''): TEntity;
 
       procedure DestroyEntity(AID: TEntityID); override;
       procedure DestroyAllEntities; override;
-      function  GetEntity(AID: TEntityID): TEntity; override;
+      function GetEntity(AID: TEntityID): TEntity; override;
 
       { Pool Management }
-      procedure ConfigureEntityPool(const ATag: string; AInitialSize, AMaxSize: Integer);
-      procedure PreallocateEntityPool(const ATag: string; ACount: Integer);
-      procedure ClearEntityPool(const ATag: string);
+      procedure ConfigureEntityPool(const ATag: String; AInitialSize, AMaxSize: Integer);
+      procedure PreallocateEntityPool(const ATag: String; ACount: Integer);
+      procedure ClearEntityPool(const ATag: String);
 
       { --- Sistemas ---------------------------------------------------------- }
-      function  AddSystem(ASystem: TSystem2D): TSystem2D;
-      function  GetSystem(AClass: TSystem2DClass): TSystem2D;
+      function AddSystem(ASystem: TSystem2D): TSystem2D;
+      function GetSystem(AClass: TSystem2DClass): TSystem2D;
 
       { --- Loop principal ---------------------------------------------------- }
       procedure Init;
       procedure FixedUpdate(AFixedDelta: Single); override;
-      function  GetEntitySignature(AEntity: TEntity): TComponentSignature; override;
+      function GetEntitySignature(AEntity: TEntity): TComponentSignature; override;
       procedure Update(ADelta: Single);
       procedure Render;
       procedure RenderByLayer(ALayer: TRenderLayer); override;
@@ -89,8 +94,8 @@ type
       {$ENDIF}
 
       property Entities: TEntityManager read FEntities;
-      property Systems : TSystemList    read FSystems;
-      property EventBus: TEventBus      read FEventBus;
+      property Systems: TSystemList read FSystems;
+      property EventBus: TEventBus read FEventBus;
    end;
 
 function SystemCompare(const A, B: TSystem2D): Integer;
@@ -103,20 +108,27 @@ uses
 function SystemCompare(const A, B: TSystem2D): Integer;
 begin
    if A.Priority < B.Priority then
+   begin
       Result := -1
-   else if A.Priority > B.Priority then
-      Result := 1
+   end
    else
-      Result := 0;
+   if A.Priority > B.Priority then
+   begin
+      Result := 1
+   end
+   else
+   begin
+      Result := 0
+   end;
 end;
 
 constructor TWorld.Create;
 begin
    inherited Create;
 
-   FEntities       := TEntityManager.Create;
-   FSystems        := TSystemList.Create(True);
-   FEventBus       := TEventBus.Create;
+   FEntities := TEntityManager.Create;
+   FSystems := TSystemList.Create(True);
+   FEventBus := TEventBus.Create;
    FShutdownCalled := False;
 
    Logger.Info('[World] Created with entity pooling support');
@@ -151,8 +163,10 @@ procedure TWorld.InvalidateAllSystemCaches;
 var
    S: TSystem2D;
 begin
-   for S in FSystems do
-      S.InvalidateCache;
+   for S In FSystems do
+   begin
+      S.InvalidateCache
+   end;
 end;
 
 procedure TWorld.MarkStructureDirty;
@@ -160,14 +174,14 @@ begin
    FStructureDirty := True;
 end;
 
-function TWorld.CreateEntity(const AName: string): TEntity;
+function TWorld.CreateEntity(const AName: String): TEntity;
 begin
    Result := FEntities.CreateEntity(AName);
    MarkStructureDirty;
    //InvalidateAllSystemCaches;
 end;
 
-function TWorld.CreatePooledEntity(const ATag: string; const AName: string): TEntity;
+function TWorld.CreatePooledEntity(const ATag: String; const AName: String): TEntity;
 begin
    Result := FEntities.CreatePooledEntity(ATag, AName);
    MarkStructureDirty;
@@ -189,8 +203,10 @@ procedure TWorld.DestroyAllEntities;
 var
    E: TEntity;
 begin
-   for E in Entities.GetAll do
-     DestroyEntity(E.ID);
+   for E In Entities.GetAll do
+   begin
+      DestroyEntity(E.ID)
+   end;
 
    Entities.PurgeDestroyed;
 end;
@@ -200,17 +216,17 @@ begin
    Result := FEntities.GetEntity(AID);
 end;
 
-procedure TWorld.ConfigureEntityPool(const ATag: string; AInitialSize, AMaxSize: Integer);
+procedure TWorld.ConfigureEntityPool(const ATag: String; AInitialSize, AMaxSize: Integer);
 begin
    FEntities.ConfigurePool(ATag, AInitialSize, AMaxSize);
 end;
 
-procedure TWorld.PreallocateEntityPool(const ATag: string; ACount: Integer);
+procedure TWorld.PreallocateEntityPool(const ATag: String; ACount: Integer);
 begin
    FEntities.PreallocatePool(ATag, ACount);
 end;
 
-procedure TWorld.ClearEntityPool(const ATag: string);
+procedure TWorld.ClearEntityPool(const ATag: String);
 begin
    FEntities.ClearPool(ATag);
 end;
@@ -219,9 +235,13 @@ function TWorld.AddSystem(ASystem: TSystem2D): TSystem2D;
 var
    S: TSystem2D;
 begin
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S = ASystem then
-         raise Exception.CreateFmt('TWorld.AddSystem: Sistema "%s" já registrado.', [ASystem.ClassName]);
+      begin
+         raise Exception.CreateFmt('TWorld.AddSystem: Sistema "%s" já registrado.', [ASystem.ClassName])
+      end
+   end;
    FSystems.Add(ASystem);
    SortSystems;
    Result := ASystem;
@@ -232,12 +252,14 @@ var
    S: TSystem2D;
 begin
    Result := nil;
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.ClassType = AClass then
       begin
          Result := S;
          Exit;
-      end;
+      end
+   end;
 end;
 
 procedure TWorld.Init;
@@ -245,9 +267,13 @@ var
    S: TSystem2D;
 begin
    SortSystems;
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.Enabled then
-         S.Init;
+      begin
+         S.Init
+      end
+   end;
    //ComponentRegistry.Lock;
 end;
 
@@ -255,14 +281,18 @@ procedure TWorld.FixedUpdate(AFixedDelta: Single);
 var
    S: TSystem2D;
 begin
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.Enabled then
-         S.FixedUpdate(AFixedDelta);
+      begin
+         S.FixedUpdate(AFixedDelta)
+      end
+   end;
 end;
 
 function TWorld.GetEntitySignature(AEntity: TEntity): TComponentSignature;
 begin
-   if not Assigned(AEntity) then
+   if Not Assigned(AEntity) then
    begin
       Result := [];
       Exit;
@@ -275,9 +305,13 @@ var
    S: TSystem2D;
 begin
    FlushStructureChanges;
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.Enabled then
-         S.Update(ADelta);
+      begin
+         S.Update(ADelta)
+      end
+   end;
 
    FEntities.PurgeDestroyed;
    FEventBus.Dispatch;
@@ -287,18 +321,26 @@ procedure TWorld.Render;
 var
    S: TSystem2D;
 begin
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.Enabled then
-         S.Render;
+      begin
+         S.Render
+      end
+   end;
 end;
 
 procedure TWorld.RenderByLayer(ALayer: TRenderLayer);
 var
    S: TSystem2D;
 begin
-   for S in FSystems do
-      if S.Enabled and (S.RenderLayer = ALayer) then
-         S.Render;
+   for S In FSystems do
+   begin
+      if S.Enabled And (S.RenderLayer = ALayer) then
+      begin
+         S.Render
+      end
+   end;
 end;
 
 { Shutdown FINAL — usado apenas no encerramento do programa. }
@@ -307,14 +349,20 @@ var
    S: TSystem2D;
 begin
    if FShutdownCalled then
-      Exit;
+   begin
+      Exit
+   end;
 
    FShutdownCalled := True;
    FEventBus.Clear;
 
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.Enabled then
-         S.Shutdown;
+      begin
+         S.Shutdown
+      end
+   end;
 end;
 
 { ShutdownSystems — Shutdown parcial para reinício de nível/jogo.
@@ -340,9 +388,13 @@ begin
    { 1. Chama Shutdown em cada sistema na ordem inversa de prioridade.
         Cada sistema cancela suas subscrições no EventBus, libera quaisquer referências diretas a entidades (ex: FCamEntity, FTarget em
         TCameraSystem) e reseta flags de estado interno. }
-   for S in FSystems do
+   for S In FSystems do
+   begin
       if S.Enabled then
-         S.Shutdown;
+      begin
+         S.Shutdown
+      end
+   end;
 
    { 2. Descarta todos os eventos acumulados na fila de leitura e de escrita.
         Eventos publicados durante o Shutdown dos sistemas (ex: TAudioStopMusic publicado por TMarioAudioSystem.Shutdown) não devem ser processados

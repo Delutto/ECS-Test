@@ -1,13 +1,18 @@
 unit P2D.Systems.Animation;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
    raylib,
-   P2D.Core.ComponentRegistry, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-   P2D.Components.Sprite, P2D.Components.Animation;
+   P2D.Core.ComponentRegistry,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
+   P2D.Components.Sprite,
+   P2D.Components.Animation;
 
 type
    { TAnimationSystem }
@@ -28,7 +33,7 @@ begin
    inherited Create(AWorld);
 
    Priority := 5;
-   Name     := 'AnimationSystem';
+   Name := 'AnimationSystem';
 end;
 
 procedure TAnimationSystem.Init;
@@ -44,17 +49,17 @@ end;
 
 procedure TAnimationSystem.Update(ADelta: Single);
 var
-   E   : TEntity;
+   E: TEntity;
    Anim: TAnimationComponent;
-   Spr : TSpriteComponent;
+   Spr: TSpriteComponent;
    Rect: TRectangle;
 begin
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       Anim := TAnimationComponent(E.GetComponentByID(FAnimationID));
-      Spr  := TSpriteComponent(E.GetComponentByID(FSpriteID));
+      Spr := TSpriteComponent(E.GetComponentByID(FSpriteID));
 
-      if Anim.Enabled and Spr.Enabled then
+      if Anim.Enabled And Spr.Enabled then
       begin
          Anim.Tick(ADelta, Rect);
          Spr.SourceRect := Rect;

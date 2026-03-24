@@ -1,14 +1,21 @@
 unit P2D.Systems.Render;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
 uses
-   SysUtils, Math, raylib,
+   SysUtils,
+   Math,
+   raylib,
    P2D.Core.ComponentRegistry,
-   P2D.Core.Types, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.Sprite;
+   P2D.Core.Types,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
+   P2D.Components.Transform,
+   P2D.Components.Sprite;
 
 type
    { TRenderSystem }
@@ -30,7 +37,7 @@ begin
    inherited Create(AWorld);
 
    Priority := 100;
-   Name     := 'RenderSystem';
+   Name := 'RenderSystem';
 end;
 
 procedure TRenderSystem.Init;
@@ -51,39 +58,47 @@ end;
 
 procedure TRenderSystem.Render;
 var
-   E   : TEntity;
-   Tr  : TTransformComponent;
-   Spr : TSpriteComponent;
-   Src : TRectangle;
-   Dst : TRectangle;
-   Org : TVector2;
-   ScX : Single;
+   E: TEntity;
+   Tr: TTransformComponent;
+   Spr: TSpriteComponent;
+   Src: TRectangle;
+   Dst: TRectangle;
+   Org: TVector2;
+   ScX: Single;
    TexColor: TColor;
 begin
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       Spr := TSpriteComponent(E.GetComponentByID(FTSpriteID));
-      Tr  := TTransformComponent(E.GetComponentByID(FTransformID));
+      Tr := TTransformComponent(E.GetComponentByID(FTransformID));
 
-      if not Assigned(Spr) or not Assigned(Tr) then
-         Continue;
+      if Not Assigned(Spr) Or Not Assigned(Tr) then
+      begin
+         Continue
+      end;
 
-      if not (Spr.Enabled and Tr.Enabled and Spr.Visible) then
-         Continue;
+      if Not (Spr.Enabled And Tr.Enabled And Spr.Visible) then
+      begin
+         Continue
+      end;
       if Spr.Texture.Id = 0 then
-         Continue;
+      begin
+         Continue
+      end;
 
       Src := Spr.SourceRect;
 
       // Apply flip
       ScX := 1;
-      if Spr.Flip in [flHorizontal, flBoth] then
-         ScX := -1;
+      if Spr.Flip In [flHorizontal, flBoth] then
+      begin
+         ScX := -1
+      end;
       Src.Width := Src.Width * ScX;
 
-      Dst.X      := Tr.Position.X;
-      Dst.Y      := Tr.Position.Y;
-      Dst.Width  := Abs(Src.Width)  * Tr.Scale.X;
+      Dst.X := Tr.Position.X;
+      Dst.Y := Tr.Position.Y;
+      Dst.Width := Abs(Src.Width) * Tr.Scale.X;
       Dst.Height := Abs(Src.Height) * Tr.Scale.Y;
 
       Org.X := Spr.Origin.X * Tr.Scale.X;

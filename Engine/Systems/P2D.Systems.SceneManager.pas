@@ -1,6 +1,7 @@
 unit P2D.Systems.SceneManager;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 { =============================================================================
   P2D.Systems.SceneManager — TSceneManagerSystem
@@ -65,33 +66,33 @@ uses
 
 type
   { Internal record: scene object + ownership flag. }
-  TSceneEntry = record
-    Scene: TScene2D;
-    Owned: Boolean;
-  end;
+   TSceneEntry = record
+      Scene: TScene2D;
+      Owned: Boolean;
+   end;
 
-  TSceneManagerSystem = class(TSystem2D)
-  private
-    FSceneEntries: array of TSceneEntry;
-    FSceneCount  : Integer;
+   TSceneManagerSystem = class(TSystem2D)
+   private
+      FSceneEntries: array of TSceneEntry;
+      FSceneCount: Integer;
 
-  public
-    constructor Create(AWorld: TWorldBase); override;
-    destructor  Destroy; override;
+   public
+      constructor Create(AWorld: TWorldBase); override;
+      destructor Destroy; override;
 
     { AddScene: registers AScene with TSceneManager and stores a reference.
       If AOwned=True (default), Shutdown frees the scene object. }
-    procedure AddScene(AScene: TScene2D; AOwned: Boolean = True);
+      procedure AddScene(AScene: TScene2D; AOwned: Boolean = True);
 
     { SetInitialScene: synchronous transition to the named scene.
       Call after all scenes have been added. }
-    procedure SetInitialScene(const AName: string);
+      procedure SetInitialScene(const AName: String);
 
-    procedure Init;     override;
-    procedure Update(ADelta: Single); override;
-    procedure Render;   override;
-    procedure Shutdown; override;
-  end;
+      procedure Init; override;
+      procedure Update(ADelta: Single); override;
+      procedure Render; override;
+      procedure Shutdown; override;
+   end;
 
 implementation
 
@@ -100,83 +101,85 @@ uses
 
 constructor TSceneManagerSystem.Create(AWorld: TWorldBase);
 begin
-  inherited Create(AWorld);
-  Priority     := 0;
-  Name         := 'SceneManagerSystem';
-  RenderLayer  := rlScreen;
-  FSceneCount  := 0;
-  SetLength(FSceneEntries, 0);
-  Logger.Info('[SceneManagerSystem] Created');
+   inherited Create(AWorld);
+   Priority := 0;
+   Name := 'SceneManagerSystem';
+   RenderLayer := rlScreen;
+   FSceneCount := 0;
+   SetLength(FSceneEntries, 0);
+   Logger.Info('[SceneManagerSystem] Created');
 end;
 
 destructor TSceneManagerSystem.Destroy;
 begin
-  SetLength(FSceneEntries, 0);
-  inherited;
+   SetLength(FSceneEntries, 0);
+   inherited;
 end;
 
 procedure TSceneManagerSystem.AddScene(AScene: TScene2D; AOwned: Boolean);
 begin
-  if not Assigned(AScene) then
-  begin
-    Logger.Warn('[SceneManagerSystem] AddScene: nil scene ignored');
-    Exit;
-  end;
-  if FSceneCount >= Length(FSceneEntries) then
-    SetLength(FSceneEntries, FSceneCount + 8);
-  FSceneEntries[FSceneCount].Scene := AScene;
-  FSceneEntries[FSceneCount].Owned := AOwned;
-  Inc(FSceneCount);
-  SceneManager.RegisterScene(AScene);
-  Logger.Info('[SceneManagerSystem] Scene added: ' + AScene.Name);
+   if Not Assigned(AScene) then
+   begin
+      Logger.Warn('[SceneManagerSystem] AddScene: nil scene ignored');
+      Exit;
+   end;
+   if FSceneCount >= Length(FSceneEntries) then
+   begin
+      SetLength(FSceneEntries, FSceneCount + 8)
+   end;
+   FSceneEntries[FSceneCount].Scene := AScene;
+   FSceneEntries[FSceneCount].Owned := AOwned;
+   Inc(FSceneCount);
+   SceneManager.RegisterScene(AScene);
+   Logger.Info('[SceneManagerSystem] Scene added: ' + AScene.Name);
 end;
 
-procedure TSceneManagerSystem.SetInitialScene(const AName: string);
+procedure TSceneManagerSystem.SetInitialScene(const AName: String);
 begin
-  SceneManager.ChangeSceneImmediate(AName);
+   SceneManager.ChangeSceneImmediate(AName);
 end;
 
 procedure TSceneManagerSystem.Init;
 begin
   { No component requirements — this system drives the scene manager,
     not the entity graph. }
-  Logger.Info('[SceneManagerSystem] Init');
+   Logger.Info('[SceneManagerSystem] Init');
 end;
 
 procedure TSceneManagerSystem.Update(ADelta: Single);
 begin
-  SceneManager.Update(ADelta);
+   SceneManager.Update(ADelta);
 end;
 
 procedure TSceneManagerSystem.Render;
 begin
-  SceneManager.Render;
+   SceneManager.Render;
 end;
 
 procedure TSceneManagerSystem.Shutdown;
 var
-  I: Integer;
+   I: Integer;
 begin
-  Logger.Info('[SceneManagerSystem] Shutdown — unregistering scenes');
+   Logger.Info('[SceneManagerSystem] Shutdown — unregistering scenes');
   { Unregister in reverse order: most recently added first.
     UnregisterScene calls Exit (if active) + Unload, then removes the entry
     from TSceneManager. The raylib context is still open at this point. }
-  for I := FSceneCount - 1 downto 0 do
-  begin
-    if Assigned(FSceneEntries[I].Scene) then
-    begin
-      SceneManager.UnregisterScene(FSceneEntries[I].Scene.Name);
-      if FSceneEntries[I].Owned then
+   for I := FSceneCount - 1 downto 0 do
+   begin
+      if Assigned(FSceneEntries[I].Scene) then
       begin
-        FSceneEntries[I].Scene.Free;
-        FSceneEntries[I].Scene := nil;
+         SceneManager.UnregisterScene(FSceneEntries[I].Scene.Name);
+         if FSceneEntries[I].Owned then
+         begin
+            FSceneEntries[I].Scene.Free;
+            FSceneEntries[I].Scene := nil;
+         end;
       end;
-    end;
-  end;
-  FSceneCount := 0;
-  SetLength(FSceneEntries, 0);
-  Logger.Info('[SceneManagerSystem] Shutdown complete');
-  inherited;
+   end;
+   FSceneCount := 0;
+   SetLength(FSceneEntries, 0);
+   Logger.Info('[SceneManagerSystem] Shutdown complete');
+   inherited;
 end;
 
 end.

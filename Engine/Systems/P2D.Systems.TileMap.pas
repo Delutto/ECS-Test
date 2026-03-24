@@ -1,6 +1,7 @@
 unit P2D.Systems.TileMap;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { =============================================================================
   P2D.Systems.TileMap — Frustum-Culled Tile Rendering (Optimization 3.3)
@@ -37,10 +38,16 @@ unit P2D.Systems.TileMap;
 interface
 
 uses
-   raylib, Math,
+   raylib,
+   Math,
    P2D.Common,
-   P2D.Core.ComponentRegistry, P2D.Core.Entity, P2D.Core.System, P2D.Core.World,
-   P2D.Components.Transform, P2D.Components.TileMap, P2D.Components.Camera2D;
+   P2D.Core.ComponentRegistry,
+   P2D.Core.Entity,
+   P2D.Core.System,
+   P2D.Core.World,
+   P2D.Components.Transform,
+   P2D.Components.TileMap,
+   P2D.Components.Camera2D;
 
 type
    { TTileMapSystem }
@@ -60,7 +67,6 @@ type
         and stores the reference in FCamEntity.
         Called from Init — O(n) scan happens only once per session/restart. }
       procedure FindCameraEntity;
-
    public
       constructor Create(AWorld: TWorldBase); override;
       procedure Init; override;
@@ -76,8 +82,8 @@ constructor TTileMapSystem.Create(AWorld: TWorldBase);
 begin
    inherited Create(AWorld);
 
-   Priority   := 30;
-   Name       := 'TileMapSystem';
+   Priority := 30;
+   Name := 'TileMapSystem';
    FCamEntity := nil;
 end;
 
@@ -90,7 +96,7 @@ var
    E: TEntity;
 begin
    FCamEntity := nil;
-   for E in World.Entities.GetAll do
+   for E In World.Entities.GetAll do
    begin
       if E.HasComponent(TCamera2DComponent) then
       begin
@@ -101,9 +107,11 @@ begin
    end;
 
    {$IFDEF DEBUG}
-   if not Assigned(FCamEntity) then
+   if Not Assigned(FCamEntity) then
+   begin
       P2D.Utils.Logger.Logger.Warn(
-         '[TileMapSystem] No camera entity found — frustum culling disabled.');
+         '[TileMapSystem] No camera entity found — frustum culling disabled.')
+   end;
    {$ENDIF}
 end;
 
@@ -152,33 +160,35 @@ end;
   ─────────────────────────────────────────────────────────────────────────── }
 procedure TTileMapSystem.Render;
 var
-   E               : TEntity;
-   TM              : TTileMapComponent;
-   Tr              : TTransformComponent;
-   R, C            : Integer;
-   Tile            : TTileData;
-   Src             : TRectangle;
-   Dst             : TRectangle;
-   Cam             : TCamera2DComponent;
-   TL, BR          : TVector2;   // world-space screen corners
+   E: TEntity;
+   TM: TTileMapComponent;
+   Tr: TTransformComponent;
+   R, C: Integer;
+   Tile: TTileData;
+   Src: TRectangle;
+   Dst: TRectangle;
+   Cam: TCamera2DComponent;
+   TL, BR: TVector2;   // world-space screen corners
    ColStart, ColEnd: Integer;
    RowStart, RowEnd: Integer;
-   HasCam          : Boolean;
-   VW, VH          : Integer;
+   HasCam: Boolean;
+   VW, VH: Integer;
 begin
    { ── Step 1: Resolve camera and compute world-space viewport ─────────────
      This block runs ONCE per frame, outside the tilemap entity loop.
      GetScreenToWorld2D accounts for the camera's Target, Offset, Zoom and
      Rotation fields, so the result is always correct regardless of how
      TCameraSystem configures the raylib camera struct. }
-   HasCam := Assigned(FCamEntity) and FCamEntity.Alive;
+   HasCam := Assigned(FCamEntity) And FCamEntity.Alive;
    if HasCam then
    begin
-      Cam    := TCamera2DComponent(FCamEntity.GetComponentByID(FCamera));
+      Cam := TCamera2DComponent(FCamEntity.GetComponentByID(FCamera));
       HasCam := Assigned(Cam);
    end
    else
-      Cam := nil;  { suppress "may be uninitialised" warning }
+   begin
+      Cam := nil
+   end;  { suppress "may be uninitialised" warning }
 
    if HasCam then
    begin
@@ -188,20 +198,24 @@ begin
 	   the virtual canvas — correct at any physical resolution because only the camera matrix matters. }
       VW := Round(Cam.RaylibCamera.Offset.X * 2);
       VH := Round(Cam.RaylibCamera.Offset.Y * 2);
-      TL := GetScreenToWorld2D(Vector2Create(0,  0),  Cam.RaylibCamera);
+      TL := GetScreenToWorld2D(Vector2Create(0, 0), Cam.RaylibCamera);
       BR := GetScreenToWorld2D(Vector2Create(VW, VH), Cam.RaylibCamera);
    end;
 
    { ── Step 2 + 3: Render each tilemap with culled tile range ─────────────── }
-   for E in GetMatchingEntities do
+   for E In GetMatchingEntities do
    begin
       TM := TTileMapComponent(E.GetComponentByID(FTileMapID));
       Tr := TTransformComponent(E.GetComponentByID(FTransformID));
 
-      if not (TM.Enabled and Tr.Enabled) then
-         Continue;
+      if Not (TM.Enabled And Tr.Enabled) then
+      begin
+         Continue
+      end;
       if TM.TileSet.Id = 0 then
-         Continue;
+      begin
+         Continue
+      end;
 
       if HasCam then
       begin
@@ -216,10 +230,10 @@ begin
            Max/Min clamps ensure the range stays within valid grid indices
            even when the camera looks beyond the tilemap's bounds
            (e.g. player near a level edge at high zoom). }
-         ColStart := Max(0, Trunc((TL.X - Tr.Position.X) / TM.TileWidth)  - 1);
-         ColEnd   := Min(TM.MapCols - 1, Trunc((BR.X - Tr.Position.X) / TM.TileWidth)  + 1);
+         ColStart := Max(0, Trunc((TL.X - Tr.Position.X) / TM.TileWidth) - 1);
+         ColEnd := Min(TM.MapCols - 1, Trunc((BR.X - Tr.Position.X) / TM.TileWidth) + 1);
          RowStart := Max(0, Trunc((TL.Y - Tr.Position.Y) / TM.TileHeight) - 1);
-         RowEnd   := Min(TM.MapRows - 1, Trunc((BR.Y - Tr.Position.Y) / TM.TileHeight) + 1);
+         RowEnd := Min(TM.MapRows - 1, Trunc((BR.Y - Tr.Position.Y) / TM.TileHeight) + 1);
       end
       else
       begin
@@ -227,27 +241,31 @@ begin
            Identical to the original unculled implementation. Used when
            rendering without a camera (headless tests, title screens, etc.). }
          ColStart := 0;
-         ColEnd   := TM.MapCols - 1;
+         ColEnd := TM.MapCols - 1;
          RowStart := 0;
-         RowEnd   := TM.MapRows - 1;
+         RowEnd := TM.MapRows - 1;
       end;
 
       { ── Draw only the visible tile range ───────────────────────────────── }
       for R := RowStart to RowEnd do
+      begin
          for C := ColStart to ColEnd do
          begin
             Tile := TM.GetTile(C, R);
             if Tile.TileID = TILE_NONE then
-               Continue;
+            begin
+               Continue
+            end;
 
-            Src        := TM.GetTileRect(Tile.TileID - 1);
-            Dst.X      := Tr.Position.X + C * TM.TileWidth;
-            Dst.Y      := Tr.Position.Y + R * TM.TileHeight;
-            Dst.Width  := TM.TileWidth;
+            Src := TM.GetTileRect(Tile.TileID - 1);
+            Dst.X := Tr.Position.X + C * TM.TileWidth;
+            Dst.Y := Tr.Position.Y + R * TM.TileHeight;
+            Dst.Width := TM.TileWidth;
             Dst.Height := TM.TileHeight;
 
             DrawTexturePro(TM.TileSet, Src, Dst, Vector2Create(0, 0), 0, WHITE);
-         end;
+         end
+      end;
    end;
 end;
 

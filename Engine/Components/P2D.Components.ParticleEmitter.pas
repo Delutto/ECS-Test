@@ -1,12 +1,17 @@
 unit P2D.Components.ParticleEmitter;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}
+{$H+}
 
 interface
 
 uses
-   Classes, SysUtils, raylib, raymath,
-   P2D.Core.Component, P2D.Core.Types;
+   Classes,
+   SysUtils,
+   raylib,
+   raymath,
+   P2D.Core.Component,
+   P2D.Core.Types;
 
 type
    { TP2DParticle }
@@ -90,7 +95,9 @@ type
 implementation
 
 uses
-   Math, P2D.Utils.Math, P2D.Core.ComponentRegistry;
+   Math,
+   P2D.Utils.Math,
+   P2D.Core.ComponentRegistry;
 
 { TP2DParticleEmitter }
 
@@ -143,7 +150,7 @@ begin
    Result := -1;
    for i := 0 to High(FParticles) do
    begin
-      if not FParticles[i].Active then
+      if Not FParticles[i].Active then
       begin
          Result := i;
          Exit;
@@ -161,19 +168,27 @@ var
 begin
    Index := FindInactiveParticle;
    if Index < 0 then
-      Exit;
+   begin
+      Exit
+   end;
 
    with FParticles[Index] do
    begin
       // Position based on emitter shape
       case FEmitterShape of
-         esPoint: Offset := Vector2Create(0, 0);
+         esPoint:
+         begin
+            Offset := Vector2Create(0, 0)
+         end;
          esCircle:
          begin
             Angle := Random * 2 * Pi;
             Offset := Vector2Create(Cos(Angle) * Random * FEmitterSize.X, Sin(Angle) * Random * FEmitterSize.Y);
          end;
-         esRectangle: Offset := Vector2Create((Random - 0.5) * FEmitterSize.X, (Random - 0.5) * FEmitterSize.Y);
+         esRectangle:
+         begin
+            Offset := Vector2Create((Random - 0.5) * FEmitterSize.X, (Random - 0.5) * FEmitterSize.Y)
+         end;
          esCone:
          begin
             Angle := FEmitterAngle + (Random - 0.5) * FEmitterSpread;
@@ -185,9 +200,13 @@ begin
 
       // Velocity
       if FEmitterShape = esCone then
+      begin
          Angle := DegToRad(FEmitterAngle + (Random - 0.5) * FEmitterSpread)
+      end
       else
-         Angle := Random * 2 * Pi;
+      begin
+         Angle := Random * 2 * Pi
+      end;
 
       Speed := FParticleSpeedMin + Random * (FParticleSpeedMax - FParticleSpeedMin);
       Dir := Vector2Create(Cos(Angle), Sin(Angle));
@@ -219,14 +238,18 @@ var
    LifeRatio: Single;
    EmitCount: Integer;
 begin
-   if not FIsEmitting then
-      Exit;
+   if Not FIsEmitting then
+   begin
+      Exit
+   end;
 
    // Emission
    if FBurst then
    begin
       for i := 0 to FMaxParticles - 1 do
-         EmitParticle;
+      begin
+         EmitParticle
+      end;
       FIsEmitting := False;
    end
    else
@@ -237,7 +260,9 @@ begin
       if EmitCount > 0 then
       begin
          for i := 1 to EmitCount do
-            EmitParticle;
+         begin
+            EmitParticle
+         end;
          FEmissionTimer := FEmissionTimer - (EmitCount / FEmissionRate);
       end;
    end;
@@ -245,8 +270,10 @@ begin
    // Update particles
    for i := 0 to High(FParticles) do
    begin
-      if not FParticles[i].Active then
-         Continue;
+      if Not FParticles[i].Active then
+      begin
+         Continue
+      end;
 
       with FParticles[i] do
       begin
@@ -255,8 +282,8 @@ begin
 
          if Life >= MaxLife then
          begin
-         Active := False;
-         Continue;
+            Active := False;
+            Continue;
          end;
 
          // Update physics
@@ -311,7 +338,9 @@ var
    I: Integer;
 begin
    for I := 0 to High(FParticles) do
-      FParticles[I].Active := False;
+   begin
+      FParticles[I].Active := False
+   end;
    FEmissionTimer := 0.0;
 end;
 
@@ -320,7 +349,9 @@ var
    I: Integer;
 begin
    for I := 1 to Min(ACount, FMaxParticles) do
-      EmitParticle;
+   begin
+      EmitParticle
+   end;
 end;
 
 initialization

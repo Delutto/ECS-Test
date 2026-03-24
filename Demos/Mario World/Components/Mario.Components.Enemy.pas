@@ -1,6 +1,7 @@
 unit Mario.Components.Enemy;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 interface
 
@@ -13,11 +14,11 @@ type
 
    TGoombaComponent = class(TComponent2D)
    public
-      Speed        : Single;
-      Direction    : Single;  // -1 = left,  +1 = right
-      WallCooldown : Single;  // seconds remaining before another wall-flip is allowed
+      Speed: Single;
+      Direction: Single;  // -1 = left,  +1 = right
+      WallCooldown: Single;  // seconds remaining before another wall-flip is allowed
       constructor Create; override;
-   end; 
+   end;
 
 implementation
 
@@ -29,8 +30,8 @@ constructor TGoombaComponent.Create;
 begin
    inherited Create;
 
-   Speed        := 60;
-   Direction    := -1;
+   Speed := 60;
+   Direction := -1;
    WallCooldown := 0.0;
 end;
 

@@ -1,6 +1,7 @@
 unit P2D.Components.StateMachine;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
+{$H+}
 
 { ─────────────────────────────────────────────────────────────────────────────
   TStateMachineComponent2D — generic Finite State Machine component.
@@ -24,24 +25,25 @@ unit P2D.Components.StateMachine;
 interface
 
 uses
-   SysUtils, P2D.Core.Component;
+   SysUtils,
+   P2D.Core.Component;
 
 type
    TStateID = Integer;
 
-   TStateCallback       = procedure(AEntityID: Cardinal; AStateID: TStateID) of object;
+   TStateCallback = procedure(AEntityID: Cardinal; AStateID: TStateID) of object;
    TStateUpdateCallback = procedure(AEntityID: Cardinal; AStateID: TStateID; ADelta: Single) of object;
 
    TStateMachineComponent2D = class(TComponent2D)
    private
-      FCurrentState : TStateID;
+      FCurrentState: TStateID;
       FPreviousState: TStateID;
-      FPendingState : TStateID;
-      FHasPending   : Boolean;
-      FOwnerID      : Cardinal;
+      FPendingState: TStateID;
+      FHasPending: Boolean;
+      FOwnerID: Cardinal;
    public
-      OnEnter : TStateCallback;
-      OnExit  : TStateCallback;
+      OnEnter: TStateCallback;
+      OnExit: TStateCallback;
       OnUpdate: TStateUpdateCallback;
 
       constructor Create; override;
@@ -59,9 +61,9 @@ type
       { Called by TStateMachineSystem2D every frame — do NOT call from game code. }
       procedure Tick(ADelta: Single);
 
-      property CurrentState : TStateID read FCurrentState;
+      property CurrentState: TStateID read FCurrentState;
       property PreviousState: TStateID read FPreviousState;
-      property OwnerID      : Cardinal read FOwnerID write FOwnerID;
+      property OwnerID: Cardinal read FOwnerID write FOwnerID;
    end;
 
 implementation
@@ -73,51 +75,58 @@ constructor TStateMachineComponent2D.Create;
 begin
    inherited Create;
 
-   FCurrentState  := -1;
+   FCurrentState := -1;
    FPreviousState := -1;
-   FPendingState  := -1;
-   FHasPending    := False;
-   FOwnerID       := 0;
-   OnEnter        := nil;
-   OnExit         := nil;
-   OnUpdate       := nil;
+   FPendingState := -1;
+   FHasPending := False;
+   FOwnerID := 0;
+   OnEnter := nil;
+   OnExit := nil;
+   OnUpdate := nil;
 end;
 
 procedure TStateMachineComponent2D.SetInitialState(AState: TStateID);
 begin
-   FCurrentState  := AState;
+   FCurrentState := AState;
    FPreviousState := -1;
-   FPendingState  := -1;
-   FHasPending    := False;
+   FPendingState := -1;
+   FHasPending := False;
 end;
 
 procedure TStateMachineComponent2D.RequestTransition(ANewState: TStateID);
 begin
    if ANewState = FCurrentState then
-      Exit;
+   begin
+      Exit
+   end;
    FPendingState := ANewState;
-   FHasPending   := True;
+   FHasPending := True;
 end;
 
 procedure TStateMachineComponent2D.Tick(ADelta: Single);
 begin
    if FHasPending then
    begin
-      if (FCurrentState >= 0) and Assigned(OnExit) then
-         OnExit(FOwnerID, FCurrentState);
+      if (FCurrentState >= 0) And Assigned(OnExit) then
+      begin
+         OnExit(FOwnerID, FCurrentState)
+      end;
       FPreviousState := FCurrentState;
-      FCurrentState  := FPendingState;
-      FHasPending    := False;
-      FPendingState  := -1;
+      FCurrentState := FPendingState;
+      FHasPending := False;
+      FPendingState := -1;
       if Assigned(OnEnter) then
-         OnEnter(FOwnerID, FCurrentState);
+      begin
+         OnEnter(FOwnerID, FCurrentState)
+      end;
    end;
-   if (FCurrentState >= 0) and Assigned(OnUpdate) then
-      OnUpdate(FOwnerID, FCurrentState, ADelta);
+   if (FCurrentState >= 0) And Assigned(OnUpdate) then
+   begin
+      OnUpdate(FOwnerID, FCurrentState, ADelta)
+   end;
 end;
 
 initialization
    ComponentRegistry.Register(TStateMachineComponent2D);
 
 end.
-

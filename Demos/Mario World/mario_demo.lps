@@ -1,0 +1,695 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Debug"/>
+    <Units>
+      <Unit>
+        <Filename Value="mario_demo.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Component.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Engine.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Entity.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.System.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Types.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="20" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.World.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Animation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="33" Y="8"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Camera2D.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Collider.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.RigidBody.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="50" Y="15"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Sprite.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.TileMap.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Transform.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Animation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="31"/>
+        <CursorPos X="5" Y="69"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Camera.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Collision.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Physics.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Render.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.TileMap.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="20" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Utils\P2D.Utils.Logger.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="53" Y="20"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Utils\P2D.Utils.Math.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Entities.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="567"/>
+        <CursorPos X="47" Y="582"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Game.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="85"/>
+        <CursorPos X="35" Y="117"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Level.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="17"/>
+        <CursorPos Y="55"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.Enemy.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="204"/>
+        <CursorPos X="4" Y="69"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.HUD.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="72" Y="18"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.Player.pas"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="405"/>
+        <CursorPos X="69" Y="422"/>
+        <UsageCount Value="201"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Events.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="37"/>
+        <CursorPos X="10" Y="56"/>
+        <UsageCount Value="223"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Event.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="223"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Events.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos Y="4"/>
+        <UsageCount Value="220"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.GameRules.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="10"/>
+        <CursorPos X="24" Y="131"/>
+        <UsageCount Value="220"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Utils\P2D.Utils.Debug.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="56" Y="21"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.ObjectPool.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="19"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.ResourceManager.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="77" Y="17"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="401"/>
+        <CursorPos X="23" Y="431"/>
+        <UsageCount Value="200"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Serialization.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.ParticleEmitter.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Particles.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.ComponentRegistry.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos Y="2"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.InputSetup.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="38" Y="44"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.InputAction.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="67" Y="21"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.InputManager.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="44" Y="11"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.InputMap.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="19"/>
+        <CursorPos X="67" Y="36"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Audio.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.MusicPlayer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.Audio.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="19"/>
+        <CursorPos X="4" Y="38"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Audio.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Common.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="14"/>
+        <CursorPos X="4" Y="38"/>
+        <UsageCount Value="201"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.Input.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="55"/>
+        <CursorPos X="53" Y="68"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Components\Mario.Components.Player.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="62"/>
+        <CursorPos X="5" Y="100"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Components\Mario.Components.Enemy.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="2"/>
+        <CursorPos X="5" Y="40"/>
+        <UsageCount Value="202"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Scenes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <TopLine Value="125"/>
+        <CursorPos X="45" Y="232"/>
+        <UsageCount Value="231"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\P2D.Common.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="218"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Assets.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="17" Y="18"/>
+        <UsageCount Value="200"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.ScorePopup.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="92" Y="17"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Lifetime.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.ParallaxLayer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.StateMachine.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Text.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Timer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="96" Y="21"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Tween.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Lifetime.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Parallax.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.SceneManager.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="135" Y="19"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.StateMachine.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="71" Y="17"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Text.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Timer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.Tween.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Systems\P2D.Systems.ZOrderRender.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="79"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="136"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Components\Mario.Components.Fish.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="39" Y="27"/>
+        <UsageCount Value="38"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Components\Mario.Components.Swimmer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="42"/>
+        <CursorPos X="44" Y="65"/>
+        <UsageCount Value="38"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.Level2.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="35"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.Fish.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="84" Y="17"/>
+        <UsageCount Value="35"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems\Mario.Systems.Swim.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="15" Y="3"/>
+        <UsageCount Value="35"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Components\P2D.Components.Tags.pas"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="185"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Mario.ProceduralArt.pas"/>
+        <UnitName Value="Mario.Assets"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="76" Y="9"/>
+        <UsageCount Value="183"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\Engine\Core\P2D.Core.EntityPool.pas"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="94" Y="16"/>
+        <UsageCount Value="5"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="29">
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="59" Column="17" TopLine="40"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="87" Column="24" TopLine="80"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="207" Column="27" TopLine="184"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="239" Column="11" TopLine="238"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="161" Column="37" TopLine="148"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="206" Column="34" TopLine="318"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="93" Column="32" TopLine="74"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="128" Column="32" TopLine="123"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="220" Column="41" TopLine="248"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="145" Column="28" TopLine="128"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="147" Column="20" TopLine="128"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="150" Column="28" TopLine="128"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="408" Column="13" TopLine="383"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\Engine\Core\P2D.Core.Scene.pas"/>
+        <Caret Line="431" Column="23" TopLine="401"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="263" Column="38" TopLine="246"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="328" Column="60" TopLine="296"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="354" Column="60" TopLine="322"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="358" Column="40" TopLine="326"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="74" Column="29" TopLine="55"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="27" Column="51" TopLine="17"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="74" Column="29" TopLine="71"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="8" Column="40"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="74" Column="29" TopLine="60"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="53" Column="70" TopLine="44"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="74" Column="29" TopLine="60"/>
+      </Position>
+      <Position>
+        <Filename Value="Mario.Scenes.pas"/>
+        <Caret Line="94" Column="29" TopLine="62"/>
+      </Position>
+      <Position>
+        <Filename Value="Systems\Mario.Systems.Player.pas"/>
+        <Caret Line="77" Column="66" TopLine="64"/>
+      </Position>
+      <Position>
+        <Filename Value="Systems\Mario.Systems.Player.pas"/>
+        <Caret Line="113" Column="44" TopLine="75"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

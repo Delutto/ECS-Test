@@ -14,14 +14,14 @@ type
    { TDebugDraw }
    TDebugDraw = class
    private
-      class var FInstance: TDebugDraw;
-      FEnabled: boolean;
-      FShowColliders: boolean;
-      FShowGrid: boolean;
-      FShowFPS: boolean;
-      FShowEntityCount: boolean;
+      FEnabled: Boolean;
+      FShowColliders: Boolean;
+      FShowGrid: Boolean;
+      FShowFPS: Boolean;
+      FShowEntityCount: Boolean;
       FGridSize: Integer;
       FGridColor: TColor;
+      class var FInstance: TDebugDraw;
    public
       constructor Create;
       class function Instance: TDebugDraw;
@@ -34,10 +34,10 @@ type
       procedure DrawGrid(const ACameraTarget: TVector2);
       procedure DrawCross(const APosition: TVector2; ASize: Single; AColor: TColor);
 
-      property Enabled: boolean read FEnabled write FEnabled;
-      property ShowColliders: boolean read FShowColliders write FShowColliders;
-      property ShowGrid: boolean read FShowGrid write FShowGrid;
-      property ShowFPS: boolean read FShowFPS write FShowFPS;
+      property Enabled: Boolean read FEnabled write FEnabled;
+      property ShowColliders: Boolean read FShowColliders write FShowColliders;
+      property ShowGrid: Boolean read FShowGrid write FShowGrid;
+      property ShowFPS: Boolean read FShowFPS write FShowFPS;
       property ShowEntityCount: boolean read FShowEntityCount write FShowEntityCount;
       property GridSize: Integer read FGridSize write FGridSize;
       property GridColor: TColor read FGridColor write FGridColor;

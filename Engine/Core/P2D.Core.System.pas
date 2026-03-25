@@ -45,12 +45,12 @@ type
    Cache Statistics
    ---------------------------------------------------------------------------}
    TCacheStats = record
-      HitCount: Int64;
-      MissCount: Int64;
-      RefreshCount: Int64;
-      LastRefreshTime: Double;
-      AverageRefreshTime: Double;
-      EntityCount: Integer;
+      HitCount: int64;
+      MissCount: int64;
+      RefreshCount: int64;
+      LastRefreshTime: double;
+      AverageRefreshTime: double;
+      EntityCount: integer;
    end;
 
    {---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ type
       function GetEventBus: TEventBus; virtual; abstract;
    public
       { Cria uma nova entidade no mundo. }
-      function CreateEntity(const AName: String = ''): TEntity; virtual; abstract;
+      function CreateEntity(const AName: string = ''): TEntity; virtual; abstract;
 
       { Marca a entidade para destruição ao final do frame. }
       procedure DestroyEntity(AID: TEntityID); virtual; abstract;
@@ -82,7 +82,7 @@ type
       procedure RenderByLayer(ALayer: TRenderLayer); virtual; abstract;
 
       { Executa sistemas de passo fixo (física, colisão). }
-      procedure FixedUpdate(AFixedDelta: Single); virtual; abstract;
+      procedure FixedUpdate(AFixedDelta: single); virtual; abstract;
 
       { Obtém a assinatura de componentes de uma entidade }
       function GetEntitySignature(AEntity: TEntity): TComponentSignature; virtual; abstract;
@@ -116,18 +116,18 @@ type
    private
       FWorld: TWorldBase;
       FPriority: TSystemPriority;
-      FEnabled: Boolean;
-      FName: String;
+      FEnabled: boolean;
+      FName: string;
       FRenderLayer: TRenderLayer;
       FRequiredClasses: TComponentClassList;
       FMatchCache: TEntityRefList;
-      FCacheDirty: Boolean;
+      FCacheDirty: boolean;
 
       { Otimizações de Query }
       FRequiredSignature: TComponentSignature;
-      FSignatureDirty: Boolean;
+      FSignatureDirty: boolean;
       FCacheStats: TCacheStats;
-      FLastCacheSize: Integer;
+      FLastCacheSize: integer;
    protected
       { Registra um tipo de componente como obrigatório para este sistema. Chamado na implementação de Init pelas subclasses. Idempotente: duplicatas são ignoradas silenciosamente. }
       procedure RequireComponent(AClass: TComponent2DClass);
@@ -141,16 +141,16 @@ type
       destructor Destroy; override;
 
       procedure Init; virtual;
-      procedure Update(ADelta: Single); virtual;
-      procedure FixedUpdate(AFixedDelta: Single); virtual;
+      procedure Update(ADelta: single); virtual;
+      procedure FixedUpdate(AFixedDelta: single); virtual;
       procedure Render; virtual;
       procedure Shutdown; virtual;
 
       { Retorna entidades vivas que possuem TODOS os componentes requeridos. Cache O(1) na maioria dos frames; O(n·m) após invalidação estrutural. }
       function GetMatchingEntities: TEntityRefList;
       { Verifica pontualmente se AEntity satisfaz os requisitos do sistema. }
-      function EntityMatches(AEntity: TEntity): Boolean;
-      function EntityMatchesFast(AEntity: TEntity): Boolean;
+      function EntityMatches(AEntity: TEntity): boolean;
+      function EntityMatchesFast(AEntity: TEntity): boolean;
       { Invalida o cache. Chamado pelo TWorld após mudanças estruturais(CreateEntity, DestroyEntity, AddComponent, RemoveComponent). }
       procedure InvalidateCache;
 
@@ -161,8 +161,8 @@ type
 
       property World: TWorldBase read FWorld;
       property Priority: TSystemPriority read FPriority write FPriority;
-      property Enabled: Boolean read FEnabled write FEnabled;
-      property Name: String read FName write FName;
+      property Enabled: boolean read FEnabled write FEnabled;
+      property Name: string read FName write FName;
       { Camada de render deste sistema.
       Padrão: rlWorld — a grande maioria dos sistemas opera no espaço do mundo.
       Sistemas de UI/overlay devem sobrescrever para rlScreen. }
@@ -214,11 +214,11 @@ procedure TSystem2D.RequireComponent(AClass: TComponent2DClass);
 begin
    if AClass = nil then
    begin
-      raise EArgumentNilException.Create('TSystem2D.RequireComponent: AClass não pode ser nil.')
+      raise EArgumentNilException.Create('TSystem2D.RequireComponent: AClass não pode ser nil.');
    end;
    if FRequiredClasses.IndexOf(AClass) >= 0 then
    begin
-      Exit
+      Exit;
    end; { idempotente }
    FRequiredClasses.Add(AClass);
    FSignatureDirty := True;
@@ -256,18 +256,18 @@ end;
 
 procedure TSystem2D.PrintCacheStats;
 var
-   HitRate: Double;
-   TotalAccess: Int64;
+   HitRate: double;
+   TotalAccess: int64;
 begin
    TotalAccess := FCacheStats.HitCount + FCacheStats.MissCount;
 
    if TotalAccess > 0 then
    begin
-      HitRate := (FCacheStats.HitCount / TotalAccess) * 100.0
+      HitRate := (FCacheStats.HitCount / TotalAccess) * 100.0;
    end
    else
    begin
-      HitRate := 0.0
+      HitRate := 0.0;
    end;
 
    Logger.Info(Format('=== Cache Stats: %s ===', [Self.ClassName]));
@@ -283,17 +283,17 @@ begin
 end;
 
 // -----------------------------------------------------------------------------
-function TSystem2D.EntityMatches(AEntity: TEntity): Boolean;
+function TSystem2D.EntityMatches(AEntity: TEntity): boolean;
 var
    RequiredClass: TComponent2DClass;
 begin
-   if Not Assigned(AEntity) Or Not AEntity.Alive then
+   if not Assigned(AEntity) or not AEntity.Alive then
    begin
       Result := False;
       Exit;
    end;
 
-  { Sistema sem requisitos recebe TODAS as entidades vivas (ex.: câmera, HUD). }
+   { Sistema sem requisitos recebe TODAS as entidades vivas (ex.: câmera, HUD). }
    if FRequiredClasses.Count = 0 then
    begin
       Result := True;
@@ -301,21 +301,21 @@ begin
    end;
 
    Result := True;
-   for RequiredClass In FRequiredClasses do
+   for RequiredClass in FRequiredClasses do
    begin
-      if Not AEntity.HasComponent(RequiredClass) then
+      if not AEntity.HasComponent(RequiredClass) then
       begin
          Result := False;
          Exit; { curto-circuito }
-      end
+      end;
    end;
 end;
 
-function TSystem2D.EntityMatchesFast(AEntity: TEntity): Boolean;
+function TSystem2D.EntityMatchesFast(AEntity: TEntity): boolean;
 var
    EntitySig: TComponentSignature;
 begin
-   if Not Assigned(AEntity) Or Not AEntity.Alive then
+   if not Assigned(AEntity) or not AEntity.Alive then
    begin
       Result := False;
       Exit;
@@ -343,8 +343,8 @@ procedure TSystem2D.RefreshCache;
 var
    E: TEntity;
    StartTime: TDateTime;
-   ElapsedMs: Double;
-   OldCount, NewCount: Integer;
+   ElapsedMs: double;
+   OldCount, NewCount: integer;
 begin
    {$IFDEF DEBUG}
    StartTime := Now;
@@ -358,11 +358,11 @@ begin
    UpdateRequiredSignature;
 
    // Popula cache
-   for E In FWorld.Entities.GetAll do
+   for E in FWorld.Entities.GetAll do
    begin
       if EntityMatchesFast(E) then
       begin
-         FMatchCache.Add(E)
+         FMatchCache.Add(E);
       end;
    end;
 
@@ -397,11 +397,11 @@ end;
 procedure TSystem2D.UpdateRequiredSignature;
 var
    ComponentClass: TComponent2DClass;
-   ComponentID: Integer;
+   ComponentID: integer;
 begin
-   if Not FSignatureDirty then
+   if not FSignatureDirty then
    begin
-      Exit
+      Exit;
    end;
 
    // ═══════════════════════════════════════════════════════════════
@@ -409,12 +409,12 @@ begin
    // ═══════════════════════════════════════════════════════════════
    FRequiredSignature := [];
 
-   for ComponentClass In FRequiredClasses do
+   for ComponentClass in FRequiredClasses do
    begin
       ComponentID := ComponentRegistry.GetComponentID(ComponentClass);
       if ComponentID >= 0 then
       begin
-         Include(FRequiredSignature, ComponentID)
+         Include(FRequiredSignature, ComponentID);
       end
       else
       begin
@@ -451,7 +451,7 @@ begin
    end
    else
    begin
-      RecordCacheHit
+      RecordCacheHit;
    end;
 
    Result := FMatchCache;
@@ -463,12 +463,12 @@ begin
 end;
 
 // Default implementation — does nothing
-procedure TSystem2D.Update(ADelta: Single);
+procedure TSystem2D.Update(ADelta: single);
 begin
-  // No-op by default
+   // No-op by default
 end;
 
-procedure TSystem2D.FixedUpdate(AFixedDelta: Single);
+procedure TSystem2D.FixedUpdate(AFixedDelta: single);
 begin
    { Implementação padrão vazia. Sistemas de física e colisão sobrescrevem este método. }
 end;

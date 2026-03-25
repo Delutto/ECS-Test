@@ -1,33 +1,24 @@
 unit P2D.Common;
-
-{$mode ObjFPC}
-{$H+}
-
+{$mode ObjFPC}{$H+}
 interface
-
 const
-   // P2D.Core.Engine
-   FIXED_DT = 1.0 / 60.0; // passo físico fixo (60 Hz)
-   MAX_DELTA = 0.25;       // teto de delta — evita "spiral of death"
-
-   // P2D.Components.TileMap
-   TILE_NONE = 0;
-   TILE_SOLID = 1;
-   TILE_SEMI = 2;  { One-way / semi-solid: blocks only when falling DOWN onto the top surface }
-   TILE_HAZARD = 3;
-   TILE_COIN = 4;
-   TILE_GOAL = 5;
-
-   // P2D.Systems.Physics
-   GRAVITY = 980.0; // pixels per second squared
-
-   // P2D.Core.Entity
-   MAX_COMPONENT_TYPES = 64;  // Limite de tipos de componentes (0-63)
-
-   // P2D.Components.RigidBody
-   DEFAULT_COYOTE_TIME: Single = 10 / 60; { Default coyote-time window: 10 frames at 60 Hz = 0.1667 s }
-   DEFAULT_JUMP_BUFFER: Single = 8 / 60;  { Default jump-buffer window: 8 frames at 60 Hz = 0.1333 s }
-
+  FIXED_DT=1.0/60.0; MAX_DELTA=0.25;
+  TILE_NONE=0; TILE_SOLID=1; TILE_SEMI=2; TILE_HAZARD=3;
+  TILE_COIN=4; TILE_GOAL=5; TILE_LADDER=6; TILE_LIQUID=7;
+  TILE_SLOPE_L=8; TILE_SLOPE_R=9;
+  GRAVITY=980.0; MAX_COMPONENT_TYPES=64;
+  DEFAULT_COYOTE_TIME:Single=10/60; DEFAULT_JUMP_BUFFER:Single=8/60;
+  DEFAULT_MAX_HP:Single=100.0; DEFAULT_INVINCIBILITY_TIME:Single=0.5;
+  DEFAULT_REGEN_RATE:Single=0.0; DEFAULT_REGEN_DELAY:Single=3.0;
+  MAX_INVENTORY_SLOTS=40; MAX_HOTBAR_SLOTS=10; MAX_ITEM_STACK=999;
+  DEFAULT_PROJECTILE_LIFETIME:Single=5.0;
+  DEFAULT_DAY_DURATION:Single=600.0;
+  DAY_START_TIME:Single=0.25; NIGHT_START_TIME:Single=0.75;
+  CHUNK_SIZE=16; CHUNK_LOAD_RADIUS=3; CHUNK_UNLOAD_RADIUS=5;
+  DEFAULT_AMBIENT_R:Byte=20; DEFAULT_AMBIENT_G:Byte=20;
+  DEFAULT_AMBIENT_B:Byte=40; DEFAULT_AMBIENT_A:Byte=200;
+  PATHFINDING_MAX_NODES=4096; PATHFINDING_HEURISTIC_W:Single=1.0;
+  DEFAULT_INTERACTION_RADIUS:Single=32.0;
+  MAX_DIALOG_CHOICES=4; SPATIAL_HASH_CELL_SIZE:Single=64.0;
 implementation
-
 end.

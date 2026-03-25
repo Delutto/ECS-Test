@@ -125,7 +125,7 @@ begin
    begin
       MX := GetMouseX;
       if (GetMouseY > SCR_H - FOOTER_H - 30) and (GetMouseY < SCR_H - FOOTER_H) then
-         D.TimeOfDay := Max(0, Min(1, (MX - 40) / single(SCR_W - 80)));
+         D.TimeOfDay := Max(0, Min(1, (MX - 40) / Single(SCR_W - 80)));
    end;
    World.Update(ADelta);
 end;

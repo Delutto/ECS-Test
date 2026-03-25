@@ -95,16 +95,13 @@ begin
    Y := DEMO_AREA_Y + 80 + Random(DEMO_AREA_H - 120);
    case FTemplate of
       1:
-         E := TEntityBuilder2D.InWorld(World).Named('Warrior').WithTransform(X, Y).WithRigidBody.WithCollider(ctPlayer, 16, 24).WithHealth(120, 8,
-            0.8).WithTags(['warrior', 'melee', 'damageable']).Build;
+         E := TEntityBuilder2D.InWorld(World).Named('Warrior').WithTransform(X, Y).WithRigidBody.WithCollider(ctPlayer, 16, 24).WithHealth(120, 8, 0.8).WithTags(['warrior', 'melee', 'damageable']).Build;
       2:
          E := TEntityBuilder2D.InWorld(World).Named('Mage').WithTransform(X, Y).WithRigidBody(0.8).WithCollider(ctPlayer, 14, 20).WithHealth(60, 0, 0.4).WithTags(['mage', 'ranged', 'magic']).Build;
       3:
-         E := TEntityBuilder2D.InWorld(World).Named('Archer').WithTransform(X, Y).WithRigidBody(0.9).WithCollider(ctPlayer, 14, 22).WithHealth(80, 2,
-            0.5).WithInventory(10).WithTags(['archer', 'ranged']).Build;
+         E := TEntityBuilder2D.InWorld(World).Named('Archer').WithTransform(X, Y).WithRigidBody(0.9).WithCollider(ctPlayer, 14, 22).WithHealth(80, 2, 0.5).WithInventory(10).WithTags(['archer', 'ranged']).Build;
       4:
-         E := TEntityBuilder2D.InWorld(World).Named('Merchant').WithTransform(X, Y).WithKinematic.WithCollider(ctNone, 18, 24, 0, 0, True)
-            .WithInventory(40).WithTags(['npc', 'friendly', 'shop']).Build;
+         E := TEntityBuilder2D.InWorld(World).Named('Merchant').WithTransform(X, Y).WithKinematic.WithCollider(ctNone, 18, 24, 0, 0, True).WithInventory(40).WithTags(['npc', 'friendly', 'shop']).Build;
       5:
          E := TEntityBuilder2D.InWorld(World).Named('Bullet').WithTransform(X, Y).WithKinematic.WithCollider(ctHazard, 6, 6, 0, 0, True).WithLifetime(3).WithTags(['projectile']).Build;
       else

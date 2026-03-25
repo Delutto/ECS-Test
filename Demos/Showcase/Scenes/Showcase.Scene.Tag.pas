@@ -57,7 +57,7 @@ procedure TTagDemoScene.BuildEntities;
 const
    N: array[0..5] of string = ('Goblin', 'Dragon', 'Wizard', 'Slime', 'Knight', 'Merchant');
    TS: array[0..5] of string = ('enemy damageable movable', 'enemy damageable boss flying', 'player damageable movable magic',
-                                'enemy damageable movable small', 'player damageable movable armored', 'npc friendly shop');
+      'enemy damageable movable small', 'player damageable movable armored', 'npc friendly shop');
 var
    I, J: integer;
    E: TEntity;

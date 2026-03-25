@@ -9,7 +9,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="Engine Expansion Showcase"/>
+      <Title Value="P2DGE Showcase"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -21,14 +21,6 @@
           <Target>
             <Filename Value="../../Bin/P2DGE_Showcase"/>
           </Target>
-          <SearchPaths>
-            <OtherUnitFiles Value="Scenes"/>
-          </SearchPaths>
-          <Parsing>
-            <SyntaxOptions>
-              <UseAnsiStrings Value="False"/>
-            </SyntaxOptions>
-          </Parsing>
         </CompilerOptions>
       </Item>
     </BuildModes>
@@ -104,6 +96,66 @@
         <Filename Value="Scenes/Showcase.Scene.Builder.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Sprite.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Animation.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Physics.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Camera.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Parallax.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Particles.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.StateMachine.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Timer.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Tween.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Text.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Input.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Audio.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.EventBus.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.ResourceManager.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Scenes/Showcase.Scene.Debug.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -113,7 +165,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;Systems;Components;../../Engine;Scenes"/>
+      <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;../../Engine;Scenes"/>
       <UnitOutputDirectory Value="../../Trash"/>
     </SearchPaths>
     <Parsing>

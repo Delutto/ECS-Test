@@ -1,0 +1,45 @@
+unit P2D.Components.Collider;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+   P2D.Core.Component,
+   P2D.Core.Types;
+
+type
+   TColliderComponent = class(TComponent2D)
+   public
+      Offset: TVector2;     // relative to transform position
+      Size: TVector2;
+      Tag: TColliderTag;
+      IsTrigger: boolean;     // trigger = detect only, no physics response
+      constructor Create; override;
+      function GetWorldRect(const APosition: TVector2): TRectF;
+   end;
+
+implementation
+
+uses
+   P2D.Core.ComponentRegistry;
+
+constructor TColliderComponent.Create;
+begin
+   inherited Create;
+
+   Offset.Create(0, 0);
+   Size.Create(16, 16);
+   Tag := ctNone;
+   IsTrigger := False;
+end;
+
+function TColliderComponent.GetWorldRect(const APosition: TVector2): TRectF;
+begin
+   Result := TRectF.Create(APosition.X + Offset.X, APosition.Y + Offset.Y, Size.X, Size.Y);
+end;
+
+initialization
+   ComponentRegistry.Register(TColliderComponent);
+
+end.

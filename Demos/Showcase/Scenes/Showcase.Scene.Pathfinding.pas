@@ -1,15 +1,13 @@
 unit Showcase.Scene.Pathfinding;
-
 {$mode objfpc}{$H+}
 
-{ Demo 9 - A* Pathfinding
-  LMB=set goal  RMB=toggle wall  1=diagonal  2=cardinal  R=rand  C=clear }
+{ Demo 9 - Pathfinding }
+
 interface
 
 uses
    SysUtils, StrUtils, Math, raylib,
-   P2D.Core.Scene, P2D.Core.World, P2D.Core.Entity,
-   P2D.Core.ComponentRegistry, P2D.Core.Types,
+   P2D.Core.Scene, P2D.Core.World, P2D.Core.Entity, P2D.Core.ComponentRegistry, P2D.Core.Types,
    P2D.Components.Transform, P2D.Components.RigidBody, P2D.Components.Pathfinder,
    P2D.Core.Pathfinding, P2D.Systems.Pathfinding, Showcase.Common;
 
@@ -31,6 +29,9 @@ type
       FUseDiag: boolean;
       FTRID, FPFID: integer;
       FPath: TPathArray2D;
+      FTexFloor, FTexWall, FTexPath, FTexGoal, FTexAgent: TTexture2D;
+      procedure GenTileTextures;
+      procedure FreeTileTextures;
       procedure RandWalls;
       procedure ReqPath;
       function ATr: TTransformComponent;
@@ -50,11 +51,80 @@ implementation
 uses
    P2D.Systems.SceneManager;
 
+function IfS(B: boolean; const T, F: string): string;
+begin
+   if B then
+      Result := T
+   else
+      Result := F;
+end;
+
 constructor TPathfindingDemoScene.Create(AW, AH: integer);
 begin
    inherited Create('Pathfinding');
    FScreenW := AW;
    FScreenH := AH;
+end;
+
+procedure TPathfindingDemoScene.GenTileTextures;
+var
+   Img: TImage;
+   S: integer;
+begin
+   S := CELL;
+   Img := GenImageColor(S, S, ColorCreate(36, 38, 54, 255));
+   ImageDrawRectangle(@Img, 1, 1, S - 2, S - 2, ColorCreate(44, 46, 64, 255));
+   ImageDrawRectangle(@Img, 2, 2, 4, 4, ColorCreate(56, 60, 82, 180));
+   ImageDrawRectangle(@Img, S - 6, 2, 4, 4, ColorCreate(56, 60, 82, 180));
+   ImageDrawRectangle(@Img, 2, S - 6, 4, 4, ColorCreate(56, 60, 82, 180));
+   ImageDrawRectangle(@Img, S - 6, S - 6, 4, 4, ColorCreate(56, 60, 82, 180));
+   FTexFloor := LoadTextureFromImage(Img);
+   UnloadImage(Img);
+   Img := GenImageColor(S, S, ColorCreate(68, 58, 48, 255));
+   ImageDrawRectangle(@Img, 1, 1, S - 2, S - 2, ColorCreate(82, 72, 58, 255));
+   ImageDrawRectangle(@Img, 0, S div 2, S, 2, ColorCreate(48, 42, 34, 255));
+   ImageDrawRectangle(@Img, S div 2, 0, 2, S div 2, ColorCreate(48, 42, 34, 255));
+   ImageDrawRectangle(@Img, 1, 1, S - 2, 3, ColorCreate(104, 92, 74, 200));
+   FTexWall := LoadTextureFromImage(Img);
+   UnloadImage(Img);
+   Img := GenImageColor(S, S, ColorCreate(18, 56, 76, 210));
+   ImageDrawRectangle(@Img, 5, 5, S - 10, S - 10, ColorCreate(56, 172, 216, 160));
+   ImageDrawRectangle(@Img, 9, 9, S - 18, S - 18, ColorCreate(80, 220, 255, 90));
+   FTexPath := LoadTextureFromImage(Img);
+   UnloadImage(Img);
+   Img := GenImageColor(S, S, ColorCreate(76, 56, 8, 255));
+   ImageDrawRectangle(@Img, 1, 1, S - 2, S - 2, ColorCreate(196, 158, 18, 255));
+   ImageDrawRectangle(@Img, S div 2 - 3, 4, 6, S - 8, ColorCreate(252, 218, 40, 255));
+   ImageDrawRectangle(@Img, 4, S div 2 - 3, S - 8, 6, ColorCreate(252, 218, 40, 255));
+   ImageDrawRectangle(@Img, S div 2 - 5, S div 2 - 5, 10, 10, ColorCreate(255, 248, 120, 255));
+   FTexGoal := LoadTextureFromImage(Img);
+   UnloadImage(Img);
+   Img := GenImageColor(S, S, ColorCreate(0, 0, 0, 0));
+   ImageDrawRectangle(@Img, S div 4, 4, S div 2, S - 8, ColorCreate(58, 218, 96, 255));
+   ImageDrawRectangle(@Img, 4, S div 4, S - 8, S div 2, ColorCreate(58, 218, 96, 255));
+   ImageDrawRectangle(@Img, S div 4 + 2, S div 4 + 2, S div 2 - 4, S div 2 - 4, ColorCreate(118, 255, 158, 255));
+   ImageDrawRectangle(@Img, S div 2 - 3, S div 2 - 3, 6, 6, ColorCreate(255, 255, 255, 240));
+   FTexAgent := LoadTextureFromImage(Img);
+   UnloadImage(Img);
+end;
+
+procedure TPathfindingDemoScene.FreeTileTextures;
+
+   procedure U(var T: TTexture2D);
+   begin
+      if T.Id > 0 then
+      begin
+         UnloadTexture(T);
+         T.Id := 0;
+      end;
+   end;
+
+begin
+   U(FTexFloor);
+   U(FTexWall);
+   U(FTexPath);
+   U(FTexGoal);
+   U(FTexAgent);
 end;
 
 function TPathfindingDemoScene.ATr: TTransformComponent;
@@ -111,6 +181,7 @@ begin
    FTRID := ComponentRegistry.GetComponentID(TTransformComponent);
    FPFID := ComponentRegistry.GetComponentID(TPathfinderComponent2D);
    FGrid.SetSize(GCOLS, GROWS);
+   GenTileTextures;
    RandWalls;
    FAgent := World.CreateEntity('Agent');
    Tr := TTransformComponent.Create;
@@ -135,6 +206,7 @@ begin
    World.ShutdownSystems;
    World.DestroyAllEntities;
    FreeAndNil(FGrid);
+   FreeTileTextures;
 end;
 
 procedure TPathfindingDemoScene.Update(ADelta: single);
@@ -210,46 +282,66 @@ end;
 procedure TPathfindingDemoScene.Render;
 var
    C, R, GX, GY, I: integer;
-   Cl: TColor;
    Tr: TTransformComponent;
    A, B: TPathPoint2D;
+   Dst: TRectangle;
+   PathSet: array of boolean;
+   PLen: integer;
 begin
-   ClearBackground(COL_BG);
+   ClearBackground(ColorCreate(18, 18, 30, 255));
    DrawHeader('Demo 9 - A* Pathfinding (TAStarGrid2D + TPathfinderComponent2D)');
    DrawFooter('LMB=set goal   RMB=toggle wall   1=diagonal  2=cardinal  R=rand  C=clear');
+   PLen := Length(FPath);
+   SetLength(PathSet, GCOLS * GROWS);
+   for I := 0 to GCOLS * GROWS - 1 do
+      PathSet[I] := False;
+   for I := 0 to PLen - 1 do
+      PathSet[FPath[I].Row * GCOLS + FPath[I].Col] := True;
    for R := 0 to GROWS - 1 do
       for C := 0 to GCOLS - 1 do
       begin
          GX := GOFF_X + C * CELL;
          GY := GOFF_Y + R * CELL;
+         Dst := RectangleCreate(GX, GY, CELL, CELL);
          if not FGrid.IsWalkable(C, R) then
-            Cl := ColorCreate(80, 60, 50, 255)
+            DrawTexturePro(FTexWall, RectangleCreate(0, 0, CELL, CELL), Dst, Vector2Create(0, 0), 0, WHITE)
          else
-            Cl := ColorCreate(40, 40, 55, 255);
-         DrawRectangle(GX + 1, GY + 1, CELL - 2, CELL - 2, Cl);
+         begin
+            DrawTexturePro(FTexFloor, RectangleCreate(0, 0, CELL, CELL), Dst, Vector2Create(0, 0), 0, WHITE);
+            if PathSet[R * GCOLS + C] then
+               DrawTexturePro(FTexPath, RectangleCreate(0, 0, CELL, CELL), Dst, Vector2Create(0, 0), 0, ColorCreate(255, 255, 255, 190));
+         end;
       end;
-   if Length(FPath) > 1 then
-      for I := 0 to Length(FPath) - 2 do
+   if PLen > 1 then
+      for I := 0 to PLen - 2 do
       begin
          A := FPath[I];
          B := FPath[I + 1];
-         DrawLineEx(
-            Vector2Create(GOFF_X + A.Col * CELL + CELL div 2, GOFF_Y + A.Row * CELL + CELL div 2),
-            Vector2Create(GOFF_X + B.Col * CELL + CELL div 2, GOFF_Y + B.Row * CELL + CELL div 2),
-            3, COL_ACCENT);
+         DrawLineEx(Vector2Create(GOFF_X + A.Col * CELL + CELL div 2, GOFF_Y + A.Row * CELL + CELL div 2),
+            Vector2Create(GOFF_X + B.Col * CELL + CELL div 2, GOFF_Y + B.Row * CELL + CELL div 2), 2, ColorCreate(80, 220, 255, 210));
       end;
    GX := GOFF_X + FGoalC * CELL;
    GY := GOFF_Y + FGoalR * CELL;
-   DrawRectangle(GX + 4, GY + 4, CELL - 8, CELL - 8, COL_WARN);
-   DrawText('G', GX + CELL div 2 - 5, GY + CELL div 2 - 7, 14, COL_BG);
+   DrawTexturePro(FTexGoal, RectangleCreate(0, 0, CELL, CELL), RectangleCreate(GX, GY, CELL, CELL), Vector2Create(0, 0), 0, WHITE);
    Tr := ATr;
-   DrawCircle(Round(Tr.Position.X), Round(Tr.Position.Y), 10, COL_GOOD);
-   DrawPanel(SCR_W - 220, DEMO_AREA_Y + 10, 210, 120, 'Config');
-   DrawText(PChar('Mode: ' + IfThen(FUseDiag, 'Diagonal', 'Cardinal')),
-      SCR_W - 210, DEMO_AREA_Y + 34, 12, COL_TEXT);
-   DrawText(PChar('Steps: ' + IntToStr(Length(FPath))), SCR_W - 210, DEMO_AREA_Y + 54, 12, COL_TEXT);
-   DrawText('Start: (0,0)', SCR_W - 210, DEMO_AREA_Y + 74, 11, COL_DIMTEXT);
-   DrawText(PChar(Format('Goal: (%d,%d)', [FGoalC, FGoalR])), SCR_W - 210, DEMO_AREA_Y + 90, 11, COL_DIMTEXT);
+   DrawTexturePro(FTexAgent, RectangleCreate(0, 0, CELL, CELL),
+      RectangleCreate(Round(Tr.Position.X) - CELL div 2, Round(Tr.Position.Y) - CELL div 2, CELL, CELL), Vector2Create(0, 0), 0, WHITE);
+   DrawPanel(SCR_W - 226, DEMO_AREA_Y + 10, 216, 150, 'Config');
+   DrawText(PChar('Mode  : ' + IfS(FUseDiag, 'Diagonal', 'Cardinal')), SCR_W - 216, DEMO_AREA_Y + 34, 12, COL_TEXT);
+   DrawText(PChar('Steps : ' + IntToStr(PLen)), SCR_W - 216, DEMO_AREA_Y + 52, 12, COL_TEXT);
+   DrawText('Start : (0,0)', SCR_W - 216, DEMO_AREA_Y + 70, 11, COL_DIMTEXT);
+   DrawText(PChar(Format('Goal  : (%d,%d)', [FGoalC, FGoalR])), SCR_W - 216, DEMO_AREA_Y + 88, 11, COL_DIMTEXT);
+   DrawPanel(SCR_W - 226, DEMO_AREA_Y + 170, 216, 150, 'Legend');
+   DrawTexturePro(FTexFloor, RectangleCreate(0, 0, CELL, CELL), RectangleCreate(SCR_W - 214, DEMO_AREA_Y + 190, 18, 18), Vector2Create(0, 0), 0, WHITE);
+   DrawText('Floor', SCR_W - 192, DEMO_AREA_Y + 193, 10, COL_DIMTEXT);
+   DrawTexturePro(FTexWall, RectangleCreate(0, 0, CELL, CELL), RectangleCreate(SCR_W - 214, DEMO_AREA_Y + 212, 18, 18), Vector2Create(0, 0), 0, WHITE);
+   DrawText('Wall', SCR_W - 192, DEMO_AREA_Y + 215, 10, COL_DIMTEXT);
+   DrawTexturePro(FTexPath, RectangleCreate(0, 0, CELL, CELL), RectangleCreate(SCR_W - 214, DEMO_AREA_Y + 234, 18, 18), Vector2Create(0, 0), 0, WHITE);
+   DrawText('Path', SCR_W - 192, DEMO_AREA_Y + 237, 10, COL_DIMTEXT);
+   DrawTexturePro(FTexGoal, RectangleCreate(0, 0, CELL, CELL), RectangleCreate(SCR_W - 214, DEMO_AREA_Y + 256, 18, 18), Vector2Create(0, 0), 0, WHITE);
+   DrawText('Goal', SCR_W - 192, DEMO_AREA_Y + 259, 10, COL_DIMTEXT);
+   DrawTexturePro(FTexAgent, RectangleCreate(0, 0, CELL, CELL), RectangleCreate(SCR_W - 214, DEMO_AREA_Y + 278, 18, 18), Vector2Create(0, 0), 0, WHITE);
+   DrawText('Agent', SCR_W - 192, DEMO_AREA_Y + 281, 10, COL_DIMTEXT);
 end;
 
 end.

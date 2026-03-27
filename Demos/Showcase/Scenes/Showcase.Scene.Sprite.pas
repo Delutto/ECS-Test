@@ -2,27 +2,14 @@ unit Showcase.Scene.Sprite;
 
 {$mode objfpc}{$H+}
 
-{ Demo 12 - Sprite Rendering and Z-Order (TZOrderRenderSystem)
-  KEY CONCEPTS
-  TSpriteComponent.ZOrder  - integer sort key; lower = drawn first (behind).
-  TSpriteComponent.Flip    - flNone/flHorizontal/flVertical/flBoth.
-  TSpriteComponent.Origin  - rotation/scale pivot in local pixel space.
-  TSpriteComponent.Tint    - RGBA multiplier applied at draw time.
-  TSpriteComponent.Visible - when False entity is skipped entirely.
-  TSpriteComponent.OwnsTexture - True means destructor calls UnloadTexture.
-  TZOrderRenderSystem      - builds a per-frame Z-buffer, sorts by ZOrder
-                             (insertion sort), then calls DrawTexturePro.
-  ATLAS: 128x64 CPU image with 4x 32x32 coloured tiles, generated at runtime.
-  Controls: TAB=select  Z/X=ZOrder  F=flip  V=visible  T=tint  A/D=rotate  Arrows=move }
+{ Demo 12 - Sprite: 256x128 atlas with Shield/Sword/Bomb/Coin/Crown icons. }
+
 interface
 
 uses
-   SysUtils, StrUtils, Math, raylib,
-   P2D.Utils.RayLib,
+   SysUtils, StrUtils, Math, raylib, P2D.Utils.RayLib,
    P2D.Core.Scene, P2D.Core.World, P2D.Core.Entity, P2D.Core.ComponentRegistry, P2D.Core.Types,
-   P2D.Components.Transform, P2D.Components.Sprite,
-   P2D.Systems.ZOrderRender,
-   Showcase.Common;
+   P2D.Components.Transform, P2D.Components.Sprite, P2D.Systems.ZOrderRender, Showcase.Common;
 
 const
    NUM_SP = 5;
@@ -30,21 +17,21 @@ const
 type
    TSpriteRenderDemoScene = class(TScene2D)
    private
-      FScreenW, FScreenH, FSel: Integer;
+      FScreenW, FScreenH, FSel: integer;
       FEntities: array[0..NUM_SP - 1] of TEntity;
-      FTintIdx: array[0..NUM_SP - 1] of Integer;
+      FTintIdx: array[0..NUM_SP - 1] of integer;
       FAtlas: TTexture2D;
-      FTRID, FSID: Integer;
+      FTRID, FSID: integer;
       procedure GenAtlas;
-      function GetSpr(I: Integer): TSpriteComponent;
-      function GetTr(I: Integer): TTransformComponent;
+      function GetSpr(I: integer): TSpriteComponent;
+      function GetTr(I: integer): TTransformComponent;
    protected
       procedure DoLoad; override;
       procedure DoEnter; override;
       procedure DoExit; override;
    public
-      constructor Create(AW, AH: Integer);
-      procedure Update(ADelta: Single); override;
+      constructor Create(AW, AH: integer);
+      procedure Update(ADelta: single); override;
       procedure Render; override;
    end;
 
@@ -54,13 +41,32 @@ uses
    P2D.Systems.SceneManager;
 
 const
-   TINTS: array[0..4] of TColor = (
-      (R: 255; G: 255; B: 255; A: 255), (R: 255; G: 100; B: 100; A: 255), (R: 100; G: 255; B: 100; A: 255),
-      (R: 100; G: 160; B: 255; A: 255), (R: 255; G: 240; B: 60; A: 255));
-   TNAMES: array[0..4] of String = ('WHITE', 'RED', 'GREEN', 'BLUE', 'YELLOW');
-   SNAMES: array[0..NUM_SP - 1] of String = ('Star', 'Moon', 'Sun', 'Cloud', 'Tree');
+   TW = 64;
+   TH = 64;
+   TINTS: array[0..4] of TColor = ((R: 255; G: 255; B: 255; A: 255), (R: 255; G: 100; B: 100; A: 255),
+      (R: 100; G: 255; B: 100; A: 255), (R: 100; G: 160; B: 255; A: 255), (R: 255; G: 240; B: 60; A: 255));
+   TNAMES: array[0..4] of string = ('WHITE', 'RED', 'GREEN', 'BLUE', 'YELLOW');
+   SNAMES: array[0..NUM_SP - 1] of string = ('Shield', 'Sword', 'Bomb', 'Coin', 'Crown');
+   TCOL: array[0..NUM_SP - 1] of integer = (0, 1, 2, 3, 0);
+   TROW: array[0..NUM_SP - 1] of integer = (0, 0, 0, 0, 1);
 
-constructor TSpriteRenderDemoScene.Create(AW, AH: Integer);
+function IfStr(B: boolean; const T, F: string): string;
+begin
+   if B then
+      Result := T
+   else
+      Result := F;
+end;
+
+function IfCol(B: boolean; const T, F: TColor): TColor;
+begin
+   if B then
+      Result := T
+   else
+      Result := F;
+end;
+
+constructor TSpriteRenderDemoScene.Create(AW, AH: integer);
 begin
    inherited Create('Sprite');
    FScreenW := AW;
@@ -69,44 +75,84 @@ begin
 end;
 
 procedure TSpriteRenderDemoScene.GenAtlas;
-{ GenImageColor allocates CPU RGBA image.
-  ImageDrawRectangle draws coloured tiles into it.
-  LoadTextureFromImage uploads to GPU (requires GL context = after window init).
-  UnloadImage frees the CPU copy — the GPU texture survives independently. }
 var
    Img: TImage;
-   Cols: array[0..3] of TColor;
-   I, TX: Integer;
-begin
-   Cols[0] := ColorCreate(200, 80, 80, 255);
-   Cols[1] := ColorCreate(80, 180, 80, 255);
-   Cols[2] := ColorCreate(80, 120, 220, 255);
-   Cols[3] := ColorCreate(220, 200, 60, 255);
-   Img := GenImageColor(128, 64, ColorCreate(20, 20, 30, 255));
-   for I := 0 to 3 do
+
+   procedure Shield(TX, TY: integer);
    begin
-      TX := I * 32;
-      ImageDrawRectangle(@Img, TX + 2, 2, 28, 28, Cols[I]);
-      ImageDrawRectangle(@Img, TX + 6, 6, 12, 12, ColorCreate(255, 255, 255, 80));
+      ImageDrawRectangle(@Img, TX + 8, TY + 4, TW - 16, TH - 18, ColorCreate(100, 140, 220, 255));
+      ImageDrawRectangle(@Img, TX + 12, TY + TH - 20, TW - 24, 16, ColorCreate(100, 140, 220, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 4, TY + TH - 8, 8, 8, ColorCreate(100, 140, 220, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 6, TY + 16, 12, 20, ColorCreate(255, 220, 80, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 2, TY + 12, 4, 28, ColorCreate(255, 248, 120, 255));
+      ImageDrawRectangle(@Img, TX + 10, TY + 6, TW - 20, 4, ColorCreate(255, 255, 255, 80));
    end;
+
+   procedure Sword(TX, TY: integer);
+   begin
+      ImageDrawRectangle(@Img, TX + TW div 2 - 3, TY + 4, 6, TH - 26, ColorCreate(200, 210, 220, 255));
+      ImageDrawRectangle(@Img, TX + 8, TY + TH - 28, TW - 16, 6, ColorCreate(200, 160, 40, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 4, TY + TH - 22, 8, 14, ColorCreate(140, 100, 60, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 6, TY + TH - 10, 12, 8, ColorCreate(180, 140, 60, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2, TY + 6, 2, TH - 28, ColorCreate(255, 255, 255, 100));
+   end;
+
+   procedure Bomb(TX, TY: integer);
+   begin
+      ImageDrawRectangle(@Img, TX + 8, TY + 16, TW - 16, TH - 28, ColorCreate(58, 58, 58, 255));
+      ImageDrawRectangle(@Img, TX + 12, TY + 12, TW - 24, 8, ColorCreate(58, 58, 58, 255));
+      ImageDrawRectangle(@Img, TX + 12, TY + TH - 20, TW - 24, 8, ColorCreate(58, 58, 58, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 2, TY + 4, 4, 14, ColorCreate(140, 100, 60, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 4, TY + 2, 8, 6, ColorCreate(255, 200, 60, 255));
+      ImageDrawRectangle(@Img, TX + 16, TY + 20, 10, 8, ColorCreate(255, 255, 255, 60));
+   end;
+
+   procedure Coin(TX, TY: integer);
+   begin
+      ImageDrawRectangle(@Img, TX + 8, TY + 4, TW - 16, TH - 8, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + 4, TY + 8, TW - 8, TH - 16, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + 14, TY + 10, TW - 28, TH - 20, ColorCreate(240, 200, 60, 255));
+      ImageDrawRectangle(@Img, TX + 20, TY + 18, TW - 36, TH - 36, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + 12, TY + 10, 12, 10, ColorCreate(255, 255, 255, 80));
+   end;
+
+   procedure Crown(TX, TY: integer);
+   begin
+      ImageDrawRectangle(@Img, TX + 4, TY + TH - 18, TW - 8, 14, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + 4, TY + 8, 12, TH - 26, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 6, TY + 4, 12, TH - 22, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + TW - 16, TY + 8, 12, TH - 26, ColorCreate(220, 180, 40, 255));
+      ImageDrawRectangle(@Img, TX + 6, TY + TH - 16, 8, 8, ColorCreate(220, 60, 60, 255));
+      ImageDrawRectangle(@Img, TX + TW div 2 - 4, TY + TH - 16, 8, 8, ColorCreate(80, 180, 255, 255));
+      ImageDrawRectangle(@Img, TX + TW - 14, TY + TH - 16, 8, 8, ColorCreate(80, 220, 100, 255));
+   end;
+
+begin
+   Img := GenImageColor(TW * 4, TH * 2, ColorCreate(18, 18, 28, 255));
+   Shield(0, 0);
+   Sword(TW, 0);
+   Bomb(TW * 2, 0);
+   Coin(TW * 3, 0);
+   Crown(0, TH);
+   ImageDrawRectangle(@Img, TW + 4, TH + 4, TW - 8, TH - 8, ColorCreate(140, 60, 200, 255));
+   ImageDrawRectangle(@Img, TW * 2 + 8, TH + 8, TW - 16, TH - 16, ColorCreate(140, 100, 60, 255));
+   ImageDrawRectangle(@Img, TW * 3 + 4, TH + 8, TW - 8, TH - 16, ColorCreate(200, 200, 180, 255));
    FAtlas := LoadTextureFromImage(Img);
    UnloadImage(Img);
 end;
 
 procedure TSpriteRenderDemoScene.DoLoad;
 begin
-  { TZOrderRenderSystem priority=100, RenderLayer=rlWorld.
-    Requires TSpriteComponent+TTransformComponent on entities. }
    World.AddSystem(TZOrderRenderSystem.Create(World));
 end;
 
 procedure TSpriteRenderDemoScene.DoEnter;
 const
-   PX: array[0..NUM_SP - 1] of Single = (100, 280, 480, 640, 800);
-   PY: array[0..NUM_SP - 1] of Single = (280, 180, 300, 200, 260);
-   ZO: array[0..NUM_SP - 1] of Integer = (0, 5, 10, 15, 20);
+   PX: array[0..NUM_SP - 1] of single = (120, 300, 500, 680, 860);
+   PY: array[0..NUM_SP - 1] of single = (290, 200, 310, 210, 275);
+   ZO: array[0..NUM_SP - 1] of integer = (0, 5, 10, 15, 20);
 var
-   I: Integer;
+   I: integer;
    E: TEntity;
    Tr: TTransformComponent;
    Spr: TSpriteComponent;
@@ -121,13 +167,13 @@ begin
       E := World.CreateEntity(SNAMES[I]);
       Tr := TTransformComponent.Create;
       Tr.Position := Vector2Create(PX[I], PY[I]);
-      Tr.Scale := Vector2Create(2, 2);           { 2x scale for visibility }
+      Tr.Scale := Vector2Create(1.6, 1.6);
       E.AddComponent(Tr);
       Spr := TSpriteComponent.Create;
       Spr.Texture := FAtlas;
-      Spr.OwnsTexture := False;               { scene owns atlas, freed in DoExit }
-      Spr.SourceRect := RectangleCreate((I mod 4) * 32, 0, 32, 32);
-      Spr.Origin := Vector2Create(16, 16); { pivot at centre of 32x32 tile }
+      Spr.OwnsTexture := False;
+      Spr.SourceRect := RectangleCreate(TCOL[I] * TW, TROW[I] * TH, TW, TH);
+      Spr.Origin := Vector2Create(TW div 2, TH div 2);
       Spr.Tint := WHITE;
       Spr.ZOrder := ZO[I];
       Spr.Visible := True;
@@ -148,17 +194,17 @@ begin
    end;
 end;
 
-function TSpriteRenderDemoScene.GetSpr(I: Integer): TSpriteComponent;
+function TSpriteRenderDemoScene.GetSpr(I: integer): TSpriteComponent;
 begin
    Result := TSpriteComponent(FEntities[I].GetComponentByID(FSID));
 end;
 
-function TSpriteRenderDemoScene.GetTr(I: Integer): TTransformComponent;
+function TSpriteRenderDemoScene.GetTr(I: integer): TTransformComponent;
 begin
    Result := TTransformComponent(FEntities[I].GetComponentByID(FTRID));
 end;
 
-procedure TSpriteRenderDemoScene.Update(ADelta: Single);
+procedure TSpriteRenderDemoScene.Update(ADelta: single);
 var
    Spr: TSpriteComponent;
    Tr: TTransformComponent;
@@ -172,19 +218,15 @@ begin
       FSel := (FSel + 1) mod NUM_SP;
    Spr := GetSpr(FSel);
    Tr := GetTr(FSel);
-   { ZOrder: simple integer; TZOrderRenderSystem re-sorts every frame }
    if IsKeyPressed(KEY_Z) then
       Inc(Spr.ZOrder, 5);
    if IsKeyPressed(KEY_X) then
       Dec(Spr.ZOrder, 5);
-   { Flip: negates SourceRect.Width before DrawTexturePro }
    if IsKeyPressed(KEY_F) then
-   begin
       if Spr.Flip = flNone then
          Spr.Flip := flHorizontal
       else
          Spr.Flip := flNone;
-   end;
    if IsKeyPressed(KEY_V) then
       Spr.Visible := not Spr.Visible;
    if IsKeyPressed(KEY_T) then
@@ -209,39 +251,45 @@ end;
 
 procedure TSpriteRenderDemoScene.Render;
 var
-   I: Integer;
+   I: integer;
    Spr: TSpriteComponent;
    Tr: TTransformComponent;
    Col: TColor;
 begin
    ClearBackground(ColorCreate(18, 18, 28, 255));
+   DrawRectangleGradientV(0, DEMO_AREA_Y, SCR_W, DEMO_AREA_H, ColorCreate(24, 24, 38, 255), ColorCreate(14, 14, 22, 255));
    World.Render;
    DrawHeader('Demo 12 - Sprite Rendering and Z-Order (TZOrderRenderSystem)');
    DrawFooter('TAB=select  Z/X=ZOrder  F=flip  V=visible  T=tint  A/D=rotate  Arrows=move');
-   DrawPanel(SCR_W - 310, DEMO_AREA_Y + 10, 300, 220, 'Selected: ' + SNAMES[FSel]);
+   DrawPanel(SCR_W - 318, DEMO_AREA_Y + 10, 308, 260, 'Selected: ' + SNAMES[FSel]);
    Spr := GetSpr(FSel);
    Tr := GetTr(FSel);
    if Assigned(Spr) then
    begin
-      DrawText(PChar('ZOrder  : ' + IntToStr(Spr.ZOrder)), SCR_W - 300, DEMO_AREA_Y + 36, 12, COL_TEXT);
-      DrawText(PChar('Flip    : ' + IfThen(Spr.Flip = flHorizontal, 'HORIZONTAL', 'NONE')),
-         SCR_W - 300, DEMO_AREA_Y + 54, 12, COL_TEXT);
-      DrawText(PChar('Visible : ' + IfThen(Spr.Visible, 'TRUE', 'FALSE')),
-         SCR_W - 300, DEMO_AREA_Y + 72, 12, IfThen(Spr.Visible, COL_GOOD, COL_BAD));
-      DrawText(PChar('Tint    : ' + TNAMES[FTintIdx[FSel]]), SCR_W - 300, DEMO_AREA_Y + 90, 12, COL_TEXT);
-      DrawText(PChar(Format('Rotation: %.1f deg', [Tr.Rotation])), SCR_W - 300, DEMO_AREA_Y + 108, 12, COL_TEXT);
-      DrawText('OwnsTexture: FALSE', SCR_W - 300, DEMO_AREA_Y + 126, 11, COL_DIMTEXT);
+      DrawTexturePro(FAtlas, RectangleCreate(TCOL[FSel] * TW, TROW[FSel] * TH, TW, TH),
+         RectangleCreate(SCR_W - 80, DEMO_AREA_Y + 18, 52, 52), Vector2Create(0, 0), 0, Spr.Tint);
+      DrawText(PChar('ZOrder   : ' + IntToStr(Spr.ZOrder)), SCR_W - 308, DEMO_AREA_Y + 36, 12, COL_TEXT);
+      DrawText(PChar('Flip     : ' + IfStr(Spr.Flip = flHorizontal, 'HORIZONTAL', 'NONE')), SCR_W - 308, DEMO_AREA_Y + 54, 12, COL_TEXT);
+      DrawText(PChar('Visible  : ' + IfStr(Spr.Visible, 'TRUE', 'FALSE')), SCR_W - 308, DEMO_AREA_Y + 72, 12, IfCol(Spr.Visible, COL_GOOD, COL_BAD));
+      DrawText(PChar('Tint     : ' + TNAMES[FTintIdx[FSel]]), SCR_W - 308, DEMO_AREA_Y + 90, 12, COL_TEXT);
+      DrawText(PChar(Format('Rotation : %.1f deg', [Tr.Rotation])), SCR_W - 308, DEMO_AREA_Y + 108, 12, COL_TEXT);
+      DrawText('Atlas: 256x128  8 tiles  64x64', SCR_W - 308, DEMO_AREA_Y + 144, 11, COL_DIMTEXT);
    end;
-   DrawPanel(SCR_W - 310, DEMO_AREA_Y + 240, 300, 180, 'Z-Order Stack (back to front)');
+   DrawPanel(SCR_W - 318, DEMO_AREA_Y + 280, 308, 90, 'Atlas Thumbnail');
+   DrawTexturePro(FAtlas, RectangleCreate(0, 0, TW * 4, TH * 2), RectangleCreate(SCR_W - 308, DEMO_AREA_Y + 298, 160, 60), Vector2Create(0, 0), 0, WHITE);
+   DrawRectangleLinesEx(RectangleCreate(SCR_W - 308 + TCOL[FSel] * 40, DEMO_AREA_Y + 298 + TROW[FSel] * 30, 40, 30), 2, COL_ACCENT);
+   DrawPanel(SCR_W - 318, DEMO_AREA_Y + 380, 308, NUM_SP * 36 + 30, 'Z-Order Stack');
    for I := 0 to NUM_SP - 1 do
    begin
       Spr := GetSpr(I);
-      Col := IfThen(I = FSel, COL_ACCENT, COL_TEXT);
-      DrawText(PChar(Format('Z=%3d  %s%s', [Spr.ZOrder, SNAMES[I], IfThen(not Spr.Visible, ' [hidden]', '')])),
-         SCR_W - 300, DEMO_AREA_Y + 264 + I * 30, 12, Col);
+      Col := IfCol(I = FSel, COL_ACCENT, COL_TEXT);
+      DrawTexturePro(FAtlas, RectangleCreate(TCOL[I] * TW, TROW[I] * TH, TW, TH),
+         RectangleCreate(SCR_W - 308, DEMO_AREA_Y + 404 + I * 36, 28, 28), Vector2Create(0, 0), 0, IfCol(not Spr.Visible, ColorCreate(80, 80, 80, 120), WHITE));
+      DrawText(PChar(Format('Z=%3d  %s%s', [Spr.ZOrder, SNAMES[I], IfStr(not Spr.Visible, ' [hidden]', '')])),
+         SCR_W - 275, DEMO_AREA_Y + 410 + I * 36, 12, Col);
    end;
    Tr := GetTr(FSel);
-   DrawCircleLines(Round(Tr.Position.X), Round(Tr.Position.Y), 38, COL_ACCENT);
+   DrawCircleLines(Round(Tr.Position.X), Round(Tr.Position.Y), 58, COL_ACCENT);
 end;
 
 end.

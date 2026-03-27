@@ -9,7 +9,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="Pascal2D - Terraria Demo"/>
+      <Title Value="Pascal2D - Terraria Demo (Procedural Gen Editor)"/>
       <UseXPManifest Value="True"/>
     </General>
     <BuildModes>
@@ -57,6 +57,38 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
+        <Filename Value="Terraria.GenParams.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.WorldChunk.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.ChunkManager.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.ChunkGenerator.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.Systems.ChunkRender.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.UI.GenEditor.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.Scene.World.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.Game.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
         <Filename Value="Terraria.Map.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
@@ -66,14 +98,6 @@
       </Unit>
       <Unit>
         <Filename Value="Terraria.Systems.MapRender.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="Terraria.Scene.World.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="Terraria.Game.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
@@ -149,11 +173,27 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.Audio.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
         <Filename Value="../../Engine/Components/P2D.Components.Camera2D.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.Chunk.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
         <Filename Value="../../Engine/Components/P2D.Components.Collider.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.DayNight.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.Dialog.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
@@ -165,11 +205,19 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.Interactable.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
         <Filename Value="../../Engine/Components/P2D.Components.Inventory.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="../../Engine/Components/P2D.Components.Lifetime.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.LightEmitter.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
@@ -186,6 +234,10 @@
       </Unit>
       <Unit>
         <Filename Value="../../Engine/Components/P2D.Components.Pathfinder.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../../Engine/Components/P2D.Components.Projectile.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
@@ -222,34 +274,6 @@
       </Unit>
       <Unit>
         <Filename Value="../../Engine/Components/P2D.Components.Tween.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.Audio.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.Chunk.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.DayNight.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.Dialog.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.Interactable.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.LightEmitter.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="../../Engine/Components/P2D.Components.Projectile.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>

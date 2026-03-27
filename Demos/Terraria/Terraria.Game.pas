@@ -2,12 +2,6 @@ unit Terraria.Game;
 
 {$mode objfpc}{$H+}
 
-{ TTerrariaDemoGame — TEngine2D subclass.
-
-  Virtual canvas: 1280 × 720 (HD, gives comfortable screen-to-world ratio).
-  The engine renders into this canvas and scales to the physical window while
-  preserving aspect ratio (letter/pillar-boxing handled by TEngine2D). }
-
 interface
 
 uses
@@ -37,12 +31,7 @@ uses
 
 constructor TTerrariaDemoGame.Create;
 begin
-   inherited Create(
-      { window W/H } 1280, 720,
-      { title      } 'Pascal 2D Game Engine — Terraria Demo (Procedural Map)',
-      { FPS        } 60,
-      { virtual W  } VIRT_W,
-      { virtual H  } VIRT_H);
+   inherited Create(1280, 720, 'Pascal 2D Game Engine — Terraria Demo (Infinite Chunk World)', 60, VIRT_W, VIRT_H);
 end;
 
 procedure TTerrariaDemoGame.OnInit;

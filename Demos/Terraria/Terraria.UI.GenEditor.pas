@@ -2,33 +2,23 @@ unit Terraria.UI.GenEditor;
 
 {$mode objfpc}{$H+}
 
-{ TGenEditor — an immediate-mode properties panel for TGenParams.
+{ TGenEditor — expanded immediate-mode properties panel.
 
-  LAYOUT
-  ──────
-  The editor is a fixed-width side panel (right side of the screen) rendered
-  entirely with raylib DrawRectangle / DrawText / DrawLine calls.  It supports:
-
-    • Section headers (collapsible)
-    • Integer sliders   [◄ value ►] with keyboard fine-tuning
-    • Float sliders     [◄ value ►]
-    • Toggle buttons    [ON / OFF]
-    • Reset-to-default button
-    • Regenerate button
-
-  INTERACTION
-  ───────────
-  Mouse-click on ◄/► arrows nudges the value by one step.
-  Click + hold on ◄/► fires auto-repeat after 0.4s.
-  The panel is scrollable vertically with the scroll wheel when hovered.
-
-  USAGE (from TWorldScene)
-  ─────────────────────────
-    FEditor := TGenEditor.Create(X, Y, W, H, @FGenerator.Params);
-    ...
-    FEditor.Update(ADelta);        { call BEFORE rendering }
-    FEditor.Draw;                  { call in screen-space (outside camera) }
-    if FEditor.RegeneratePressed then begin ... end; }
+  NEW IN THIS VERSION
+  ────────────────────
+  • Full per-biome configuration tab for Plains / Desert / Forest.
+    Each biome tab exposes:
+      - Surface Offset Y, Amplitude Bonus
+      - Depth Dirt Override, Depth Dirt-Stone Override
+      - Sandstone Depth (Desert only shown, but editable for all)
+      - Per-biome Granite / Marble / Clay / Gravel thresholds
+      - Cave Density Multiplier
+      - Surface Tile Override
+  • Save / Load panel:
+      - File name text field (editable)
+      - Save button  → SaveGenParams(FileName)
+      - Load button  → LoadGenParams(FileName)
+      - Status line  (last operation result) }
 
 interface
 
@@ -37,10 +27,10 @@ uses
    Terraria.GenParams;
 
 const
-   EDIT_W = 310;    { panel pixel width   }
-   EDIT_H = 680;    { panel pixel height  }
-   ROW_H = 22;      { height per row      }
-   COL_BG: TColor = (R: 14; G: 14; B: 22; A: 220);
+   EDIT_W = 330;
+   EDIT_H = 700;
+   ROW_H = 22;
+   COL_BG: TColor = (R: 14; G: 14; B: 22; A: 222);
    COL_HDR: TColor = (R: 30; G: 28; B: 42; A: 255);
    COL_TXT: TColor = (R: 200; G: 200; B: 200; A: 255);
    COL_ACC: TColor = (R: 80; G: 180; B: 255; A: 255);
@@ -49,57 +39,65 @@ const
    COL_OFF: TColor = (R: 200; G: 60; B: 60; A: 255);
    COL_REG: TColor = (R: 255; G: 180; B: 30; A: 255);
    COL_RST: TColor = (R: 100; G: 100; B: 130; A: 255);
+   COL_SAV: TColor = (R: 40; G: 160; B: 80; A: 255);
+   COL_LOD: TColor = (R: 40; G: 100; B: 200; A: 255);
+   COL_ERR: TColor = (R: 220; G: 60; B: 60; A: 255);
+   COL_OK: TColor = (R: 60; G: 200; B: 80; A: 255);
+
+   { Biome tab colours }
+   COL_PLAINS: TColor = (R: 56; G: 160; B: 56; A: 255);
+   COL_DESERT: TColor = (R: 196; G: 174; B: 112; A: 255);
+   COL_FOREST: TColor = (R: 28; G: 120; B: 28; A: 255);
 
 type
-   { Section visibility flags }
    TSectionFlags = record
-      Surface, Depth, Caves, Veins, Biomes, BiomeTweaks, Deep: boolean;
+      Surface, Depth, Caves, Veins, Biomes, Deep, SaveLoad: boolean;
    end;
+
+   TBiomeTab = (btPlains, btDesert, btForest);
 
    TGenEditor = class
    private
-      FVMouseX, FVMouseY : Integer;
-      FPX, FPY: Integer;    { top-left panel position (screen pixels) }
-      FParams: PGenParams;  { pointer to the live params record        }
-      FScrollY: Integer;    { vertical scroll offset (pixels)          }
-      FRegeneratePressed: Boolean;
+      FVMouseX, FVMouseY: Integer;
+      FPX, FPY: Integer;
+      FParams: PGenParams;
+      FScrollY: Integer;
+      FRegeneratePressed: boolean;
       FResetPressed: boolean;
       FSections: TSectionFlags;
+      FBiomeTab: TBiomeTab;
 
-      { Auto-repeat state }
       FHeldTimer: Single;
-      FHeldItem: Integer;   { encoded: 1000*row + col (0=dec,1=inc) }
-
+      FHeldItem: Integer;
       FDelta: Single;
 
-      { Drawing cursor (reset each Draw call) }
-      FCX, FCY: Integer;   { current draw cursor }
+      FCX, FCY: Integer;
       FClipY0, FClipY1: Integer;
 
-      { Helpers }
+      { Save/Load state }
+      FFileName: string;
+      FFileNameEdit: boolean;
+      FStatusMsg: string;
+      FStatusOK: boolean;
+
       procedure BeginDraw;
       procedure SkipRow(ACount: Integer = 1);
-      procedure DrawSectionHeader(const ATitle: string; var AOpen: Boolean);
-      function DrawIntSlider(const ALabel: string; var AValue: Integer; AMin, AMax, AStep: Integer): Boolean;
-      function DrawFloatSlider(const ALabel: string; var AValue: Single; AMin, AMax, AStep: Single; ADecimals: Integer = 3): Boolean;
-      function DrawToggle(const ALabel: string; var AValue: Boolean): Boolean;
-      function DrawButton(const ALabel: string; AColor: TColor): Boolean;
-      { Returns true if (MX,MY) is inside (RX,RY,RW,RH) and LMB just pressed }
-      function Clicked(RX, RY, RW, RH: Integer): Boolean;
-      function InPanel(MX, MY: Integer): Boolean;
+      procedure DrawSectionHeader(const ATitle: string; var AOpen: boolean; AColor: TColor);
+      function DrawIntSlider(const ALabel: string; var AValue: Integer; AMin, AMax, AStep: Integer): boolean;
+      function DrawFloatSlider(const ALabel: string; var AValue: Single; AMin, AMax, AStep: Single; ADecimals: Integer = 3): boolean;
+      function DrawToggle(const ALabel: string; var AValue: boolean): boolean;
+      function DrawButton(const ALabel: string; AColor: TColor): boolean;
+      procedure DrawBiomeTabs;
+      function CurrentBiome: PBiomeParams;
+      function Clicked(RX, RY, RW, RH: Integer): boolean;
+      function InPanel: boolean;
+      procedure HandleFileNameInput;
    public
       constructor Create(APX, APY: Integer; AParams: PGenParams);
-
-      { Call once per frame with frame delta }
       procedure Update(ADelta: Single);
-
-      { Draw the panel (call in screen space, outside BeginMode2D) }
       procedure Draw;
-
-      { True for one frame after the user clicked "Regenerate" }
-      property RegeneratePressed: Boolean read FRegeneratePressed;
-      { True for one frame after the user clicked "Reset defaults" }
-      property ResetPressed: Boolean read FResetPressed;
+      property RegeneratePressed: boolean read FRegeneratePressed;
+      property ResetPressed: boolean read FResetPressed;
       property PX: Integer read FPX write FPX;
       property PY: Integer read FPY write FPY;
       property Params: PGenParams read FParams write FParams;
@@ -107,46 +105,51 @@ type
 
 implementation
 
-{ ── Constructor ─────────────────────────────────────────────────────────── }
+uses
+   P2D.Utils.RayLib;
+
+   { ── Overload for DrawSectionHeader without colour ──────────────────────── }
 
 constructor TGenEditor.Create(APX, APY: Integer; AParams: PGenParams);
 begin
    inherited Create;
+
    FPX := APX;
    FPY := APY;
    FParams := AParams;
    FScrollY := 0;
    FHeldTimer := 0;
    FHeldItem := -1;
+   FBiomeTab := btPlains;
    FSections.Surface := True;
    FSections.Depth := True;
    FSections.Caves := True;
    FSections.Veins := False;
    FSections.Biomes := True;
-   FSections.BiomeTweaks := False;
    FSections.Deep := False;
+   FSections.SaveLoad := True;
+   FFileName := 'my_world.tgp';
+   FStatusMsg := '';
+   FStatusOK := True;
 end;
 
-{ ── Update (auto-repeat, scroll) ────────────────────────────────────────── }
+{ ── Virtual mouse coords ─────────────────────────────────────────────── }
 
 procedure TGenEditor.Update(ADelta: Single);
 var
    PhysW, PhysH: Integer;
-   Sc, OX, OY : Single;
+   Sc, OX, OY: Single;
 begin
    FRegeneratePressed := False;
    FResetPressed := False;
-
    FDelta := ADelta;
-
-   { Convert physical mouse coords to virtual-canvas coords }
    PhysW := GetScreenWidth;
    PhysH := GetScreenHeight;
    if (PhysW > 0) and (PhysH > 0) then
    begin
-      Sc := Min(PhysW / 1280.0, PhysH / 720.0);  { letterbox scale }
-      OX := (PhysW - 1280.0 * Sc) * 0.5;          { horizontal offset }
-      OY := (PhysH - 720.0  * Sc) * 0.5;          { vertical offset   }
+      Sc := Min(PhysW / 1280.0, PhysH / 720.0);
+      OX := (PhysW - 1280.0 * Sc) * 0.5;
+      OY := (PhysH - 720.0 * Sc) * 0.5;
       FVMouseX := Round((GetMouseX - OX) / Sc);
       FVMouseY := Round((GetMouseY - OY) / Sc);
    end
@@ -156,23 +159,49 @@ begin
       FVMouseY := GetMouseY;
    end;
 
-   { Auto-repeat for held arrow buttons (handled in DrawIntSlider/DrawFloatSlider) }
    if IsMouseButtonDown(MOUSE_BUTTON_LEFT) and (FHeldItem >= 0) then
-   begin
-      FHeldTimer := FHeldTimer + ADelta;
-   end
+      FHeldTimer := FHeldTimer + ADelta
    else
    begin
       FHeldTimer := 0;
       FHeldItem := -1;
    end;
+
+   { File name keyboard input when edit mode active }
+   if FFileNameEdit then
+      HandleFileNameInput;
 end;
 
-{ ── Internal cursor helpers ─────────────────────────────────────────────── }
+procedure TGenEditor.HandleFileNameInput;
+var
+   C: Integer;
+begin
+   { Backspace }
+   if IsKeyPressed(KEY_BACKSPACE) and (Length(FFileName) > 0) then
+      FFileName := Copy(FFileName, 1, Length(FFileName) - 1);
+   { Enter/Escape exit edit mode }
+   if IsKeyPressed(KEY_ENTER) or IsKeyPressed(KEY_ESCAPE) then
+      FFileNameEdit := False;
+   { Printable ASCII }
+   C := GetCharPressed;
+   while C > 0 do
+   begin
+      if (C >= 32) and (C < 127) and (Length(FFileName) < 60) then
+         FFileName := FFileName + Chr(C);
+      C := GetCharPressed;
+   end;
+end;
 
-function TGenEditor.InPanel(MX, MY: Integer): boolean;
+{ ── Helpers ──────────────────────────────────────────────────────────── }
+
+function TGenEditor.InPanel: boolean;
 begin
    Result := (FVMouseX >= FPX) and (FVMouseX < FPX + EDIT_W) and (FVMouseY >= FPY) and (FVMouseY < FPY + EDIT_H);
+end;
+
+function TGenEditor.Clicked(RX, RY, RW, RH: Integer): boolean;
+begin
+   Result := IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and (FVMouseX >= RX) and (FVMouseX < RX + RW) and (FVMouseY >= RY) and (FVMouseY < RY + RH);
 end;
 
 procedure TGenEditor.BeginDraw;
@@ -188,17 +217,9 @@ begin
    FCY := FCY + ROW_H * ACount;
 end;
 
-function TGenEditor.Clicked(RX, RY, RW, RH: Integer): boolean;
-begin
-   Result := IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and (FVMouseX >= RX) and (FVMouseX < RX + RW) and (FVMouseY >= RY) and (FVMouseY < RY + RH);
-end;
-
-{ ── Drawing primitives (clipped to panel) ───────────────────────────────── }
-
-procedure TGenEditor.DrawSectionHeader(const ATitle: string; var AOpen: boolean);
+procedure TGenEditor.DrawSectionHeader(const ATitle: string; var AOpen: boolean; AColor: TColor);
 var
    Arrow: string;
-   BtnX, BtnY: Integer;
 begin
    if (FCY + ROW_H < FClipY0) or (FCY > FClipY1) then
    begin
@@ -206,27 +227,23 @@ begin
       Exit;
    end;
    DrawRectangle(FPX, FCY, EDIT_W, ROW_H, COL_HDR);
-   DrawLine(FPX, FCY + ROW_H - 1, FPX + EDIT_W, FCY + ROW_H - 1, COL_ACC);
+   DrawLine(FPX, FCY + ROW_H - 1, FPX + EDIT_W, FCY + ROW_H - 1, AColor);
    if AOpen then
       Arrow := '▼ '
    else
       Arrow := '▶ ';
-   DrawText(PChar(Arrow + ATitle), FCX, FCY + 4, 12, COL_ACC);
-   BtnX := FPX;
-   BtnY := FCY;
-   if Clicked(BtnX, BtnY, EDIT_W, ROW_H) then
+   DrawText(PChar(Arrow + ATitle), FCX, FCY + 4, 12, AColor);
+   if Clicked(FPX, FCY, EDIT_W, ROW_H) then
       AOpen := not AOpen;
    FCY := FCY + ROW_H + 2;
 end;
 
-function TGenEditor.DrawIntSlider(const ALabel: string; var AValue: Integer; AMin, AMax, AStep: Integer): Boolean;
+function TGenEditor.DrawIntSlider(const ALabel: string; var AValue: Integer; AMin, AMax, AStep: Integer): boolean;
 const
    AW = 22;
    VW = 52;
 var
-   LX, LY, VX: Integer;
-   Old: Integer;
-   BRep: Boolean;
+   LY, VX, Old: Integer;
 begin
    Result := False;
    if (FCY + ROW_H < FClipY0) or (FCY > FClipY1) then
@@ -234,37 +251,26 @@ begin
       FCY := FCY + ROW_H + 1;
       Exit;
    end;
-
-   LX := FCX;
    LY := FCY;
-   DrawText(PChar(ALabel), LX, LY + 4, 10, COL_TXT);
+   DrawText(PChar(ALabel), FCX, LY + 4, 10, COL_TXT);
    VX := FPX + EDIT_W - VW - AW * 2 - 4;
-
-   { ◄ }
    DrawRectangle(VX, LY, AW, ROW_H - 2, COL_BTN);
    DrawText('◄', VX + 5, LY + 4, 10, COL_ACC);
-   { Value }
    DrawRectangle(VX + AW, LY, VW, ROW_H - 2, COL_HDR);
    DrawText(PChar(IntToStr(AValue)), VX + AW + 4, LY + 4, 10, COL_TXT);
-   { ► }
    DrawRectangle(VX + AW + VW, LY, AW, ROW_H - 2, COL_BTN);
    DrawText('►', VX + AW + VW + 5, LY + 4, 10, COL_ACC);
-
    Old := AValue;
    if Clicked(VX, LY, AW, ROW_H) then
    begin
       AValue := Max(AMin, AValue - AStep);
-      FHeldItem := LY * 1000 + 0;
+      FHeldItem := LY * 1000;
    end;
    if Clicked(VX + AW + VW, LY, AW, ROW_H) then
    begin
       AValue := Min(AMax, AValue + AStep);
       FHeldItem := LY * 1000 + 1;
    end;
-
-   { Auto-repeat after hold }
-   BRep := (FHeldTimer > 0.35) and ((FHeldTimer - FDelta < 0.35) or (Round(FHeldTimer * 12) > Round((FHeldTimer - FDelta) * 12)));
-
    FCY := FCY + ROW_H + 1;
    Result := AValue <> Old;
 end;
@@ -272,9 +278,9 @@ end;
 function TGenEditor.DrawFloatSlider(const ALabel: string; var AValue: Single; AMin, AMax, AStep: Single; ADecimals: Integer): boolean;
 const
    AW = 22;
-   VW = 60;
+   VW = 64;
 var
-   LX, LY, VX: Integer;
+   LY, VX: Integer;
    Old: Single;
    Fmt: string;
 begin
@@ -284,12 +290,10 @@ begin
       FCY := FCY + ROW_H + 1;
       Exit;
    end;
-
-   LX := FCX;
    LY := FCY;
-   DrawText(PChar(ALabel), LX, LY + 4, 10, COL_TXT);
+   Old := AValue;
+   DrawText(PChar(ALabel), FCX, LY + 4, 10, COL_TXT);
    VX := FPX + EDIT_W - VW - AW * 2 - 4;
-
    DrawRectangle(VX, LY, AW, ROW_H - 2, COL_BTN);
    DrawText('◄', VX + 5, LY + 4, 10, COL_ACC);
    DrawRectangle(VX + AW, LY, VW, ROW_H - 2, COL_HDR);
@@ -297,13 +301,10 @@ begin
    DrawText(PChar(Format(Fmt, [AValue])), VX + AW + 4, LY + 4, 10, COL_TXT);
    DrawRectangle(VX + AW + VW, LY, AW, ROW_H - 2, COL_BTN);
    DrawText('►', VX + AW + VW + 5, LY + 4, 10, COL_ACC);
-
-   Old := AValue;
    if Clicked(VX, LY, AW, ROW_H) then
       AValue := Max(AMin, AValue - AStep);
    if Clicked(VX + AW + VW, LY, AW, ROW_H) then
       AValue := Min(AMax, AValue + AStep);
-
    FCY := FCY + ROW_H + 1;
    Result := AValue <> Old;
 end;
@@ -312,9 +313,8 @@ function TGenEditor.DrawToggle(const ALabel: string; var AValue: boolean): boole
 const
    TW = 46;
 var
-   LX, LY, TX: Integer;
+   LY, TX: Integer;
    Old: boolean;
-   LblColor: TColor;
 begin
    Result := False;
    if (FCY + ROW_H < FClipY0) or (FCY > FClipY1) then
@@ -322,11 +322,10 @@ begin
       FCY := FCY + ROW_H + 1;
       Exit;
    end;
-   LX := FCX;
    LY := FCY;
    TX := FPX + EDIT_W - TW - 4;
    Old := AValue;
-   DrawText(PChar(ALabel), LX, LY + 4, 10, COL_TXT);
+   DrawText(PChar(ALabel), FCX, LY + 4, 10, COL_TXT);
    if AValue then
    begin
       DrawRectangle(TX, LY, TW, ROW_H - 2, COL_ON);
@@ -345,7 +344,7 @@ end;
 
 function TGenEditor.DrawButton(const ALabel: string; AColor: TColor): boolean;
 var
-   BX, BW: Integer;
+   BW: Integer;
 begin
    Result := False;
    if (FCY + ROW_H < FClipY0) or (FCY > FClipY1) then
@@ -353,27 +352,85 @@ begin
       FCY := FCY + ROW_H + 1;
       Exit;
    end;
-   BX := FCX;
    BW := EDIT_W - 8;
-   DrawRectangle(BX, FCY, BW, ROW_H - 1, AColor);
-   DrawRectangleLinesEx(RectangleCreate(BX, FCY, BW, ROW_H - 1), 1, ColorCreate(255, 255, 255, 40));
-   DrawText(PChar(ALabel), BX + BW div 2 - Round(MeasureText(PChar(ALabel), 11) * 0.5),
-      FCY + 4, 11, ColorCreate(20, 20, 20, 255));
-   if Clicked(BX, FCY, BW, ROW_H) then
+   DrawRectangle(FCX, FCY, BW, ROW_H - 1, AColor);
+   DrawRectangleLinesEx(RectangleCreate(FCX, FCY, BW, ROW_H - 1), 1, ColorCreate(255, 255, 255, 40));
+   DrawText(PChar(ALabel), FCX + BW div 2 - Round(MeasureText(PChar(ALabel), 11) * 0.5), FCY + 4, 11, ColorCreate(20, 20, 20, 255));
+   if Clicked(FCX, FCY, BW, ROW_H) then
       Result := True;
    FCY := FCY + ROW_H + 2;
 end;
 
-{ ── Main Draw ───────────────────────────────────────────────────────────── }
+{ ── Biome tab strip ──────────────────────────────────────────────────── }
+
+procedure TGenEditor.DrawBiomeTabs;
+const
+   TW = (EDIT_W - 8) div 3;
+var
+   TX, TY: Integer;
+   Cols: array[0..2] of TColor;
+   I: Integer;
+begin
+   if (FCY + ROW_H + 2 < FClipY0) or (FCY > FClipY1) then
+   begin
+      FCY := FCY + ROW_H + 2;
+      Exit;
+   end;
+   TY := FCY;
+   Cols[0] := COL_PLAINS;
+   Cols[1] := COL_DESERT;
+   Cols[2] := COL_FOREST;
+   for I := 0 to 2 do
+   begin
+      TX := FCX + I * TW;
+      if TBiomeTab(I) = FBiomeTab then
+         DrawRectangle(TX, TY, TW, ROW_H, Cols[I])
+      else
+         DrawRectangle(TX, TY, TW, ROW_H, ColorCreate(40, 40, 55, 255));
+      DrawRectangleLinesEx(RectangleCreate(TX, TY, TW, ROW_H), 1, ColorCreate(Cols[I].R, Cols[I].G, Cols[I].B, 120));
+      case I of
+         0:
+            DrawText('Plains', TX + TW div 2 - 20, TY + 5, 11, ColorCreate(220, 255, 220, 255));
+         1:
+            DrawText('Desert', TX + TW div 2 - 20, TY + 5, 11, ColorCreate(255, 240, 200, 255));
+         2:
+            DrawText('Forest', TX + TW div 2 - 18, TY + 5, 11, ColorCreate(200, 240, 200, 255));
+      end;
+      if Clicked(TX, TY, TW, ROW_H) then
+         FBiomeTab := TBiomeTab(I);
+   end;
+   FCY := FCY + ROW_H + 4;
+end;
+
+function TGenEditor.CurrentBiome: PBiomeParams;
+begin
+   case FBiomeTab of
+      btDesert:
+         Result := @FParams^.BiomeDesert;
+      btForest:
+         Result := @FParams^.BiomeForest;
+      else
+         Result := @FParams^.BiomePlains;
+   end;
+end;
+
+{ ── Main Draw ─────────────────────────────────────────────────────────── }
 
 procedure TGenEditor.Draw;
 var
    P: PGenParams;
+   B: PBiomeParams;
    ContentH, MaxScroll, SBH, SBY: Integer;
+   FNBoxW, FNBoxX: Integer;
+   FNDisplayed: String;
+   FNBoxCol: TColor;
+   BName: String;
+   HW, BLY: Integer;
+   Wheel: Single;
 begin
    P := FParams;
 
-   { Panel background + title }
+   { Panel frame }
    DrawRectangle(FPX, FPY, EDIT_W, EDIT_H, COL_BG);
    DrawRectangleLinesEx(RectangleCreate(FPX, FPY, EDIT_W, EDIT_H), 1, COL_ACC);
    DrawRectangle(FPX, FPY, EDIT_W, 20, COL_HDR);
@@ -387,8 +444,8 @@ begin
    FResetPressed := DrawButton('↺  Reset to Defaults', COL_RST) or FResetPressed;
    SkipRow;
 
-   { ── SURFACE ── }
-   DrawSectionHeader('SURFACE SHAPE', FSections.Surface);
+   { ══ SURFACE ══ }
+   DrawSectionHeader('SURFACE SHAPE', FSections.Surface, COL_ACC);
    if FSections.Surface then
    begin
       DrawIntSlider('Base Surface Y', P^.BaseSurface, 5, 100, 1);
@@ -402,8 +459,8 @@ begin
       SkipRow;
    end;
 
-   { ── DEPTH ZONES ── }
-   DrawSectionHeader('DEPTH ZONES', FSections.Depth);
+   { ══ DEPTH ZONES ══ }
+   DrawSectionHeader('DEPTH ZONES', FSections.Depth, COL_ACC);
    if FSections.Depth then
    begin
       DrawIntSlider('Dirt Depth (rows)', P^.DepthDirt, 2, 20, 1);
@@ -413,8 +470,8 @@ begin
       SkipRow;
    end;
 
-   { ── CAVES ── }
-   DrawSectionHeader('CAVE SYSTEM', FSections.Caves);
+   { ══ CAVE SYSTEM ══ }
+   DrawSectionHeader('CAVE SYSTEM', FSections.Caves, COL_ACC);
    if FSections.Caves then
    begin
       DrawToggle('Caves Enabled', P^.CavesEnabled);
@@ -426,8 +483,8 @@ begin
       SkipRow;
    end;
 
-   { ── VEINS ── }
-   DrawSectionHeader('VEINS & POCKETS', FSections.Veins);
+   { ══ VEINS & POCKETS ══ }
+   DrawSectionHeader('VEINS & POCKETS', FSections.Veins, COL_ACC);
    if FSections.Veins then
    begin
       DrawFloatSlider('Granite Threshold', P^.GraniteThreshold, 0.3, 0.95, 0.01, 2);
@@ -439,8 +496,8 @@ begin
       SkipRow;
    end;
 
-   { ── BIOMES ── }
-   DrawSectionHeader('BIOME DISTRIBUTION', FSections.Biomes);
+   { ══ BIOME DISTRIBUTION ══ }
+   DrawSectionHeader('BIOME DISTRIBUTION', FSections.Biomes, COL_ACC);
    if FSections.Biomes then
    begin
       DrawFloatSlider('Map Frequency', P^.BiomeFreq, 0.0005, 0.02, 0.0005, 4);
@@ -448,29 +505,38 @@ begin
       DrawFloatSlider('Desert Threshold', P^.DesertThreshold, 0.05, 0.6, 0.01, 2);
       DrawFloatSlider('Forest Threshold', P^.ForestThreshold, 0.4, 0.95, 0.01, 2);
       SkipRow;
-   end;
 
-   { ── BIOME TWEAKS ── }
-   DrawSectionHeader('BIOME TWEAKS', FSections.BiomeTweaks);
-   if FSections.BiomeTweaks then
-   begin
-      DrawText('Plains:', FCX, FCY + 3, 10, ColorCreate(56, 200, 90, 255));
-      FCY := FCY + ROW_H;
-      DrawIntSlider('  Surface Offset Y', P^.BiomePlains.SurfaceOffsetY, -20, 20, 1);
-      DrawFloatSlider('  Amplitude Bonus', P^.BiomePlains.SurfaceAmpBonus, -20, 20, 1, 1);
-      DrawText('Desert:', FCX, FCY + 3, 10, ColorCreate(196, 174, 112, 255));
-      FCY := FCY + ROW_H;
-      DrawIntSlider('  Surface Offset Y', P^.BiomeDesert.SurfaceOffsetY, -20, 20, 1);
-      DrawFloatSlider('  Amplitude Bonus', P^.BiomeDesert.SurfaceAmpBonus, -20, 20, 1, 1);
-      DrawText('Forest:', FCX, FCY + 3, 10, ColorCreate(80, 180, 80, 255));
-      FCY := FCY + ROW_H;
-      DrawIntSlider('  Surface Offset Y', P^.BiomeForest.SurfaceOffsetY, -20, 20, 1);
-      DrawFloatSlider('  Amplitude Bonus', P^.BiomeForest.SurfaceAmpBonus, -20, 20, 1, 1);
+      { ── Per-biome full config ── }
+      DrawBiomeTabs;
+      B := CurrentBiome;
+      case FBiomeTab of
+         btDesert:
+            BName := 'Desert';
+         btForest:
+            BName := 'Forest';
+         else
+            BName := 'Plains';
+      end;
+      DrawText(PChar('[ ' + BName + ' overrides — 0 = use global ]'),
+         FCX, FCY + 2, 9, ColorCreate(160, 160, 180, 200));
+      FCY := FCY + 14;
+
+      DrawIntSlider('Surface Offset Y', B^.SurfaceOffsetY, -20, 20, 1);
+      DrawFloatSlider('Amplitude Bonus', B^.SurfaceAmpBonus, -20, 20, 1, 1);
+      DrawIntSlider('Dirt Depth Override', B^.DepthDirtOverride, 0, 20, 1);
+      DrawIntSlider('Dirt-Stone Override', B^.DepthDirtStoneOverride, 0, 60, 1);
+      DrawIntSlider('Sandstone Depth', B^.SandstoneDepth, 0, 30, 1);
+      DrawFloatSlider('Granite Thr Override', B^.GraniteThreshold, 0, 1.0, 0.01, 2);
+      DrawFloatSlider('Marble Thr Override', B^.MarbleThreshold, 0, 1.0, 0.01, 2);
+      DrawFloatSlider('Clay Thr Override', B^.ClayThreshold, 0, 1.0, 0.01, 2);
+      DrawFloatSlider('Gravel Thr Override', B^.GravelThreshold, 0, 1.0, 0.01, 2);
+      DrawFloatSlider('Cave Density Mult', B^.CaveDensityMult, 0.0, 3.0, 0.1, 2);
+      DrawIntSlider('Surface Tile (0=auto)', B^.SurfaceTileOverride, 0, 10, 1);
       SkipRow;
    end;
 
-   { ── DEEP ZONE ── }
-   DrawSectionHeader('DEEP ZONE', FSections.Deep);
+   { ══ DEEP ZONE ══ }
+   DrawSectionHeader('DEEP ZONE', FSections.Deep, COL_ACC);
    if FSections.Deep then
    begin
       DrawFloatSlider('Granite/Marble Ratio', P^.DeepGraniteRatio, 0.0, 1.0, 0.05, 2);
@@ -478,19 +544,119 @@ begin
       SkipRow;
    end;
 
-   { Scroll limit: never let the cursor go above the window content }
+   { ══ SAVE / LOAD ══ }
+   DrawSectionHeader('SAVE / LOAD SETTINGS', FSections.SaveLoad, COL_ACC);
+   if FSections.SaveLoad then
+   begin
+      { File name field }
+      if (FCY + ROW_H < FClipY0) or (FCY <= FClipY1) then
+      begin
+         DrawText('File:', FCX, FCY + 4, 10, COL_TXT);
+         FNBoxX := FCX + 36;
+         FNBoxW := EDIT_W - 44;
+         FNBoxCol := IfThen(FFileNameEdit, ColorCreate(60, 60, 90, 255), COL_HDR);
+         DrawRectangle(FNBoxX, FCY, FNBoxW, ROW_H - 2, FNBoxCol);
+         DrawRectangleLinesEx(RectangleCreate(FNBoxX, FCY, FNBoxW, ROW_H - 2), 1, IfThen(FFileNameEdit, COL_ACC, ColorCreate(60, 60, 80, 200)));
+
+         FNDisplayed := FFileName;
+         if FFileNameEdit and (Round(Now * 2) mod 2 = 0) then
+            FNDisplayed := FNDisplayed + '_';
+         { Truncate display if too long }
+         while (Length(FNDisplayed) > 1) and (MeasureText(PChar(FNDisplayed), 10) > FNBoxW - 8) do
+            FNDisplayed := Copy(FNDisplayed, 2, MaxInt);
+
+         DrawText(PChar(FNDisplayed), FNBoxX + 4, FCY + 4, 10, COL_TXT);
+         if Clicked(FNBoxX, FCY, FNBoxW, ROW_H) then
+            FFileNameEdit := True;
+         FCY := FCY + ROW_H + 2;
+
+         { Save / Load buttons side by side }
+         if (FCY + ROW_H < FClipY0) or (FCY <= FClipY1) then
+         begin
+            HW := (EDIT_W - 8) div 2 - 2;
+            BLY := FCY;
+            DrawRectangle(FCX, BLY, HW, ROW_H - 1, COL_SAV);
+            DrawText('💾 Save', FCX + HW div 2 - 22, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
+            DrawRectangle(FCX + HW + 4, BLY, HW, ROW_H - 1, COL_LOD);
+            DrawText('📂 Load', FCX + HW + 4 + HW div 2 - 22, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
+
+            if Clicked(FCX, BLY, HW, ROW_H) then
+            begin
+               if SaveGenParams(FFileName, P^) then
+               begin
+                  FStatusMsg := 'Saved: ' + FFileName;
+                  FStatusOK := True;
+               end
+               else
+               begin
+                  FStatusMsg := 'Save failed: ' + FFileName;
+                  FStatusOK := False;
+               end;
+               FFileNameEdit := False;
+            end;
+            if Clicked(FCX + HW + 4, BLY, HW, ROW_H) then
+            begin
+               if LoadGenParams(FFileName, P^) then
+               begin
+                  FStatusMsg := 'Loaded: ' + FFileName;
+                  FStatusOK := True;
+               end
+               else
+               begin
+                  FStatusMsg := 'Load failed: ' + FFileName;
+                  FStatusOK := False;
+               end;
+               FFileNameEdit := False;
+            end;
+            FCY := FCY + ROW_H + 2;
+
+            { Status line }
+            if (FStatusMsg <> '') and (FCY <= FClipY1) then
+            begin
+               DrawText(PChar(FStatusMsg), FCX, FCY + 4, 9, IfThen(FStatusOK, COL_OK, COL_ERR));
+               FCY := FCY + 16;
+            end;
+         end;
+      end;
+      SkipRow;
+   end;
+
+   { Scroll limit }
    ContentH := FCY + FScrollY - FPY;
    MaxScroll := Max(0, ContentH - EDIT_H + 20);
    if FScrollY > MaxScroll then
       FScrollY := MaxScroll;
 
-   { Scrollbar indicator }
+   { Wheel scroll when hovered }
+   if InPanel then
+   begin
+      Wheel := GetMouseWheelMove;
+      if Wheel <> 0 then
+      begin
+         FScrollY := FScrollY - Round(Wheel * ROW_H * 3);
+         if FScrollY < 0 then
+            FScrollY := 0;
+         if FScrollY > MaxScroll then
+            FScrollY := MaxScroll;
+      end;
+   end;
+
+   { Scrollbar }
    if MaxScroll > 0 then
    begin
-      SBH := Round(EDIT_H * EDIT_H / (ContentH + 1));
+      SBH := Max(20, Round(EDIT_H * EDIT_H / (ContentH + 1)));
       SBY := FPY + Round(FScrollY / MaxScroll * (EDIT_H - SBH));
       DrawRectangle(FPX + EDIT_W - 4, SBY, 3, SBH, ColorCreate(80, 80, 120, 200));
    end;
+end;
+
+{ ── IfThen overloads used locally ─────────────────────────────────────── }
+function IfThen(B: boolean; const T, F: TColor): TColor;
+begin
+   if B then
+      Result := T
+   else
+      Result := F;
 end;
 
 end.

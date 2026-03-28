@@ -9,7 +9,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="Pascal2D - Terraria Demo (Procedural Gen Editor)"/>
+      <Title Value="Pascal2D - Terraria Demo (Gen Editor + Save/Load)"/>
       <UseXPManifest Value="True"/>
     </General>
     <BuildModes>

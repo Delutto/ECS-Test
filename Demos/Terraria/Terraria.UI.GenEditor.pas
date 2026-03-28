@@ -2,23 +2,7 @@ unit Terraria.UI.GenEditor;
 
 {$mode objfpc}{$H+}
 
-{ TGenEditor — expanded immediate-mode properties panel.
-
-  NEW IN THIS VERSION
-  ────────────────────
-  • Full per-biome configuration tab for Plains / Desert / Forest.
-    Each biome tab exposes:
-      - Surface Offset Y, Amplitude Bonus
-      - Depth Dirt Override, Depth Dirt-Stone Override
-      - Sandstone Depth (Desert only shown, but editable for all)
-      - Per-biome Granite / Marble / Clay / Gravel thresholds
-      - Cave Density Multiplier
-      - Surface Tile Override
-  • Save / Load panel:
-      - File name text field (editable)
-      - Save button  → SaveGenParams(FileName)
-      - Load button  → LoadGenParams(FileName)
-      - Status line  (last operation result) }
+{ TGenEditor — properties panel with vegetation + cave decoration sections. }
 
 interface
 
@@ -43,15 +27,14 @@ const
    COL_LOD: TColor = (R: 40; G: 100; B: 200; A: 255);
    COL_ERR: TColor = (R: 220; G: 60; B: 60; A: 255);
    COL_OK: TColor = (R: 60; G: 200; B: 80; A: 255);
-
-   { Biome tab colours }
    COL_PLAINS: TColor = (R: 56; G: 160; B: 56; A: 255);
    COL_DESERT: TColor = (R: 196; G: 174; B: 112; A: 255);
    COL_FOREST: TColor = (R: 28; G: 120; B: 28; A: 255);
 
 type
    TSectionFlags = record
-      Surface, Depth, Caves, Veins, Biomes, Deep, SaveLoad: boolean;
+      Surface, Depth, Caves, Veins, Biomes, Deep, SaveLoad,
+      Vegetation, CaveDecor: boolean;
    end;
 
    TBiomeTab = (btPlains, btDesert, btForest);
@@ -66,15 +49,11 @@ type
       FResetPressed: boolean;
       FSections: TSectionFlags;
       FBiomeTab: TBiomeTab;
-
       FHeldTimer: Single;
       FHeldItem: Integer;
       FDelta: Single;
-
       FCX, FCY: Integer;
       FClipY0, FClipY1: Integer;
-
-      { Save/Load state }
       FFileName: string;
       FFileNameEdit: boolean;
       FStatusMsg: string;
@@ -108,12 +87,9 @@ implementation
 uses
    P2D.Utils.RayLib;
 
-   { ── Overload for DrawSectionHeader without colour ──────────────────────── }
-
 constructor TGenEditor.Create(APX, APY: Integer; AParams: PGenParams);
 begin
    inherited Create;
-
    FPX := APX;
    FPY := APY;
    FParams := AParams;
@@ -128,12 +104,12 @@ begin
    FSections.Biomes := True;
    FSections.Deep := False;
    FSections.SaveLoad := True;
+   FSections.Vegetation := True;
+   FSections.CaveDecor := True;
    FFileName := 'my_world.tgp';
    FStatusMsg := '';
    FStatusOK := True;
 end;
-
-{ ── Virtual mouse coords ─────────────────────────────────────────────── }
 
 procedure TGenEditor.Update(ADelta: Single);
 var
@@ -158,7 +134,6 @@ begin
       FVMouseX := GetMouseX;
       FVMouseY := GetMouseY;
    end;
-
    if IsMouseButtonDown(MOUSE_BUTTON_LEFT) and (FHeldItem >= 0) then
       FHeldTimer := FHeldTimer + ADelta
    else
@@ -166,8 +141,6 @@ begin
       FHeldTimer := 0;
       FHeldItem := -1;
    end;
-
-   { File name keyboard input when edit mode active }
    if FFileNameEdit then
       HandleFileNameInput;
 end;
@@ -176,13 +149,10 @@ procedure TGenEditor.HandleFileNameInput;
 var
    C: Integer;
 begin
-   { Backspace }
    if IsKeyPressed(KEY_BACKSPACE) and (Length(FFileName) > 0) then
       FFileName := Copy(FFileName, 1, Length(FFileName) - 1);
-   { Enter/Escape exit edit mode }
    if IsKeyPressed(KEY_ENTER) or IsKeyPressed(KEY_ESCAPE) then
       FFileNameEdit := False;
-   { Printable ASCII }
    C := GetCharPressed;
    while C > 0 do
    begin
@@ -191,8 +161,6 @@ begin
       C := GetCharPressed;
    end;
 end;
-
-{ ── Helpers ──────────────────────────────────────────────────────────── }
 
 function TGenEditor.InPanel: boolean;
 begin
@@ -252,6 +220,7 @@ begin
       Exit;
    end;
    LY := FCY;
+   Old := AValue;
    DrawText(PChar(ALabel), FCX, LY + 4, 10, COL_TXT);
    VX := FPX + EDIT_W - VW - AW * 2 - 4;
    DrawRectangle(VX, LY, AW, ROW_H - 2, COL_BTN);
@@ -260,7 +229,6 @@ begin
    DrawText(PChar(IntToStr(AValue)), VX + AW + 4, LY + 4, 10, COL_TXT);
    DrawRectangle(VX + AW + VW, LY, AW, ROW_H - 2, COL_BTN);
    DrawText('►', VX + AW + VW + 5, LY + 4, 10, COL_ACC);
-   Old := AValue;
    if Clicked(VX, LY, AW, ROW_H) then
    begin
       AValue := Max(AMin, AValue - AStep);
@@ -355,13 +323,12 @@ begin
    BW := EDIT_W - 8;
    DrawRectangle(FCX, FCY, BW, ROW_H - 1, AColor);
    DrawRectangleLinesEx(RectangleCreate(FCX, FCY, BW, ROW_H - 1), 1, ColorCreate(255, 255, 255, 40));
-   DrawText(PChar(ALabel), FCX + BW div 2 - Round(MeasureText(PChar(ALabel), 11) * 0.5), FCY + 4, 11, ColorCreate(20, 20, 20, 255));
+   DrawText(PChar(ALabel), FCX + BW div 2 - Round(MeasureText(PChar(ALabel), 11) * 0.5),
+      FCY + 4, 11, ColorCreate(20, 20, 20, 255));
    if Clicked(FCX, FCY, BW, ROW_H) then
       Result := True;
    FCY := FCY + ROW_H + 2;
 end;
-
-{ ── Biome tab strip ──────────────────────────────────────────────────── }
 
 procedure TGenEditor.DrawBiomeTabs;
 const
@@ -387,7 +354,8 @@ begin
          DrawRectangle(TX, TY, TW, ROW_H, Cols[I])
       else
          DrawRectangle(TX, TY, TW, ROW_H, ColorCreate(40, 40, 55, 255));
-      DrawRectangleLinesEx(RectangleCreate(TX, TY, TW, ROW_H), 1, ColorCreate(Cols[I].R, Cols[I].G, Cols[I].B, 120));
+      DrawRectangleLinesEx(RectangleCreate(TX, TY, TW, ROW_H), 1,
+         ColorCreate(Cols[I].R, Cols[I].G, Cols[I].B, 120));
       case I of
          0:
             DrawText('Plains', TX + TW div 2 - 20, TY + 5, 11, ColorCreate(220, 255, 220, 255));
@@ -414,18 +382,16 @@ begin
    end;
 end;
 
-{ ── Main Draw ─────────────────────────────────────────────────────────── }
-
 procedure TGenEditor.Draw;
 var
    P: PGenParams;
    B: PBiomeParams;
+   VP: PVegetationParams;
+   CD: PCaveDecoParams;
    ContentH, MaxScroll, SBH, SBY: Integer;
-   FNBoxW, FNBoxX: Integer;
-   FNDisplayed: String;
+   FNBoxW, FNBoxX, HW, BLY: Integer;
+   FNDisplayed, BName: string;
    FNBoxCol: TColor;
-   BName: String;
-   HW, BLY: Integer;
    Wheel: Single;
 begin
    P := FParams;
@@ -439,7 +405,7 @@ begin
    BeginDraw;
    FCY := FPY + 22 - FScrollY;
 
-   { ── Action buttons ── }
+   { Action buttons }
    FRegeneratePressed := DrawButton('▶  REGENERATE WORLD', COL_REG) or FRegeneratePressed;
    FResetPressed := DrawButton('↺  Reset to Defaults', COL_RST) or FResetPressed;
    SkipRow;
@@ -505,8 +471,6 @@ begin
       DrawFloatSlider('Desert Threshold', P^.DesertThreshold, 0.05, 0.6, 0.01, 2);
       DrawFloatSlider('Forest Threshold', P^.ForestThreshold, 0.4, 0.95, 0.01, 2);
       SkipRow;
-
-      { ── Per-biome full config ── }
       DrawBiomeTabs;
       B := CurrentBiome;
       case FBiomeTab of
@@ -520,7 +484,6 @@ begin
       DrawText(PChar('[ ' + BName + ' overrides — 0 = use global ]'),
          FCX, FCY + 2, 9, ColorCreate(160, 160, 180, 200));
       FCY := FCY + 14;
-
       DrawIntSlider('Surface Offset Y', B^.SurfaceOffsetY, -20, 20, 1);
       DrawFloatSlider('Amplitude Bonus', B^.SurfaceAmpBonus, -20, 20, 1, 1);
       DrawIntSlider('Dirt Depth Override', B^.DepthDirtOverride, 0, 20, 1);
@@ -532,6 +495,102 @@ begin
       DrawFloatSlider('Gravel Thr Override', B^.GravelThreshold, 0, 1.0, 0.01, 2);
       DrawFloatSlider('Cave Density Mult', B^.CaveDensityMult, 0.0, 3.0, 0.1, 2);
       DrawIntSlider('Surface Tile (0=auto)', B^.SurfaceTileOverride, 0, 10, 1);
+      SkipRow;
+   end;
+
+   { ══ VEGETATION ══ }
+   DrawSectionHeader('VEGETATION', FSections.Vegetation,
+      ColorCreate(80, 200, 80, 255));
+   if FSections.Vegetation then
+   begin
+      DrawBiomeTabs;
+      case FBiomeTab of
+         btDesert:
+            VP := @P^.VegDesert;
+         btForest:
+            VP := @P^.VegForest;
+         else
+            VP := @P^.VegPlains;
+      end;
+
+      DrawText('Trees:', FCX, FCY + 3, 10, ColorCreate(120, 220, 80, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Trees Enabled', VP^.TreeEnabled);
+      DrawFloatSlider('  Tree Density', VP^.TreeDensity, 0, 1, 0.01, 2);
+      DrawIntSlider('  Min Height (tiles)', VP^.TreeMinHeight, 1, 12, 1);
+      DrawIntSlider('  Max Height (tiles)', VP^.TreeMaxHeight, 1, 20, 1);
+      DrawIntSlider('  Canopy Radius', VP^.TreeCanopyRadius, 1, 8, 1);
+      DrawIntSlider('  Canopy Height', VP^.TreeCanopyHeight, 1, 6, 1);
+      DrawFloatSlider('  Spacing Noise Freq', VP^.TreeNoiseFreq, 0.05, 2.0, 0.05, 2);
+      DrawFloatSlider('  Spacing Threshold', VP^.TreeNoiseThresh, 0, 1, 0.01, 2);
+      SkipRow;
+
+      DrawText('Shrubs / Ferns:', FCX, FCY + 3, 10, ColorCreate(100, 200, 60, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Shrubs Enabled', VP^.ShrubEnabled);
+      DrawFloatSlider('  Shrub Density', VP^.ShrubDensity, 0, 1, 0.01, 2);
+      DrawFloatSlider('  Spacing Noise Freq', VP^.ShrubNoiseFreq, 0.1, 3.0, 0.05, 2);
+      DrawFloatSlider('  Spacing Threshold', VP^.ShrubNoiseThresh, 0, 1, 0.01, 2);
+      SkipRow;
+
+      DrawText('Cacti:', FCX, FCY + 3, 10, ColorCreate(200, 200, 80, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Cacti Enabled', VP^.CactusEnabled);
+      DrawFloatSlider('  Cactus Density', VP^.CactusDensity, 0, 1, 0.01, 2);
+      DrawIntSlider('  Min Height', VP^.CactusMinHeight, 1, 8, 1);
+      DrawIntSlider('  Max Height', VP^.CactusMaxHeight, 1, 12, 1);
+      DrawFloatSlider('  Arm Chance', VP^.CactusArmChance, 0, 1, 0.05, 2);
+      DrawFloatSlider('  Spacing Noise Freq', VP^.CactusNoiseFreq, 0.05, 2.0, 0.05, 2);
+      DrawFloatSlider('  Spacing Threshold', VP^.CactusNoiseThresh, 0, 1, 0.01, 2);
+      SkipRow;
+   end;
+
+   { ══ CAVE DECORATIONS ══ }
+   DrawSectionHeader('CAVE DECORATIONS', FSections.CaveDecor,
+      ColorCreate(160, 120, 200, 255));
+   if FSections.CaveDecor then
+   begin
+      CD := @P^.CaveDecor;
+
+      DrawText('Roots (dirt ceilings):', FCX, FCY + 3, 10, ColorCreate(160, 110, 60, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Roots Enabled', CD^.RootsEnabled);
+      DrawFloatSlider('  Density', CD^.RootsDensity, 0, 1, 0.01, 2);
+      DrawIntSlider('  Min Length', CD^.RootsMinLen, 1, 8, 1);
+      DrawIntSlider('  Max Length', CD^.RootsMaxLen, 1, 14, 1);
+      DrawFloatSlider('  Noise Freq', CD^.RootsNoiseFreq, 0.05, 2.0, 0.05, 2);
+      SkipRow;
+
+      DrawText('Vines (stone ceilings):', FCX, FCY + 3, 10, ColorCreate(80, 200, 80, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Vines Enabled', CD^.VinesEnabled);
+      DrawFloatSlider('  Density', CD^.VinesDensity, 0, 1, 0.01, 2);
+      DrawIntSlider('  Min Length', CD^.VinesMinLen, 1, 10, 1);
+      DrawIntSlider('  Max Length', CD^.VinesMaxLen, 1, 20, 1);
+      DrawFloatSlider('  Noise Freq', CD^.VinesNoiseFreq, 0.05, 2.0, 0.05, 2);
+      SkipRow;
+
+      DrawText('Stalactites + Stalagmites:', FCX, FCY + 3, 10, ColorCreate(180, 180, 200, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Stal. Enabled', CD^.StalEnabled);
+      DrawFloatSlider('  Density', CD^.StalDensity, 0, 1, 0.01, 2);
+      DrawIntSlider('  Min Length', CD^.StalMinLen, 1, 6, 1);
+      DrawIntSlider('  Max Length', CD^.StalMaxLen, 1, 12, 1);
+      DrawFloatSlider('  Noise Freq', CD^.StalNoiseFreq, 0.05, 2.0, 0.05, 2);
+      SkipRow;
+
+      DrawText('Cave Mushrooms:', FCX, FCY + 3, 10, ColorCreate(220, 100, 180, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Mushrooms Enabled', CD^.MushEnabled);
+      DrawFloatSlider('  Density', CD^.MushDensity, 0, 1, 0.01, 2);
+      DrawIntSlider('  Min Depth', CD^.MushMinDepth, 10, 80, 5);
+      SkipRow;
+
+      DrawText('Moss Patches:', FCX, FCY + 3, 10, ColorCreate(80, 160, 80, 255));
+      FCY := FCY + ROW_H - 6;
+      DrawToggle('  Moss Enabled', CD^.MossEnabled);
+      DrawFloatSlider('  Density', CD^.MossDensity, 0, 1, 0.01, 2);
+      DrawFloatSlider('  Noise Freq', CD^.MossNoiseFreq, 0.05, 2.0, 0.05, 2);
       SkipRow;
    end;
 
@@ -548,38 +607,33 @@ begin
    DrawSectionHeader('SAVE / LOAD SETTINGS', FSections.SaveLoad, COL_ACC);
    if FSections.SaveLoad then
    begin
-      { File name field }
-      if (FCY + ROW_H < FClipY0) or (FCY <= FClipY1) then
+      if (FCY + ROW_H >= FClipY0) and (FCY <= FClipY1) then
       begin
          DrawText('File:', FCX, FCY + 4, 10, COL_TXT);
          FNBoxX := FCX + 36;
          FNBoxW := EDIT_W - 44;
          FNBoxCol := IfThen(FFileNameEdit, ColorCreate(60, 60, 90, 255), COL_HDR);
          DrawRectangle(FNBoxX, FCY, FNBoxW, ROW_H - 2, FNBoxCol);
-         DrawRectangleLinesEx(RectangleCreate(FNBoxX, FCY, FNBoxW, ROW_H - 2), 1, IfThen(FFileNameEdit, COL_ACC, ColorCreate(60, 60, 80, 200)));
-
+         DrawRectangleLinesEx(RectangleCreate(FNBoxX, FCY, FNBoxW, ROW_H - 2), 1,
+            IfThen(FFileNameEdit, COL_ACC, ColorCreate(60, 60, 80, 200)));
          FNDisplayed := FFileName;
          if FFileNameEdit and (Round(Now * 2) mod 2 = 0) then
             FNDisplayed := FNDisplayed + '_';
-         { Truncate display if too long }
          while (Length(FNDisplayed) > 1) and (MeasureText(PChar(FNDisplayed), 10) > FNBoxW - 8) do
             FNDisplayed := Copy(FNDisplayed, 2, MaxInt);
-
          DrawText(PChar(FNDisplayed), FNBoxX + 4, FCY + 4, 10, COL_TXT);
          if Clicked(FNBoxX, FCY, FNBoxW, ROW_H) then
             FFileNameEdit := True;
          FCY := FCY + ROW_H + 2;
 
-         { Save / Load buttons side by side }
-         if (FCY + ROW_H < FClipY0) or (FCY <= FClipY1) then
+         if (FCY + ROW_H >= FClipY0) and (FCY <= FClipY1) then
          begin
             HW := (EDIT_W - 8) div 2 - 2;
             BLY := FCY;
             DrawRectangle(FCX, BLY, HW, ROW_H - 1, COL_SAV);
-            DrawText('💾 Save', FCX + HW div 2 - 22, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
+            DrawText(PChar('Save'), FCX + HW div 2 - 16, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
             DrawRectangle(FCX + HW + 4, BLY, HW, ROW_H - 1, COL_LOD);
-            DrawText('📂 Load', FCX + HW + 4 + HW div 2 - 22, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
-
+            DrawText(PChar('Load'), FCX + HW + 4 + HW div 2 - 16, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
             if Clicked(FCX, BLY, HW, ROW_H) then
             begin
                if SaveGenParams(FFileName, P^) then
@@ -609,8 +663,6 @@ begin
                FFileNameEdit := False;
             end;
             FCY := FCY + ROW_H + 2;
-
-            { Status line }
             if (FStatusMsg <> '') and (FCY <= FClipY1) then
             begin
                DrawText(PChar(FStatusMsg), FCX, FCY + 4, 9, IfThen(FStatusOK, COL_OK, COL_ERR));
@@ -627,7 +679,6 @@ begin
    if FScrollY > MaxScroll then
       FScrollY := MaxScroll;
 
-   { Wheel scroll when hovered }
    if InPanel then
    begin
       Wheel := GetMouseWheelMove;
@@ -641,7 +692,6 @@ begin
       end;
    end;
 
-   { Scrollbar }
    if MaxScroll > 0 then
    begin
       SBH := Max(20, Round(EDIT_H * EDIT_H / (ContentH + 1)));
@@ -650,7 +700,6 @@ begin
    end;
 end;
 
-{ ── IfThen overloads used locally ─────────────────────────────────────── }
 function IfThen(B: boolean; const T, F: TColor): TColor;
 begin
    if B then

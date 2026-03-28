@@ -14,7 +14,7 @@ unit Terraria.Scene.World;
 interface
 
 uses
-   SysUtils,StrUtils, Math, raylib,
+   SysUtils, StrUtils, Math, raylib,
    P2D.Utils.RayLib,
    P2D.Core.Scene, P2D.Core.World, P2D.Core.Entity,
    P2D.Core.System, P2D.Core.ComponentRegistry, P2D.Core.Types,
@@ -39,7 +39,7 @@ type
       FChunkRender: TChunkRenderSystem;
       FTRID: Integer;
       FShowHUD: boolean;
-      FShowEditor: Boolean;
+      FShowEditor: boolean;
       FGenMsg: string;
       FSeed: longint;
       FEditor: TGenEditor;
@@ -94,7 +94,7 @@ end;
 
 { ── World management ─────────────────────────────────────────────────── }
 
-procedure TWorldScene.ApplySeed(ASeed: LongInt);
+procedure TWorldScene.ApplySeed(ASeed: longint);
 begin
    FSeed := ASeed;
 
@@ -204,9 +204,12 @@ var
    Spd: Single;
    Wheel: Single;
    CCX, CCY, MX, MY: Integer;
-   EditorHovered: Boolean;
-   OldSeed: LongInt;
+   EditorHovered: boolean;
+   OldSeed: longint;
    SavedParams: TGenParams;
+   VMX, VMY: Integer;   { virtual-canvas mouse coords }
+   PhysW, PhysH: Integer;
+   Sc, OX, OY: Single;
 begin
    Tr := CamTr;
    Cam := TCamera2DComponent(FCamE.GetComponentByID(ComponentRegistry.GetComponentID(TCamera2DComponent)));
@@ -214,9 +217,22 @@ begin
    Spd := DEMO_SCROLL_SPD / Cam.Zoom * ADelta;
 
    { Camera pan — only when not hovering the editor }
-   MX := GetMouseX;
-   MY := GetMouseY;
-   EditorHovered := FShowEditor and (MX >= FEditor.PX) and (MX < FEditor.PX + EDIT_W) and (MY >= FEditor.PY)  and (MY < FEditor.PY + EDIT_H);
+   PhysW := GetScreenWidth;
+   PhysH := GetScreenHeight;
+   if (PhysW > 0) and (PhysH > 0) then
+   begin
+      Sc := Min(PhysW / 1280.0, PhysH / 720.0);
+      OX := (PhysW - 1280.0 * Sc) * 0.5;
+      OY := (PhysH - 720.0 * Sc) * 0.5;
+      VMX := Round((GetMouseX - OX) / Sc);
+      VMY := Round((GetMouseY - OY) / Sc);
+   end
+   else
+   begin
+      VMX := GetMouseX;
+      VMY := GetMouseY;
+   end;
+   EditorHovered := FShowEditor and (VMX >= FEditor.PX) and (VMX < FEditor.PX + EDIT_W) and (VMY >= FEditor.PY) and (VMY < FEditor.PY + EDIT_H);
 
 
    if IsKeyDown(KEY_W) or IsKeyDown(KEY_UP) then
@@ -308,7 +324,7 @@ end;
 procedure TWorldScene.DrawBiomeLegend(AX, AY: Integer);
 const
    LABELS: array[0..2] of string = ('Plains', 'Desert', 'Forest');
-   COLS: array[0..2] of TColor = ( (R: 56; G: 140; B: 36; A: 255), (R: 196; G: 174; B: 112; A: 255), (R: 28; G: 96; B: 24; A: 255));
+   COLS: array[0..2] of TColor = ((R: 56; G: 140; B: 36; A: 255), (R: 196; G: 174; B: 112; A: 255), (R: 28; G: 96; B: 24; A: 255));
 var
    I: Integer;
 begin

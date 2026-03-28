@@ -3,54 +3,91 @@ unit Terraria.GenParams;
 {$mode objfpc}{$H+}
 {$modeSwitch advancedRecords}
 
-{ TGenParams — complete generation parameter set for TChunkGenerator.
-
-  BIOME CONFIGURATION EXPANSION
-  ─────────────────────────────────────────────────────────────────────────────
-  Each biome (Plains, Desert, Forest) now has its own TBiomeParams block with
-  independent control over:
-    • Surface shape (offset, amplitude bonus)
-    • Depth zones (dirt, dirt-to-stone, sandstone override)
-    • Ore/pocket thresholds and frequencies
-    • Cave density multiplier
-    • Background wall tile override
-
-  SAVE / LOAD
-  ─────────────────────────────────────────────────────────────────────────────
-  SaveGenParams / LoadGenParams write/read a simple INI-style text file.
-  Each field is stored as  KEY=VALUE  on its own line.  Unknown keys are
-  silently ignored, so files from older versions load safely. }
-
 interface
 
 uses
    SysUtils, StrUtils, Classes;
 
 type
-   { ────────────────────────────────────────────────────────────────────────── }
-   { Full per-biome configuration block                                         }
+   { ── Per-biome surface params ─────────────────────────────────────────── }
    PBiomeParams = ^TBiomeParams;
+
    TBiomeParams = record
-      { Surface }
-      SurfaceOffsetY: Integer;   { pushes surface up(−)/down(+)   [-20..20]  }
-      SurfaceAmpBonus: Single;    { extra amplitude on top of global [-20..20] }
-
-      { Depth overrides (0 = use global value) }
-      DepthDirtOverride: Integer;  { 0 = use global DepthDirt      [0..20]  }
-      DepthDirtStoneOverride: Integer;  { 0 = use global DepthDirtStone [0..60]  }
-      SandstoneDepth: Integer;  { Desert sandstone rows below dirt [0..30]}
-
-      { Ore / pocket thresholds (0 = use global) }
-      GraniteThreshold: Single;   { 0 = use global  [0..1]  }
+      SurfaceOffsetY: Integer;     { [-20..20]  }
+      SurfaceAmpBonus: Single;     { [-20..20]  }
+      DepthDirtOverride: Integer;  { [0..20]    }
+      DepthDirtStoneOverride: Integer;  { [0..60]    }
+      SandstoneDepth: Integer;     { [0..30]    }
+      GraniteThreshold: Single;    { [0..1]     }
       MarbleThreshold: Single;
       ClayThreshold: Single;
       GravelThreshold: Single;
+      CaveDensityMult: Single;   { [0..3]     }
+      SurfaceTileOverride: Integer;
+   end;
 
-      { Cave density for this biome (1.0 = same as global, 0 = no caves) }
-      CaveDensityMult: Single;   { [0.0..3.0] }
+   { ── Surface vegetation params (per biome) ─────────────────────────────── }
+   PVegetationParams = ^TVegetationParams;
+   TVegetationParams = record
+      { Trees (Plains / Forest) }
+      TreeEnabled: boolean;
+      TreeDensity: Single;        { probability per column [0..1]          }
+      TreeMinHeight: Integer;     { trunk tiles [1..12]                    }
+      TreeMaxHeight: Integer;     { trunk tiles [1..20]                    }
+      TreeCanopyRadius: Integer;  { leaf spread radius [1..8]              }
+      TreeCanopyHeight: Integer;  { leaf height [1..6]                     }
+      TreeNoiseFreq: Single;      { spacing noise freq [0.05..2.0]         }
+      TreeNoiseThresh: Single;    { below this → grow tree [0..1]          }
 
-      { Unique surface tile (0 = use automatic biome default) }
-      SurfaceTileOverride: Integer;  { TILE_* constant or 0 }
+      { Shrubs / ferns (Plains / Forest) }
+      ShrubEnabled: boolean;
+      ShrubDensity: Single;       { [0..1]                                 }
+      ShrubNoiseFreq: Single;     { [0.1..3.0]                             }
+      ShrubNoiseThresh: Single;   { [0..1]                                 }
+
+      { Cacti (Desert) }
+      CactusEnabled: boolean;
+      CactusDensity: Single;       { [0..1]                                 }
+      CactusMinHeight: Integer;    { [1..8]                                 }
+      CactusMaxHeight: Integer;    { [1..12]                                }
+      CactusArmChance: Single;     { probability an arm grows [0..1]        }
+      CactusNoiseFreq: Single;     { [0.05..2.0]                            }
+      CactusNoiseThresh: Single;   { [0..1]                                 }
+   end;
+
+   { ── Cave decoration params ────────────────────────────────────────────── }
+   PCaveDecoParams = ^TCaveDecoParams;
+   TCaveDecoParams = record
+      { Roots (hang from ceiling, inside dirt) }
+      RootsEnabled: boolean;
+      RootsDensity: Single;     { [0..1]  }
+      RootsMinLen: Integer;     { [1..8]  }
+      RootsMaxLen: Integer;     { [1..14] }
+      RootsNoiseFreq: Single;   { [0.05..2.0] }
+
+      { Vines (hang from ceiling, inside stone / deep areas) }
+      VinesEnabled: boolean;
+      VinesDensity: Single;     { [0..1]  }
+      VinesMinLen: Integer;     { [1..10] }
+      VinesMaxLen: Integer;     { [1..20] }
+      VinesNoiseFreq: Single;   { [0.05..2.0] }
+
+      { Stalactites / Stalagmites }
+      StalEnabled: boolean;
+      StalDensity: Single;     { [0..1]  }
+      StalMinLen: Integer;     { [1..6]  }
+      StalMaxLen: Integer;     { [1..12] }
+      StalNoiseFreq: Single;   { [0.05..2.0] }
+
+      { Cave mushrooms (floor, deep caves) }
+      MushEnabled: boolean;
+      MushDensity: Single;    { [0..1]  }
+      MushMinDepth: Integer;  { min rows below surface [10..80] }
+
+      { Moss patches (ceiling / wall, damp areas) }
+      MossEnabled: boolean;
+      MossDensity: Single;     { [0..1]  }
+      MossNoiseFreq: Single;   { [0.05..2.0] }
    end;
 
    PGenParams = ^TGenParams;
@@ -60,72 +97,168 @@ type
       Seed: longint;
 
       { ── Surface shape ───────────────────────────────────────────────────── }
-      BaseSurface: Integer;   { [5..100]      }
-      SurfaceAmp: Integer;   { [0..50]       }
-      MinSurface: Integer;   { [1..70]       }
-      MaxSurface: Integer;   { [30..200]     }
-      SurfaceFreq: Single;    { [0.001..0.05] }
-      SurfaceOctaves: Integer;   { [1..8]        }
-      SurfaceLacun: Single;    { [1.0..4.0]    }
-      SurfaceGain: Single;    { [0.1..0.9]    }
+      BaseSurface: Integer;
+      SurfaceAmp: Integer;
+      MinSurface: Integer;
+      MaxSurface: Integer;
+      SurfaceFreq: Single;
+      SurfaceOctaves: Integer;
+      SurfaceLacun: Single;
+      SurfaceGain: Single;
 
-      { ── Global depth zones ──────────────────────────────────────────────── }
-      DepthDirt: Integer;   { [2..20]       }
-      DepthDirtStone: Integer;   { [10..60]      }
-      DepthStone: Integer;   { [30..150]     }
-      SandstoneExtra: Integer;   { [0..20]       }
+      { ── Depth zones ──────────────────────────────────────────────────────── }
+      DepthDirt: Integer;
+      DepthDirtStone: Integer;
+      DepthStone: Integer;
+      SandstoneExtra: Integer;
 
-      { ── Cave system ─────────────────────────────────────────────────────── }
+      { ── Caves ────────────────────────────────────────────────────────────── }
       CavesEnabled: boolean;
-      CaveStartDepth: Integer;   { [0..20]       }
-      CaveThreshold: Single;     { [0.01..0.5]   }
-      CaveFreqX: Single;         { [0.01..0.2]   }
-      CaveFreqY: Single;         { [0.01..0.2]   }
-      CaveOctaves: Integer;      { [1..5]        }
+      CaveStartDepth: Integer;
+      CaveThreshold: Single;
+      CaveFreqX: Single;
+      CaveFreqY: Single;
+      CaveOctaves: Integer;
 
-      { ── Global ore / pocket thresholds ─────────────────────────────────── }
-      GraniteThreshold: Single;  { [0.3..0.95]   }
+      { ── Global ore thresholds ────────────────────────────────────────────── }
+      GraniteThreshold: Single;
       MarbleThreshold: Single;
       ClayThreshold: Single;
       GravelThreshold: Single;
-      GraniteFreq: Single;  { [0.01..0.2]   }
+      GraniteFreq: Single;
       MarbleFreq: Single;
 
-      { ── Biome distribution ──────────────────────────────────────────────── }
-      BiomeFreq: Single;  { [0.0005..0.02] }
-      BiomeOctaves: Integer; { [1..4]         }
-      DesertThreshold: Single;  { [0.05..0.6]    }
-      ForestThreshold: Single;  { [0.4..0.95]    }
+      { ── Biome distribution ───────────────────────────────────────────────── }
+      BiomeFreq: Single;
+      BiomeOctaves: Integer;
+      DesertThreshold: Single;
+      ForestThreshold: Single;
 
-      { ── Full per-biome configuration blocks ─────────────────────────────── }
+      { ── Per-biome blocks ─────────────────────────────────────────────────── }
       BiomePlains: TBiomeParams;
       BiomeDesert: TBiomeParams;
       BiomeForest: TBiomeParams;
 
-      { ── Deep zone ───────────────────────────────────────────────────────── }
-      DeepGraniteRatio: Single;  { [0.0..1.0]    }
-      BedrockRows: Integer; { [1..8]        }
+      { ── Deep zone ────────────────────────────────────────────────────────── }
+      DeepGraniteRatio: Single;
+      BedrockRows: Integer;
+
+      { ── Surface vegetation (per biome) ──────────────────────────────────── }
+      VegPlains: TVegetationParams;
+      VegDesert: TVegetationParams;
+      VegForest: TVegetationParams;
+
+      { ── Cave decorations ─────────────────────────────────────────────────── }
+      CaveDecor: TCaveDecoParams;
 
       procedure SetSeed(NewSeed: longint);
    end;
 
-{ ── Defaults & clamping ────────────────────────────────────────────────── }
 function DefaultGenParams: TGenParams;
 procedure ClampGenParams(var P: TGenParams);
-
- { ── Serialisation ──────────────────────────────────────────────────────── }
- { Returns True on success }
 function SaveGenParams(const AFilePath: string; const P: TGenParams): boolean;
 function LoadGenParams(const AFilePath: string; var P: TGenParams): boolean;
-
-{ Preset name (used by preset library) }
 function GenParamsPresetName(const AFilePath: string): string;
 
 implementation
 
- { ═══════════════════════════════════════════════════════════════════════════ }
- { Defaults                                                                    }
- { ═══════════════════════════════════════════════════════════════════════════ }
+{ ── Vegetation defaults ────────────────────────────────────────────────── }
+
+function DefaultVegPlains: TVegetationParams;
+begin
+   Result.TreeEnabled := True;
+   Result.TreeDensity := 0.12;
+   Result.TreeMinHeight := 4;
+   Result.TreeMaxHeight := 8;
+   Result.TreeCanopyRadius := 3;
+   Result.TreeCanopyHeight := 3;
+   Result.TreeNoiseFreq := 0.35;
+   Result.TreeNoiseThresh := 0.30;
+   Result.ShrubEnabled := True;
+   Result.ShrubDensity := 0.25;
+   Result.ShrubNoiseFreq := 0.60;
+   Result.ShrubNoiseThresh := 0.40;
+   Result.CactusEnabled := False;
+   Result.CactusDensity := 0;
+   Result.CactusMinHeight := 3;
+   Result.CactusMaxHeight := 5;
+   Result.CactusArmChance := 0;
+   Result.CactusNoiseFreq := 0.40;
+   Result.CactusNoiseThresh := 0;
+end;
+
+function DefaultVegDesert: TVegetationParams;
+begin
+   Result.TreeEnabled := False;
+   Result.TreeDensity := 0;
+   Result.TreeMinHeight := 4;
+   Result.TreeMaxHeight := 6;
+   Result.TreeCanopyRadius := 2;
+   Result.TreeCanopyHeight := 2;
+   Result.TreeNoiseFreq := 0.35;
+   Result.TreeNoiseThresh := 0.20;
+   Result.ShrubEnabled := False;
+   Result.ShrubDensity := 0;
+   Result.ShrubNoiseFreq := 0.60;
+   Result.ShrubNoiseThresh := 0.30;
+   Result.CactusEnabled := True;
+   Result.CactusDensity := 0.15;
+   Result.CactusMinHeight := 3;
+   Result.CactusMaxHeight := 7;
+   Result.CactusArmChance := 0.40;
+   Result.CactusNoiseFreq := 0.40;
+   Result.CactusNoiseThresh := 0.28;
+end;
+
+function DefaultVegForest: TVegetationParams;
+begin
+   Result.TreeEnabled := True;
+   Result.TreeDensity := 0.28;
+   Result.TreeMinHeight := 6;
+   Result.TreeMaxHeight := 14;
+   Result.TreeCanopyRadius := 4;
+   Result.TreeCanopyHeight := 4;
+   Result.TreeNoiseFreq := 0.25;
+   Result.TreeNoiseThresh := 0.45;
+   Result.ShrubEnabled := True;
+   Result.ShrubDensity := 0.40;
+   Result.ShrubNoiseFreq := 0.70;
+   Result.ShrubNoiseThresh := 0.50;
+   Result.CactusEnabled := False;
+   Result.CactusDensity := 0;
+   Result.CactusMinHeight := 3;
+   Result.CactusMaxHeight := 5;
+   Result.CactusArmChance := 0;
+   Result.CactusNoiseFreq := 0.40;
+   Result.CactusNoiseThresh := 0;
+end;
+
+function DefaultCaveDecor: TCaveDecoParams;
+begin
+   Result.RootsEnabled := True;
+   Result.RootsDensity := 0.30;
+   Result.RootsMinLen := 1;
+   Result.RootsMaxLen := 6;
+   Result.RootsNoiseFreq := 0.55;
+   Result.VinesEnabled := True;
+   Result.VinesDensity := 0.20;
+   Result.VinesMinLen := 2;
+   Result.VinesMaxLen := 12;
+   Result.VinesNoiseFreq := 0.40;
+   Result.StalEnabled := True;
+   Result.StalDensity := 0.18;
+   Result.StalMinLen := 1;
+   Result.StalMaxLen := 5;
+   Result.StalNoiseFreq := 0.65;
+   Result.MushEnabled := True;
+   Result.MushDensity := 0.10;
+   Result.MushMinDepth := 20;
+   Result.MossEnabled := True;
+   Result.MossDensity := 0.25;
+   Result.MossNoiseFreq := 0.80;
+end;
+
+{ ── Biome defaults ─────────────────────────────────────────────────────── }
 
 function DefaultBiomePlains: TBiomeParams;
 begin
@@ -208,11 +341,13 @@ begin
    Result.BiomeForest := DefaultBiomeForest;
    Result.DeepGraniteRatio := 0.30;
    Result.BedrockRows := 3;
+   Result.VegPlains := DefaultVegPlains;
+   Result.VegDesert := DefaultVegDesert;
+   Result.VegForest := DefaultVegForest;
+   Result.CaveDecor := DefaultCaveDecor;
 end;
 
- { ═══════════════════════════════════════════════════════════════════════════ }
- { Clamping                                                                    }
- { ═══════════════════════════════════════════════════════════════════════════ }
+{ ── Clamping ──────────────────────────────────────────────────────────── }
 
 procedure ClampGenParams(var P: TGenParams);
 
@@ -248,6 +383,56 @@ procedure ClampGenParams(var P: TGenParams);
       B.CaveDensityMult := ClF(B.CaveDensityMult, 0, 3);
    end;
 
+   procedure ClampVeg(var V: TVegetationParams);
+   begin
+      V.TreeDensity := ClF(V.TreeDensity, 0, 1);
+      V.TreeMinHeight := Cl(V.TreeMinHeight, 1, 12);
+      V.TreeMaxHeight := Cl(V.TreeMaxHeight, 1, 20);
+      if V.TreeMaxHeight < V.TreeMinHeight then
+         V.TreeMaxHeight := V.TreeMinHeight;
+      V.TreeCanopyRadius := Cl(V.TreeCanopyRadius, 1, 8);
+      V.TreeCanopyHeight := Cl(V.TreeCanopyHeight, 1, 6);
+      V.TreeNoiseFreq := ClF(V.TreeNoiseFreq, 0.05, 2.0);
+      V.TreeNoiseThresh := ClF(V.TreeNoiseThresh, 0, 1);
+      V.ShrubDensity := ClF(V.ShrubDensity, 0, 1);
+      V.ShrubNoiseFreq := ClF(V.ShrubNoiseFreq, 0.1, 3.0);
+      V.ShrubNoiseThresh := ClF(V.ShrubNoiseThresh, 0, 1);
+      V.CactusDensity := ClF(V.CactusDensity, 0, 1);
+      V.CactusMinHeight := Cl(V.CactusMinHeight, 1, 8);
+      V.CactusMaxHeight := Cl(V.CactusMaxHeight, 1, 12);
+      if V.CactusMaxHeight < V.CactusMinHeight then
+         V.CactusMaxHeight := V.CactusMinHeight;
+      V.CactusArmChance := ClF(V.CactusArmChance, 0, 1);
+      V.CactusNoiseFreq := ClF(V.CactusNoiseFreq, 0.05, 2.0);
+      V.CactusNoiseThresh := ClF(V.CactusNoiseThresh, 0, 1);
+   end;
+
+   procedure ClampCaveDecor(var C: TCaveDecoParams);
+   begin
+      C.RootsDensity := ClF(C.RootsDensity, 0, 1);
+      C.RootsMinLen := Cl(C.RootsMinLen, 1, 8);
+      C.RootsMaxLen := Cl(C.RootsMaxLen, 1, 14);
+      if C.RootsMaxLen < C.RootsMinLen then
+         C.RootsMaxLen := C.RootsMinLen;
+      C.RootsNoiseFreq := ClF(C.RootsNoiseFreq, 0.05, 2.0);
+      C.VinesDensity := ClF(C.VinesDensity, 0, 1);
+      C.VinesMinLen := Cl(C.VinesMinLen, 1, 10);
+      C.VinesMaxLen := Cl(C.VinesMaxLen, 1, 20);
+      if C.VinesMaxLen < C.VinesMinLen then
+         C.VinesMaxLen := C.VinesMinLen;
+      C.VinesNoiseFreq := ClF(C.VinesNoiseFreq, 0.05, 2.0);
+      C.StalDensity := ClF(C.StalDensity, 0, 1);
+      C.StalMinLen := Cl(C.StalMinLen, 1, 6);
+      C.StalMaxLen := Cl(C.StalMaxLen, 1, 12);
+      if C.StalMaxLen < C.StalMinLen then
+         C.StalMaxLen := C.StalMinLen;
+      C.StalNoiseFreq := ClF(C.StalNoiseFreq, 0.05, 2.0);
+      C.MushDensity := ClF(C.MushDensity, 0, 1);
+      C.MushMinDepth := Cl(C.MushMinDepth, 10, 80);
+      C.MossDensity := ClF(C.MossDensity, 0, 1);
+      C.MossNoiseFreq := ClF(C.MossNoiseFreq, 0.05, 2.0);
+   end;
+
 begin
    P.BaseSurface := Cl(P.BaseSurface, 5, 100);
    P.SurfaceAmp := Cl(P.SurfaceAmp, 0, 50);
@@ -281,17 +466,18 @@ begin
    ClampBiome(P.BiomePlains);
    ClampBiome(P.BiomeDesert);
    ClampBiome(P.BiomeForest);
+   ClampVeg(P.VegPlains);
+   ClampVeg(P.VegDesert);
+   ClampVeg(P.VegForest);
+   ClampCaveDecor(P.CaveDecor);
 end;
 
- { ═══════════════════════════════════════════════════════════════════════════ }
- { Serialisation — simple KEY=VALUE INI-style text                             }
- { ═══════════════════════════════════════════════════════════════════════════ }
+{ ── Serialisation ──────────────────────────────────────────────────────── }
 
 const
    FILE_MAGIC = 'TerrariaGenParams';
-   FILE_VERSION = '2';
+   FILE_VERSION = '3';   { bumped for vegetation/cave fields }
 
-{ ── Writer helpers ─────────────────────────────────────────────────────── }
 procedure WriteI(SL: TStringList; const K: string; V: Integer);
 begin
    SL.Add(K + '=' + IntToStr(V));
@@ -307,19 +493,67 @@ begin
    SL.Add(K + '=' + IfThen(V, '1', '0'));
 end;
 
-procedure WriteBiome(SL: TStringList; const Prefix: string; const B: TBiomeParams);
+procedure WriteBiome(SL: TStringList; const Pfx: string; const B: TBiomeParams);
 begin
-   WriteI(SL, Prefix + 'OffY', B.SurfaceOffsetY);
-   WriteF(SL, Prefix + 'AmpBonus', B.SurfaceAmpBonus);
-   WriteI(SL, Prefix + 'DirtOvr', B.DepthDirtOverride);
-   WriteI(SL, Prefix + 'DirtStOvr', B.DepthDirtStoneOverride);
-   WriteI(SL, Prefix + 'SsDepth', B.SandstoneDepth);
-   WriteF(SL, Prefix + 'GranThr', B.GraniteThreshold);
-   WriteF(SL, Prefix + 'MarbThr', B.MarbleThreshold);
-   WriteF(SL, Prefix + 'ClayThr', B.ClayThreshold);
-   WriteF(SL, Prefix + 'GravThr', B.GravelThreshold);
-   WriteF(SL, Prefix + 'CaveMult', B.CaveDensityMult);
-   WriteI(SL, Prefix + 'SurfTile', B.SurfaceTileOverride);
+   WriteI(SL, Pfx + 'OffY', B.SurfaceOffsetY);
+   WriteF(SL, Pfx + 'AmpBonus', B.SurfaceAmpBonus);
+   WriteI(SL, Pfx + 'DirtOvr', B.DepthDirtOverride);
+   WriteI(SL, Pfx + 'DirtStOvr', B.DepthDirtStoneOverride);
+   WriteI(SL, Pfx + 'SsDepth', B.SandstoneDepth);
+   WriteF(SL, Pfx + 'GranThr', B.GraniteThreshold);
+   WriteF(SL, Pfx + 'MarbThr', B.MarbleThreshold);
+   WriteF(SL, Pfx + 'ClayThr', B.ClayThreshold);
+   WriteF(SL, Pfx + 'GravThr', B.GravelThreshold);
+   WriteF(SL, Pfx + 'CaveMult', B.CaveDensityMult);
+   WriteI(SL, Pfx + 'SurfTile', B.SurfaceTileOverride);
+end;
+
+procedure WriteVeg(SL: TStringList; const Pfx: string; const V: TVegetationParams);
+begin
+   WriteB(SL, Pfx + 'TreeOn', V.TreeEnabled);
+   WriteF(SL, Pfx + 'TreeDens', V.TreeDensity);
+   WriteI(SL, Pfx + 'TreeMinH', V.TreeMinHeight);
+   WriteI(SL, Pfx + 'TreeMaxH', V.TreeMaxHeight);
+   WriteI(SL, Pfx + 'TreeCRad', V.TreeCanopyRadius);
+   WriteI(SL, Pfx + 'TreeCHgt', V.TreeCanopyHeight);
+   WriteF(SL, Pfx + 'TreeNFreq', V.TreeNoiseFreq);
+   WriteF(SL, Pfx + 'TreeNThr', V.TreeNoiseThresh);
+   WriteB(SL, Pfx + 'ShrubOn', V.ShrubEnabled);
+   WriteF(SL, Pfx + 'ShrubDens', V.ShrubDensity);
+   WriteF(SL, Pfx + 'ShrubNFreq', V.ShrubNoiseFreq);
+   WriteF(SL, Pfx + 'ShrubNThr', V.ShrubNoiseThresh);
+   WriteB(SL, Pfx + 'CactOn', V.CactusEnabled);
+   WriteF(SL, Pfx + 'CactDens', V.CactusDensity);
+   WriteI(SL, Pfx + 'CactMinH', V.CactusMinHeight);
+   WriteI(SL, Pfx + 'CactMaxH', V.CactusMaxHeight);
+   WriteF(SL, Pfx + 'CactArm', V.CactusArmChance);
+   WriteF(SL, Pfx + 'CactNFreq', V.CactusNoiseFreq);
+   WriteF(SL, Pfx + 'CactNThr', V.CactusNoiseThresh);
+end;
+
+procedure WriteCaveDecor(SL: TStringList; const V: TCaveDecoParams);
+begin
+   WriteB(SL, 'RootsOn', V.RootsEnabled);
+   WriteF(SL, 'RootsDens', V.RootsDensity);
+   WriteI(SL, 'RootsMinL', V.RootsMinLen);
+   WriteI(SL, 'RootsMaxL', V.RootsMaxLen);
+   WriteF(SL, 'RootsNF', V.RootsNoiseFreq);
+   WriteB(SL, 'VinesOn', V.VinesEnabled);
+   WriteF(SL, 'VinesDens', V.VinesDensity);
+   WriteI(SL, 'VinesMinL', V.VinesMinLen);
+   WriteI(SL, 'VinesMaxL', V.VinesMaxLen);
+   WriteF(SL, 'VinesNF', V.VinesNoiseFreq);
+   WriteB(SL, 'StalOn', V.StalEnabled);
+   WriteF(SL, 'StalDens', V.StalDensity);
+   WriteI(SL, 'StalMinL', V.StalMinLen);
+   WriteI(SL, 'StalMaxL', V.StalMaxLen);
+   WriteF(SL, 'StalNF', V.StalNoiseFreq);
+   WriteB(SL, 'MushOn', V.MushEnabled);
+   WriteF(SL, 'MushDens', V.MushDensity);
+   WriteI(SL, 'MushMinD', V.MushMinDepth);
+   WriteB(SL, 'MossOn', V.MossEnabled);
+   WriteF(SL, 'MossDens', V.MossDensity);
+   WriteF(SL, 'MossNF', V.MossNoiseFreq);
 end;
 
 function SaveGenParams(const AFilePath: string; const P: TGenParams): boolean;
@@ -331,7 +565,6 @@ begin
    try
       SL.Add('MAGIC=' + FILE_MAGIC);
       SL.Add('VERSION=' + FILE_VERSION);
-      { Global }
       WriteI(SL, 'Seed', P.Seed);
       WriteI(SL, 'BaseSurface', P.BaseSurface);
       WriteI(SL, 'SurfaceAmp', P.SurfaceAmp);
@@ -363,10 +596,13 @@ begin
       WriteF(SL, 'ForestThr', P.ForestThreshold);
       WriteF(SL, 'DeepGranRatio', P.DeepGraniteRatio);
       WriteI(SL, 'BedrockRows', P.BedrockRows);
-      { Per-biome }
       WriteBiome(SL, 'Plains.', P.BiomePlains);
       WriteBiome(SL, 'Desert.', P.BiomeDesert);
       WriteBiome(SL, 'Forest.', P.BiomeForest);
+      WriteVeg(SL, 'VegP.', P.VegPlains);
+      WriteVeg(SL, 'VegD.', P.VegDesert);
+      WriteVeg(SL, 'VegF.', P.VegForest);
+      WriteCaveDecor(SL, P.CaveDecor);
       SL.SaveToFile(AFilePath);
       Result := True;
    except
@@ -374,12 +610,13 @@ begin
    SL.Free;
 end;
 
-{ ── Reader helpers ─────────────────────────────────────────────────────── }
-function ReadVal(SL: TStringList; const K: string; Default: string): string;
+{ ── Reader ──────────────────────────────────────────────────────────────── }
+
+function ReadVal(SL: TStringList; const K, Def: string): string;
 var
    I: Integer;
 begin
-   Result := Default;
+   Result := Def;
    for I := 0 to SL.Count - 1 do
       if SL.Names[I] = K then
       begin
@@ -407,19 +644,67 @@ begin
    Result := ReadVal(SL, K, IfThen(Def, '1', '0')) = '1';
 end;
 
-procedure ReadBiome(SL: TStringList; const Prefix: string; var B: TBiomeParams);
+procedure ReadBiome(SL: TStringList; const Pfx: string; var B: TBiomeParams);
 begin
-   B.SurfaceOffsetY := RI(SL, Prefix + 'OffY', B.SurfaceOffsetY);
-   B.SurfaceAmpBonus := RF(SL, Prefix + 'AmpBonus', B.SurfaceAmpBonus);
-   B.DepthDirtOverride := RI(SL, Prefix + 'DirtOvr', B.DepthDirtOverride);
-   B.DepthDirtStoneOverride := RI(SL, Prefix + 'DirtStOvr', B.DepthDirtStoneOverride);
-   B.SandstoneDepth := RI(SL, Prefix + 'SsDepth', B.SandstoneDepth);
-   B.GraniteThreshold := RF(SL, Prefix + 'GranThr', B.GraniteThreshold);
-   B.MarbleThreshold := RF(SL, Prefix + 'MarbThr', B.MarbleThreshold);
-   B.ClayThreshold := RF(SL, Prefix + 'ClayThr', B.ClayThreshold);
-   B.GravelThreshold := RF(SL, Prefix + 'GravThr', B.GravelThreshold);
-   B.CaveDensityMult := RF(SL, Prefix + 'CaveMult', B.CaveDensityMult);
-   B.SurfaceTileOverride := RI(SL, Prefix + 'SurfTile', B.SurfaceTileOverride);
+   B.SurfaceOffsetY := RI(SL, Pfx + 'OffY', B.SurfaceOffsetY);
+   B.SurfaceAmpBonus := RF(SL, Pfx + 'AmpBonus', B.SurfaceAmpBonus);
+   B.DepthDirtOverride := RI(SL, Pfx + 'DirtOvr', B.DepthDirtOverride);
+   B.DepthDirtStoneOverride := RI(SL, Pfx + 'DirtStOvr', B.DepthDirtStoneOverride);
+   B.SandstoneDepth := RI(SL, Pfx + 'SsDepth', B.SandstoneDepth);
+   B.GraniteThreshold := RF(SL, Pfx + 'GranThr', B.GraniteThreshold);
+   B.MarbleThreshold := RF(SL, Pfx + 'MarbThr', B.MarbleThreshold);
+   B.ClayThreshold := RF(SL, Pfx + 'ClayThr', B.ClayThreshold);
+   B.GravelThreshold := RF(SL, Pfx + 'GravThr', B.GravelThreshold);
+   B.CaveDensityMult := RF(SL, Pfx + 'CaveMult', B.CaveDensityMult);
+   B.SurfaceTileOverride := RI(SL, Pfx + 'SurfTile', B.SurfaceTileOverride);
+end;
+
+procedure ReadVeg(SL: TStringList; const Pfx: string; var V: TVegetationParams);
+begin
+   V.TreeEnabled := RB(SL, Pfx + 'TreeOn', V.TreeEnabled);
+   V.TreeDensity := RF(SL, Pfx + 'TreeDens', V.TreeDensity);
+   V.TreeMinHeight := RI(SL, Pfx + 'TreeMinH', V.TreeMinHeight);
+   V.TreeMaxHeight := RI(SL, Pfx + 'TreeMaxH', V.TreeMaxHeight);
+   V.TreeCanopyRadius := RI(SL, Pfx + 'TreeCRad', V.TreeCanopyRadius);
+   V.TreeCanopyHeight := RI(SL, Pfx + 'TreeCHgt', V.TreeCanopyHeight);
+   V.TreeNoiseFreq := RF(SL, Pfx + 'TreeNFreq', V.TreeNoiseFreq);
+   V.TreeNoiseThresh := RF(SL, Pfx + 'TreeNThr', V.TreeNoiseThresh);
+   V.ShrubEnabled := RB(SL, Pfx + 'ShrubOn', V.ShrubEnabled);
+   V.ShrubDensity := RF(SL, Pfx + 'ShrubDens', V.ShrubDensity);
+   V.ShrubNoiseFreq := RF(SL, Pfx + 'ShrubNFreq', V.ShrubNoiseFreq);
+   V.ShrubNoiseThresh := RF(SL, Pfx + 'ShrubNThr', V.ShrubNoiseThresh);
+   V.CactusEnabled := RB(SL, Pfx + 'CactOn', V.CactusEnabled);
+   V.CactusDensity := RF(SL, Pfx + 'CactDens', V.CactusDensity);
+   V.CactusMinHeight := RI(SL, Pfx + 'CactMinH', V.CactusMinHeight);
+   V.CactusMaxHeight := RI(SL, Pfx + 'CactMaxH', V.CactusMaxHeight);
+   V.CactusArmChance := RF(SL, Pfx + 'CactArm', V.CactusArmChance);
+   V.CactusNoiseFreq := RF(SL, Pfx + 'CactNFreq', V.CactusNoiseFreq);
+   V.CactusNoiseThresh := RF(SL, Pfx + 'CactNThr', V.CactusNoiseThresh);
+end;
+
+procedure ReadCaveDecor(SL: TStringList; var V: TCaveDecoParams);
+begin
+   V.RootsEnabled := RB(SL, 'RootsOn', V.RootsEnabled);
+   V.RootsDensity := RF(SL, 'RootsDens', V.RootsDensity);
+   V.RootsMinLen := RI(SL, 'RootsMinL', V.RootsMinLen);
+   V.RootsMaxLen := RI(SL, 'RootsMaxL', V.RootsMaxLen);
+   V.RootsNoiseFreq := RF(SL, 'RootsNF', V.RootsNoiseFreq);
+   V.VinesEnabled := RB(SL, 'VinesOn', V.VinesEnabled);
+   V.VinesDensity := RF(SL, 'VinesDens', V.VinesDensity);
+   V.VinesMinLen := RI(SL, 'VinesMinL', V.VinesMinLen);
+   V.VinesMaxLen := RI(SL, 'VinesMaxL', V.VinesMaxLen);
+   V.VinesNoiseFreq := RF(SL, 'VinesNF', V.VinesNoiseFreq);
+   V.StalEnabled := RB(SL, 'StalOn', V.StalEnabled);
+   V.StalDensity := RF(SL, 'StalDens', V.StalDensity);
+   V.StalMinLen := RI(SL, 'StalMinL', V.StalMinLen);
+   V.StalMaxLen := RI(SL, 'StalMaxL', V.StalMaxLen);
+   V.StalNoiseFreq := RF(SL, 'StalNF', V.StalNoiseFreq);
+   V.MushEnabled := RB(SL, 'MushOn', V.MushEnabled);
+   V.MushDensity := RF(SL, 'MushDens', V.MushDensity);
+   V.MushMinDepth := RI(SL, 'MushMinD', V.MushMinDepth);
+   V.MossEnabled := RB(SL, 'MossOn', V.MossEnabled);
+   V.MossDensity := RF(SL, 'MossDens', V.MossDensity);
+   V.MossNoiseFreq := RF(SL, 'MossNF', V.MossNoiseFreq);
 end;
 
 function LoadGenParams(const AFilePath: string; var P: TGenParams): boolean;
@@ -468,6 +753,10 @@ begin
       ReadBiome(SL, 'Plains.', P.BiomePlains);
       ReadBiome(SL, 'Desert.', P.BiomeDesert);
       ReadBiome(SL, 'Forest.', P.BiomeForest);
+      ReadVeg(SL, 'VegP.', P.VegPlains);
+      ReadVeg(SL, 'VegD.', P.VegDesert);
+      ReadVeg(SL, 'VegF.', P.VegForest);
+      ReadCaveDecor(SL, P.CaveDecor);
       ClampGenParams(P);
       Result := True;
    except
@@ -480,7 +769,6 @@ begin
    Result := ChangeFileExt(ExtractFileName(AFilePath), '');
 end;
 
-{ TGenParams.SetSeed }
 procedure TGenParams.SetSeed(NewSeed: longint);
 begin
    Seed := NewSeed;

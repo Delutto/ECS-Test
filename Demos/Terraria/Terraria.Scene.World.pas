@@ -2,31 +2,29 @@ unit Terraria.Scene.World;
 
 {$mode objfpc}{$H+}
 
-{ TWorldScene — infinite procedural terrain + generation properties editor.
-
-  GENERATION PROPERTIES EDITOR
-  ─────────────────────────────
-  Press TAB to show/hide the right-side editor panel (TGenEditor).
-  Every change to a parameter is applied immediately to FGenerator.Params.
-  Click "REGENERATE WORLD" (or press R) to wipe all loaded chunks and
-  re-generate the world with the new settings. }
-
 interface
 
 uses
-   SysUtils, StrUtils, Math, raylib,
-   P2D.Utils.RayLib,
-   P2D.Core.Scene, P2D.Core.World, P2D.Core.Entity,
-   P2D.Core.System, P2D.Core.ComponentRegistry, P2D.Core.Types,
-   P2D.Components.Transform, P2D.Components.Camera2D,
+   SysUtils, Math,
+   raylib,
+   P2D.Core.Scene,
+   P2D.Core.Entity,
+   P2D.Core.World,
+   P2D.Core.ComponentRegistry,
+   P2D.Components.Transform,
+   P2D.Components.Camera2D,
    P2D.Systems.Camera,
    Terraria.Common,
-   Terraria.WorldChunk,
-   Terraria.ChunkManager,
    Terraria.GenParams,
+   Terraria.ChunkManager,
    Terraria.ChunkGenerator,
+   Terraria.Lighting,
    Terraria.Systems.ChunkRender,
    Terraria.UI.GenEditor;
+
+const
+   EDIT_W = 260;
+   EDIT_H = 720;
 
 type
    TWorldScene = class(TScene2D)
@@ -34,6 +32,7 @@ type
       FScreenW, FScreenH: Integer;
       FManager: TChunkManager;
       FGenerator: TChunkGenerator;
+      FLightMap: TLightMap;
       FCamSys: TCameraSystem;
       FCamE: TEntity;
       FChunkRender: TChunkRenderSystem;
@@ -43,21 +42,23 @@ type
       FGenMsg: string;
       FSeed: longint;
       FEditor: TGenEditor;
+      FLastLoadedCount: Integer;
 
-      procedure ApplySeed(ASeed: longint);
-      procedure RebuildWorld;
       function CamTr: TTransformComponent;
       function CamChunkX: Integer;
       function CamChunkY: Integer;
-      procedure DrawHUD;
+      procedure ApplySeed(ASeed: longint);
+      procedure RebuildWorld;
       procedure DrawChunkOverlay;
-      procedure DrawBiomeLegend(AX, AY: Integer);
+      procedure DrawBiomeLegend;
+
    protected
       procedure DoLoad; override;
       procedure DoEnter; override;
       procedure DoExit; override;
+      procedure DoUnload; override;
    public
-      constructor Create(AScrW, AScrH: Integer);
+      constructor Create(AScreenW, AScreenH: Integer);
       destructor Destroy; override;
       procedure Update(ADelta: Single); override;
       procedure Render; override;
@@ -65,125 +66,86 @@ type
 
 implementation
 
-{ ── Constructor / Destructor ─────────────────────────────────────────── }
+uses
+   P2D.Core.System,
+   P2D.Utils.RayLib,
+   Terraria.WorldChunk;
 
-constructor TWorldScene.Create(AScrW, AScrH: Integer);
+{ ---------------------------------------------------------------------------
+  Constructor / Destructor
+--------------------------------------------------------------------------- }
+
+constructor TWorldScene.Create(AScreenW, AScreenH: Integer);
 begin
    inherited Create('TerrainWorld');
-   FScreenW := AScrW;
-   FScreenH := AScrH;
+   FScreenW := AScreenW;
+   FScreenH := AScreenH;
    FShowHUD := True;
-   FShowEditor := True;
+   FShowEditor := False;
    FSeed := 0;
+   FLastLoadedCount := 0;
 
-   FManager := TChunkManager.Create(0);
-   FGenerator := TChunkGenerator.Create(FManager, 0);
+   FManager := TChunkManager.Create(FSeed);
+   FGenerator := TChunkGenerator.Create(FManager, FSeed);
    FManager.OnGenerate := @FGenerator.GenerateChunk;
+   FLightMap := TLightMap.Create(FManager);
 
-   { Editor panel — positioned right side of screen, leaving room for HUD }
-   FEditor := TGenEditor.Create(AScrW - EDIT_W - 4, 34, @FGenerator.Params);
+   FEditor := TGenEditor.Create(FScreenW - EDIT_W, 0, @FGenerator.Params, @FLightMap.Settings);
 end;
 
 destructor TWorldScene.Destroy;
 begin
    FEditor.Free;
-   FManager.Free;
+   FLightMap.Free;
    FGenerator.Free;
+   FManager.Free;
    inherited;
 end;
 
-{ ── World management ─────────────────────────────────────────────────── }
-
-procedure TWorldScene.ApplySeed(ASeed: longint);
-begin
-   FSeed := ASeed;
-
-   FGenerator.Params.SetSeed(ASeed);
-
-   FGenerator.ApplyParams;
-   FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [ASeed, CHUNK_TILES_W, CHUNK_TILES_H]);
-end;
-
-procedure TWorldScene.RebuildWorld;
-begin
-   { Destroy old manager/generator, create fresh ones }
-   FManager.Free;
-   FGenerator.Free;
-   FManager := TChunkManager.Create(FSeed);
-   FGenerator := TChunkGenerator.Create(FManager, FSeed);
-   FManager.OnGenerate := @FGenerator.GenerateChunk;
-
-   { Let the editor pointer follow the new params record }
-   FEditor.Params := @FGenerator.Params;
-
-   { Re-wire render system }
-   if Assigned(FChunkRender) then
-      FChunkRender.Manager := FManager;
-
-   //{ Pre-stream initial viewport }
-   //if Assigned(FCamE) then
-   //   FManager.UpdateStreaming(CamChunkX, CamChunkY);
-end;
-
-{ ── Helpers ─────────────────────────────────────────────────────────── }
-
-function TWorldScene.CamTr: TTransformComponent;
-begin
-   Result := TTransformComponent(FCamE.GetComponentByID(FTRID));
-end;
-
-function TWorldScene.CamChunkX: Integer;
-begin
-   Result := TChunkManager.TileToChunkX(Trunc(CamTr.Position.X / TILE_SIZE));
-end;
-
-function TWorldScene.CamChunkY: Integer;
-begin
-   Result := TChunkManager.TileToChunkY(Trunc(CamTr.Position.Y / TILE_SIZE));
-end;
-
-{ ── Scene lifecycle ──────────────────────────────────────────────────── }
+{ ---------------------------------------------------------------------------
+  ECS world setup
+--------------------------------------------------------------------------- }
 
 procedure TWorldScene.DoLoad;
-var
-   CRend: TChunkRenderSystem;
 begin
    FCamSys := TCameraSystem(World.AddSystem(TCameraSystem.Create(World, FScreenW, FScreenH)));
+   FCamSys.Priority := 15;
 
-   CRend := TChunkRenderSystem.Create(World, FManager, FScreenW, FScreenH);
-   FChunkRender := CRend;
-   World.AddSystem(CRend);
+   FChunkRender := TChunkRenderSystem(World.AddSystem(TChunkRenderSystem.Create(World, FManager, FScreenW, FScreenH)));
+   FChunkRender.Priority := 30;
+   FChunkRender.LightMap := FLightMap;
 end;
 
 procedure TWorldScene.DoEnter;
-var
-   Tr: TTransformComponent;
-   Cam: TCamera2DComponent;
-   InitSeed: longint;
 begin
+   if FSeed = 0 then
+      FSeed := Trunc(Now * 86400000) mod $7FFFFF + 1;
+   ApplySeed(FSeed);
+
+   FCamE := World.CreateEntity('Camera');
    FTRID := ComponentRegistry.GetComponentID(TTransformComponent);
-   InitSeed := Trunc(Now * 86400000) mod $7FFFFF + 1;
-   ApplySeed(InitSeed);
-
-   FCamE := World.CreateEntity('TerrainCamera');
-   Tr := TTransformComponent.Create;
-   Tr.Position := Vector2Create(0, BASE_SURFACE * TILE_SIZE);
-   FCamE.AddComponent(Tr);
-
-   Cam := TCamera2DComponent.Create;
-   Cam.Zoom := DEMO_ZOOM_WIDE;
-   Cam.FollowSpeed := 99999;
-   Cam.UseBounds := False;
-   Cam.Target := FCamE;
-   FCamE.AddComponent(Cam);
+   FCamE.AddComponent(TTransformComponent.Create);
+   with TTransformComponent(FCamE.GetComponentByID(FTRID)) do
+   begin
+      Position.X := 0;
+      Position.Y := FManager.GetSurfaceY(0) * TILE_SIZE;
+   end;
+   with TCamera2DComponent(FCamE.AddComponent(TCamera2DComponent.Create)) do
+   begin
+      Zoom := DEMO_ZOOM_WIDE;
+      UseBounds := False;
+   end;
 
    World.Init;
 
-   FChunkRender := TChunkRenderSystem((World as TWorld).GetSystem(TChunkRenderSystem));
-   if Assigned(FChunkRender) then
-      FChunkRender.Manager := FManager;
-
+   FChunkRender.Manager := FManager;
+   FChunkRender.LightMap := FLightMap;
    FManager.UpdateStreaming(CamChunkX, CamChunkY);
+
+   FLightMap.ComputeLighting;
+   FLastLoadedCount := FManager.LoadedCount;
+
+   FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [FSeed, CHUNK_TILES_W, CHUNK_TILES_H]);
 end;
 
 procedure TWorldScene.DoExit;
@@ -191,32 +153,96 @@ begin
    World.ShutdownSystems;
    World.DestroyAllEntities;
    FCamE := nil;
-   FCamSys := nil;
-   FChunkRender := nil;
 end;
 
-{ ── Update ───────────────────────────────────────────────────────────── }
+procedure TWorldScene.DoUnload;
+begin
+end;
+
+{ ---------------------------------------------------------------------------
+  Private helpers
+--------------------------------------------------------------------------- }
+
+function TWorldScene.CamTr: TTransformComponent;
+begin
+   Result := nil;
+   if Assigned(FCamE) then
+      Result := TTransformComponent(FCamE.GetComponentByID(FTRID));
+end;
+
+function TWorldScene.CamChunkX: Integer;
+var
+   Tr: TTransformComponent;
+begin
+   Result := 0;
+   Tr := CamTr;
+   if Assigned(Tr) then
+      Result := TChunkManager.TileToChunkX(Round(Tr.Position.X / TILE_SIZE));
+end;
+
+function TWorldScene.CamChunkY: Integer;
+var
+   Tr: TTransformComponent;
+begin
+   Result := 0;
+   Tr := CamTr;
+   if Assigned(Tr) then
+      Result := TChunkManager.TileToChunkY(Round(Tr.Position.Y / TILE_SIZE));
+end;
+
+procedure TWorldScene.ApplySeed(ASeed: longint);
+begin
+   FSeed := ASeed;
+   FGenerator.Params.SetSeed(ASeed);
+   FGenerator.ApplyParams;
+   FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [ASeed, CHUNK_TILES_W, CHUNK_TILES_H]);
+end;
+
+procedure TWorldScene.RebuildWorld;
+begin
+   FLightMap.Free;
+   FManager.Free;
+   FGenerator.Free;
+
+   FManager := TChunkManager.Create(FSeed);
+   FGenerator := TChunkGenerator.Create(FManager, FSeed);
+   FManager.OnGenerate := @FGenerator.GenerateChunk;
+   FLightMap := TLightMap.Create(FManager);
+
+   FEditor.Params := @FGenerator.Params;
+   FEditor.Lighting := @FLightMap.Settings;
+
+   if Assigned(FChunkRender) then
+   begin
+      FChunkRender.Manager := FManager;
+      FChunkRender.LightMap := FLightMap;
+   end;
+   FLastLoadedCount := 0;
+end;
+
+{ ---------------------------------------------------------------------------
+  Update
+--------------------------------------------------------------------------- }
 
 procedure TWorldScene.Update(ADelta: Single);
 var
    Tr: TTransformComponent;
    Cam: TCamera2DComponent;
-   Spd: Single;
-   Wheel: Single;
-   CCX, CCY, MX, MY: Integer;
+   Spd, Wheel: Single;
+   CCX, CCY: Integer;
    EditorHovered: boolean;
    OldSeed: longint;
    SavedParams: TGenParams;
-   VMX, VMY: Integer;   { virtual-canvas mouse coords }
+   VMX, VMY: Integer;
    PhysW, PhysH: Integer;
    Sc, OX, OY: Single;
+   CamID: Integer;
 begin
    Tr := CamTr;
-   Cam := TCamera2DComponent(FCamE.GetComponentByID(ComponentRegistry.GetComponentID(TCamera2DComponent)));
-
+   CamID := ComponentRegistry.GetComponentID(TCamera2DComponent);
+   Cam := TCamera2DComponent(FCamE.GetComponentByID(CamID));
    Spd := DEMO_SCROLL_SPD / Cam.Zoom * ADelta;
 
-   { Camera pan — only when not hovering the editor }
    PhysW := GetScreenWidth;
    PhysH := GetScreenHeight;
    if (PhysW > 0) and (PhysH > 0) then
@@ -232,9 +258,10 @@ begin
       VMX := GetMouseX;
       VMY := GetMouseY;
    end;
+
    EditorHovered := FShowEditor and (VMX >= FEditor.PX) and (VMX < FEditor.PX + EDIT_W) and (VMY >= FEditor.PY) and (VMY < FEditor.PY + EDIT_H);
 
-
+   { Camera pan }
    if IsKeyDown(KEY_W) or IsKeyDown(KEY_UP) then
       Tr.Position.Y := Tr.Position.Y - Spd;
    if IsKeyDown(KEY_S) or IsKeyDown(KEY_DOWN) then
@@ -244,11 +271,11 @@ begin
    if IsKeyDown(KEY_D) or IsKeyDown(KEY_RIGHT) then
       Tr.Position.X := Tr.Position.X + Spd;
 
+   { Zoom }
    if IsKeyDown(KEY_EQUAL) then
       Cam.Zoom := Min(DEMO_ZOOM_MAX, Cam.Zoom + 0.4 * ADelta);
    if IsKeyDown(KEY_MINUS) then
       Cam.Zoom := Max(DEMO_ZOOM_MIN, Cam.Zoom - 0.4 * ADelta);
-
    if not EditorHovered then
    begin
       Wheel := GetMouseWheelMove;
@@ -262,17 +289,16 @@ begin
       ApplySeed(Trunc(Now * 86400000) mod $7FFFFF + 1);
       RebuildWorld;
       FManager.UpdateStreaming(CamChunkX, CamChunkY);
+      FLightMap.ComputeLighting;
+      FLastLoadedCount := FManager.LoadedCount;
    end;
 
-   { Toggle HUD }
    if IsKeyPressed(KEY_F1) then
       FShowHUD := not FShowHUD;
-
-   { Toggle editor }
    if IsKeyPressed(KEY_TAB) then
       FShowEditor := not FShowEditor;
 
-   { ── Editor update ── }
+   { Editor interaction }
    if FShowEditor then
    begin
       if FEditor.ResetPressed then
@@ -284,153 +310,80 @@ begin
 
       if FEditor.RegeneratePressed then
       begin
-         { 1. Capture user's current params BEFORE the rebuild wipes them }
          SavedParams := FGenerator.Params;
          ClampGenParams(SavedParams);
-
-         { 2. Resolve seed }
          FSeed := SavedParams.Seed;
          if FSeed = 0 then
             FSeed := Trunc(Now * 86400000) mod $7FFFFF + 1;
          SavedParams.Seed := FSeed;
-
-         { 3. Rebuild (creates a new FGenerator with DefaultGenParams internally) }
          RebuildWorld;
-
-         { 4. Overwrite the new generator's defaults with the user's saved params }
          FGenerator.Params := SavedParams;
          FGenerator.ApplyParams;
-
-         { 5. Re-point the editor at the new generator's params field }
          FEditor.Params := @FGenerator.Params;
          FManager.UpdateStreaming(CamChunkX, CamChunkY);
-
+         FLightMap.ComputeLighting;
+         FLastLoadedCount := FManager.LoadedCount;
          FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [FSeed, CHUNK_TILES_W, CHUNK_TILES_H]);
+      end;
+
+      if FEditor.LoadPressed then
+      begin
+         SavedParams := FGenerator.Params;
+         ClampGenParams(SavedParams);
+         FSeed := SavedParams.Seed;
+         if FSeed = 0 then
+            FSeed := Trunc(Now * 86400000) mod $7FFFFF + 1;
+         SavedParams.Seed := FSeed;
+         RebuildWorld;
+         FGenerator.Params := SavedParams;
+         FGenerator.ApplyParams;
+         FEditor.Params := @FGenerator.Params;
+         FEditor.Lighting := @FLightMap.Settings;
+         FManager.UpdateStreaming(CamChunkX, CamChunkY);
+         FLightMap.ComputeLighting;
+         FLastLoadedCount := FManager.LoadedCount;
+         FGenMsg := Format('Loaded  Seed %d  |  chunk %dx%d  |  infinite world', [FSeed, CHUNK_TILES_W, CHUNK_TILES_H]);
       end;
 
       FEditor.Update(ADelta);
    end;
 
-   { ── Chunk streaming ── }
+   { Chunk streaming — recompute lighting whenever any chunk loads or
+     unloads.  Comparing only LoadedCount was insufficient: when exactly
+     the same number of chunks load and unload in one frame (steady panning)
+     the count stays constant and lighting was never refreshed, leaving new
+     chunks shadowed until a subsequent frame triggered a recompute. }
    CCX := CamChunkX;
    CCY := CamChunkY;
    FManager.UpdateStreaming(CCX, CCY);
 
+   if FManager.StreamingDirty then
+   begin
+      FManager.ClearStreamingDirty;
+      FLightMap.ComputeLighting;
+      FLastLoadedCount := FManager.LoadedCount;
+   end;
+
    World.Update(ADelta);
 end;
 
-{ ── HUD ──────────────────────────────────────────────────────────────── }
-
-procedure TWorldScene.DrawBiomeLegend(AX, AY: Integer);
-const
-   LABELS: array[0..2] of string = ('Plains', 'Desert', 'Forest');
-   COLS: array[0..2] of TColor = ((R: 56; G: 140; B: 36; A: 255), (R: 196; G: 174; B: 112; A: 255), (R: 28; G: 96; B: 24; A: 255));
-var
-   I: Integer;
-begin
-   for I := 0 to 2 do
-   begin
-      DrawRectangle(AX, AY + I * 20, 14, 14, COLS[I]);
-      DrawRectangleLinesEx(RectangleCreate(AX, AY + I * 20, 14, 14),
-         1, ColorCreate(255, 255, 255, 60));
-      DrawText(PChar(LABELS[I]), AX + 20, AY + I * 20 + 2, 11,
-         ColorCreate(220, 220, 220, 255));
-   end;
-end;
-
-procedure TWorldScene.DrawChunkOverlay;
-var
-   Cam: TCamera2D;
-   TL, BR: TVector2;
-   CX0, CY0, CX1, CY1, N, I: Integer;
-   Visible: array[0..511] of TWorldChunk;
-   C: TWorldChunk;
-   WX, WY: Single;
-begin
-   if not Assigned(FCamSys) then
-      Exit;
-   Cam := FCamSys.GetRaylibCamera;
-   TL := GetScreenToWorld2D(Vector2Create(0, 0), Cam);
-   BR := GetScreenToWorld2D(Vector2Create(FScreenW, FScreenH), Cam);
-   CX0 := TChunkManager.TileToChunkX(Trunc(TL.X / TILE_SIZE) - 1);
-   CY0 := TChunkManager.TileToChunkY(Trunc(TL.Y / TILE_SIZE) - 1);
-   CX1 := TChunkManager.TileToChunkX(Trunc(BR.X / TILE_SIZE) + 1);
-   CY1 := TChunkManager.TileToChunkY(Trunc(BR.Y / TILE_SIZE) + 1);
-   N := FManager.GetLoadedInRange(CX0, CY0, CX1, CY1, Visible, 512);
-   for I := 0 to N - 1 do
-   begin
-      C := Visible[I];
-      WX := C.CX * CHUNK_PIXEL_W;
-      WY := C.CY * CHUNK_PIXEL_H;
-      DrawRectangleLinesEx(RectangleCreate(WX, WY, CHUNK_PIXEL_W, CHUNK_PIXEL_H), 1, ColorCreate(255, 255, 255, 25));
-      DrawText(PChar(Format('%d,%d', [C.CX, C.CY])), Round(WX) + 2, Round(WY) + 2, 7, ColorCreate(255, 255, 255, 90));
-   end;
-end;
-
-procedure TWorldScene.DrawHUD;
-var
-   Cam: TCamera2DComponent;
-   Tr: TTransformComponent;
-   TX, TY, MX, MY: Integer;
-   RayC: TCamera2D;
-   WP: TVector2;
-   CCX, CCY: Integer;
-   TileType: byte;
-   Ch: TWorldChunk;
-begin
-   if not FShowHUD then
-      Exit;
-
-   Cam := TCamera2DComponent(FCamE.GetComponentByID(ComponentRegistry.GetComponentID(TCamera2DComponent)));
-   Tr := CamTr;
-
-   DrawRectangle(0, 0, FScreenW, 30, ColorCreate(0, 0, 0, 160));
-   DrawText('TERRARIA DEMO — Infinite Chunk World  (TAB=editor  F1=HUD  R=reseed)', 10, 7, 13, ColorCreate(255, 220, 60, 255));
-   DrawText(PChar(Format('Zoom: %.2f  |  Editor: %s', [Cam.Zoom, IfThen(FShowEditor, 'ON', 'OFF')])), 10, 22, 10, ColorCreate(200, 200, 200, 180));
-
-   DrawRectangle(0, FScreenH - 22, FScreenW, 22, ColorCreate(0, 0, 0, 140));
-   DrawText(PChar(FGenMsg), 10, FScreenH - 17, 12, ColorCreate(220, 220, 180, 255));
-   DrawText('FPS: ', FScreenW - 70, FScreenH - 20, 18, GREEN);
-   DrawFPS(FScreenW - 25, FScreenH - 20);
-
-   { Compact chunk panel — only when editor is closed }
-   if not FShowEditor then
-   begin
-      DrawRectangle(FScreenW - 210, 32, 210, 230, ColorCreate(0, 0, 0, 160));
-      DrawText('Chunk System', FScreenW - 200, 36, 12, ColorCreate(255, 220, 60, 255));
-      CCX := CamChunkX;
-      CCY := CamChunkY;
-      DrawText(PChar(Format('Loaded  : %d', [FManager.LoadedCount])), FScreenW - 200, 54, 11, ColorCreate(100, 220, 100, 255));
-      DrawText(PChar(Format('Created : %d', [FManager.TotalCreated])), FScreenW - 200, 70, 11, ColorCreate(200, 200, 200, 255));
-      DrawText(PChar(Format('Cam chunk: (%d,%d)', [CCX, CCY])), FScreenW - 200, 90, 11, ColorCreate(180, 200, 255, 255));
-      DrawText(PChar(Format('Cam world: (%.0f,%.0f)', [Tr.Position.X, Tr.Position.Y])), FScreenW - 200, 106, 11, ColorCreate(180, 200, 255, 255));
-      MX := GetMouseX;
-      MY := GetMouseY;
-      RayC := FCamSys.GetRaylibCamera;
-      WP := GetScreenToWorld2D(Vector2Create(MX, MY), RayC);
-      TX := Trunc(WP.X / TILE_SIZE);
-      TY := Trunc(WP.Y / TILE_SIZE);
-      DrawText(PChar(Format('Mouse tile: (%d,%d)', [TX, TY])), FScreenW - 200, 122, 11, ColorCreate(200, 200, 200, 255));
-      if (Abs(TChunkManager.TileToChunkX(TX) - CCX) <= VIEW_RADIUS) and (TChunkManager.TileToChunkY(TY) >= WORLD_MIN_CY) and (TChunkManager.TileToChunkY(TY) <= WORLD_MAX_CY) then
-      begin
-         Ch := FManager.FindLoaded(TChunkManager.TileToChunkX(TX), TChunkManager.TileToChunkY(TY));
-         if Assigned(Ch) then
-         begin
-            TileType := Ch.GetFG(TChunkManager.TileToLocalX(TX), TChunkManager.TileToLocalY(TY));
-            DrawText(PChar(Format('Tile: %d  biome %d', [TileType, FManager.GetBiome(TX)])), FScreenW - 200, 138, 11, ColorCreate(200, 200, 200, 255));
-         end;
-      end;
-      DrawText('Biomes:', FScreenW - 200, 162, 11, ColorCreate(255, 220, 60, 255));
-      DrawBiomeLegend(FScreenW - 200, 178);
-   end;
-end;
-
-{ ── Render ───────────────────────────────────────────────────────────── }
+{ ---------------------------------------------------------------------------
+  Render
+--------------------------------------------------------------------------- }
 
 procedure TWorldScene.Render;
+var
+   SkyTop, SkyBot: TColor;
+   Tr: TTransformComponent;
+   Cam: TCamera2DComponent;
+   CamID: Integer;
 begin
-   DrawRectangleGradientV(0, 0, FScreenW, FScreenH, ColorCreate(82, 148, 226, 255), ColorCreate(42, 88, 160, 255));
+   { Sky gradient }
+   SkyTop := ColorCreate(20, 80, 160, 255);
+   SkyBot := ColorCreate(60, 120, 200, 255);
+   DrawRectangleGradientV(0, 0, FScreenW, FScreenH, SkyTop, SkyBot);
 
+   { World (camera space) }
    if Assigned(FCamSys) then
    begin
       FCamSys.BeginCameraMode;
@@ -439,11 +392,112 @@ begin
       FCamSys.EndCameraMode;
    end;
 
-   DrawHUD;
+   { HUD (screen space) }
+   if FShowHUD then
+   begin
+      { Top bar }
+      DrawRectangle(0, 0, FScreenW, 28, ColorCreate(0, 0, 0, 160));
+      DrawText(PChar('Pascal 2D Game Engine  Terraria Chunk Demo'),
+         8, 6, 12, ColorCreate(220, 220, 220, 255));
 
-   { Generation properties editor }
+      { Zoom label — guarded with plain if-then, no ternary }
+      Tr := CamTr;
+      CamID := ComponentRegistry.GetComponentID(TCamera2DComponent);
+      if Assigned(Tr) and Assigned(FCamSys) and Assigned(FCamE) then
+      begin
+         Cam := TCamera2DComponent(FCamE.GetComponentByID(CamID));
+         if Assigned(Cam) then
+            DrawText(
+               PChar(Format('Zoom: %.2f  |  TAB: editor  |  F1: HUD  |  R: reseed', [Cam.Zoom])),
+               FScreenW - 420, 6, 10, ColorCreate(180, 180, 180, 255));
+      end;
+
+      { Bottom bar }
+      DrawRectangle(0, FScreenH - 24, FScreenW, 24, ColorCreate(0, 0, 0, 160));
+      DrawText(PChar(FGenMsg), 8, FScreenH - 18, 10, ColorCreate(200, 200, 200, 255));
+      DrawText(PChar(Format('FPS: %d', [GetFPS])),
+         FScreenW - 70, FScreenH - 18, 10, ColorCreate(180, 220, 100, 255));
+
+      { Chunk info panel }
+      if not FShowEditor then
+      begin
+         DrawRectangle(FScreenW - 180, 32, 176, 80, ColorCreate(0, 0, 0, 140));
+         DrawText(
+            PChar(Format('Loaded: %d  Created: %d', [FManager.LoadedCount, FManager.TotalCreated])),
+            FScreenW - 174, 36, 10, ColorCreate(200, 200, 200, 255));
+         DrawText(
+            PChar(Format('Chunk: %d , %d', [CamChunkX, CamChunkY])),
+            FScreenW - 174, 50, 10, ColorCreate(180, 180, 180, 255));
+         DrawBiomeLegend;
+      end;
+   end;
+
+   { Editor panel }
    if FShowEditor then
       FEditor.Draw;
+end;
+
+{ ---------------------------------------------------------------------------
+  DrawChunkOverlay
+--------------------------------------------------------------------------- }
+
+procedure TWorldScene.DrawChunkOverlay;
+const
+   MAX_VIS = 256;
+var
+   RaylibCam: TCamera2D;
+   TL, BR: TVector2;
+   CX0, CX1, CY0, CY1: Integer;
+   CX, CY, WX, WY: Integer;
+   Visible: array[0..MAX_VIS - 1] of TWorldChunk;
+   Count, I: Integer;
+   BLCol: TColor;
+begin
+   if not Assigned(FCamSys) then
+      Exit;
+
+   RaylibCam := FCamSys.GetRaylibCamera;
+   TL := GetScreenToWorld2D(Vector2Create(0, 0), RaylibCam);
+   BR := GetScreenToWorld2D(Vector2Create(FScreenW, FScreenH), RaylibCam);
+
+   CX0 := TChunkManager.TileToChunkX(Floor(TL.X / TILE_SIZE)) - 1;
+   CX1 := TChunkManager.TileToChunkX(Ceil(BR.X / TILE_SIZE)) + 1;
+   CY0 := TChunkManager.TileToChunkY(Floor(TL.Y / TILE_SIZE)) - 1;
+   CY1 := TChunkManager.TileToChunkY(Ceil(BR.Y / TILE_SIZE)) + 1;
+
+   Count := FManager.GetLoadedInRange(CX0, CY0, CX1, CY1, Visible, MAX_VIS);
+
+   BLCol := ColorCreate(255, 255, 80, 60);
+   for I := 0 to Count - 1 do
+   begin
+      CX := Visible[I].CX;
+      CY := Visible[I].CY;
+      WX := TChunkManager.ChunkToTileX(CX) * TILE_SIZE;
+      WY := TChunkManager.ChunkToTileY(CY) * TILE_SIZE;
+      DrawRectangleLinesEx(
+         RectangleCreate(WX, WY, CHUNK_TILES_W * TILE_SIZE, CHUNK_TILES_H * TILE_SIZE),
+         1, BLCol);
+      DrawText(PChar(Format('%d,%d', [CX, CY])),
+         WX + 2, WY + 2, 6, ColorCreate(255, 255, 80, 120));
+   end;
+end;
+
+{ ---------------------------------------------------------------------------
+  DrawBiomeLegend
+--------------------------------------------------------------------------- }
+
+procedure TWorldScene.DrawBiomeLegend;
+const
+   LX = 6;
+   LY = 36;
+   SZ = 10;
+begin
+   DrawRectangle(LX, LY, SZ, SZ, ColorCreate(80, 180, 80, 255));
+   DrawText(PChar('Plains'), LX + SZ + 4, LY, 9, ColorCreate(180, 180, 180, 255));
+   DrawRectangle(LX, LY + 14, SZ, SZ, ColorCreate(210, 170, 50, 255));
+   DrawText(PChar('Desert'), LX + SZ + 4, LY + 14, 9, ColorCreate(180, 180, 180, 255));
+   DrawRectangle(LX, LY + 28, SZ, SZ, ColorCreate(40, 140, 60, 255));
+   DrawText(PChar('Forest'), LX + SZ + 4, LY + 28, 9, ColorCreate(180, 180, 180, 255));
 end;
 
 end.

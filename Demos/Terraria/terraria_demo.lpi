@@ -18,7 +18,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <SearchPaths>
-            <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;../../Engine"/>
+            <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;../../Engine;Systems"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -73,10 +73,6 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Terraria.Systems.ChunkRender.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
         <Filename Value="Terraria.UI.GenEditor.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
@@ -94,10 +90,6 @@
       </Unit>
       <Unit>
         <Filename Value="Terraria.Generator.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="Terraria.Systems.MapRender.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
@@ -392,6 +384,18 @@
         <Filename Value="../../Engine/P2D.Common.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="Systems/Terraria.Systems.ChunkRender.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Systems/Terraria.Systems.MapRender.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Terraria.Lighting.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -401,7 +405,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;../../Engine"/>
+      <OtherUnitFiles Value="../../Engine/Core;../../Engine/Components;../../Engine/Systems;../../Engine/Utils;../../Engine;Systems"/>
       <UnitOutputDirectory Value="../../Trash"/>
     </SearchPaths>
     <Parsing>

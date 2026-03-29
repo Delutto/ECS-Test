@@ -202,6 +202,18 @@ const
    VIRT_W = 1280;
    VIRT_H = 720;
 
+   CHUNK_TILES_W = 32;   { tiles per chunk, horizontal }
+   CHUNK_TILES_H = 32;   { tiles per chunk, vertical   }
+   CHUNK_PIXEL_W = CHUNK_TILES_W * TILE_SIZE;
+   CHUNK_PIXEL_H = CHUNK_TILES_H * TILE_SIZE;
+
+   { ── Light system ────────────────────────────────────────────────────── }
+   LM_HASH_BUCKETS = 1024;
+   LM_HASH_P1 = 73856093;
+   LM_HASH_P2 = 19349663;
+   LM_QUEUE_CAP = 1048576;
+   MAX_ALL_CHUNKS = 512;
+
 implementation
 
 end.

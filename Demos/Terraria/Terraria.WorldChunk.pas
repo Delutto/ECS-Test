@@ -1,6 +1,7 @@
-
 unit Terraria.WorldChunk;
+
 {$mode objfpc}{$H+}
+
 { TWorldChunk — a fixed-size rectangular block of tile data.
 
   Layout constants (from Terraria.ChunkManager):
@@ -19,12 +20,6 @@ interface
 uses
    SysUtils,
    Terraria.Common;
-
-const
-   CHUNK_TILES_W = 32;   { tiles per chunk, horizontal }
-   CHUNK_TILES_H = 32;   { tiles per chunk, vertical   }
-   CHUNK_PIXEL_W = CHUNK_TILES_W * TILE_SIZE;
-   CHUNK_PIXEL_H = CHUNK_TILES_H * TILE_SIZE;
 
 type
    TChunkTileRow = array[0..CHUNK_TILES_W - 1] of byte;

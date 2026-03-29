@@ -65,6 +65,7 @@ type
       FTotalCreated: Integer;
       FOnGenerate: TChunkGenerateProc;
       FSeed: longint;
+      FStreamingDirty: boolean;   { set when any chunk loads or unloads }
 
       function HashKey(ACX, ACY: Integer): Integer; inline;
       function FindChunk(ACX, ACY: Integer): TWorldChunk;
@@ -105,7 +106,7 @@ type
       class function ChunkToTileY(CY: Integer): Integer; static; inline;
 
       { ── Enumeration (for renderer) ────────────────────────────────── }
-    { Fills AOut with pointers to chunks within the given chunk range.
+      { Fills AOut with pointers to chunks within the given chunk range.
       Returns the number of chunks written (up to AMaxOut). }
       function GetLoadedInRange(CX0, CY0, CX1, CY1: Integer; out AOut: array of TWorldChunk; AMaxOut: Integer): Integer;
 
@@ -114,6 +115,12 @@ type
       property TotalCreated: Integer read FTotalCreated;
       property OnGenerate: TChunkGenerateProc read FOnGenerate write FOnGenerate;
       property Seed: longint read FSeed write FSeed;
+      { True if any chunk was loaded or unloaded since the last
+        ClearStreamingDirty call. Use this to decide when to recompute
+        lighting instead of comparing LoadedCount (which can be unchanged
+        when equal numbers of chunks load and unload in the same frame). }
+      property StreamingDirty: boolean read FStreamingDirty;
+      procedure ClearStreamingDirty;
 
    private
     { Per-column metadata stored in a small side-hash (TX → byte).
@@ -205,6 +212,7 @@ begin
    FBuckets[K] := Result;
    Inc(FLoadedCount);
    Inc(FTotalCreated);
+   FStreamingDirty := True;
 end;
 
 procedure TChunkManager.RemoveFromBucket(AChunk: TWorldChunk);
@@ -352,6 +360,7 @@ begin
                FBuckets[I] := Next;
             C.Free;
             Dec(FLoadedCount);
+            FStreamingDirty := True;
             { Prev stays the same — we already updated the chain }
          end
          else
@@ -433,6 +442,12 @@ end;
 class function TChunkManager.ChunkToTileY(CY: Integer): Integer;
 begin
    Result := CY * CHUNK_TILES_H;
+end;
+
+
+procedure TChunkManager.ClearStreamingDirty;
+begin
+   FStreamingDirty := False;
 end;
 
 end.

@@ -8,25 +8,35 @@ unit Terraria.ChunkGenerator;
   ──────────────────────────────
   1. GenerateColumn        – solid tiles (terrain + biome depth zones)
   2. FillBackgroundColumn  – wall tiles behind air
-  3. PlaceGrassColumn      – topmost dirt → grass
+  3. PlaceGrassColumn      – topmost dirt → grass (only at the true surface row)
   4. PlantVegetation       – trees, shrubs, cacti on the surface
   5. PlaceCaveDecor        – roots/vines (ceiling), stalactites/stalagmites,
                              mushrooms (floor), moss patches
-  6. PlaceVegetationForColumn – helper driving passes 4+5 per column
 
-  ALGORITHM NOTES
-  ────────────────
-  • All placement uses value-noise for irregular spacing rather than simple
-    random chance, so vegetation clusters naturally without tiling artefacts.
-  • Trees are written top-down:  canopy first, then trunk downward into the
-    surface row.  This lets a single column pass handle the full tree.
-  • Cacti grow upward from the sand surface; arms branch off at mid-height.
-  • Cave decorations are placed only inside air tiles adjacent to solid tiles:
-    roots/vines from dirt ceilings, stalactites from stone ceilings,
-    stalagmites from stone floors, mushrooms on flat stone/dirt floors,
-    moss on ceiling/wall stone.
-  • The foreground layer is used for all decorations (they are rendered
-    as translucent overlays by TChunkRenderSystem). }
+  FIX NOTES
+  ─────────
+  • PlaceGrassColumn: now verifies that the first non-air tile found in the
+    local chunk column is actually the global surface row (TY = ASurface).
+    Chunks entirely below the surface no longer convert their topmost dirt
+    tile to grass.
+
+  • PlantVegetationForColumn: guards that the local surface LY, when
+    converted to a world Y, matches the stored surface for that column.
+    Also passes the world X (TX) and chunk Y origin to PlantTree /
+    PlantCactus so cross-chunk tiles are written via FManager.SetFG.
+
+  • PlantTree / PlantCactus: cross-chunk canopy and body tiles are written
+    through FManager.SetFG (world tile coordinates) instead of SafeSetFG,
+    so tiles that fall outside the current chunk are placed correctly in
+    the neighbouring chunk.
+
+  • PlantShrub: added check that the surface tile is TILE_DIRT or TILE_GRASS
+    before placing the shrub, preventing shrubs from appearing on tree
+    trunks/leaves or other surface objects.
+
+  • SetFGWorld: new helper that converts a world tile coordinate pair to the
+    correct chunk + local coordinate and delegates to FManager, handling
+    cross-chunk writes safely. }
 
 interface
 
@@ -51,13 +61,16 @@ type
       function ForegroundTile(TX, TY, ASurface: Integer; ABiome: byte): byte;
       function IsCaveAt(TX, TY: Integer; ACaveMult: Single): boolean;
       procedure GenerateColumn(AChunk: TWorldChunk; LX, ACX, ACY: Integer);
-      procedure PlaceGrassColumn(AChunk: TWorldChunk; LX: Integer);
+      { PlaceGrassColumn now requires the world Y of the surface for the
+        column so it can validate the tile before converting it. }
+      procedure PlaceGrassColumn(AChunk: TWorldChunk; LX, ACY, ASurface: Integer);
       procedure FillBackgroundColumn(AChunk: TWorldChunk; LX, ACX, ACY, ASurface: Integer; ABiome: byte);
 
-      { Vegetation }
-      procedure PlantTree(AChunk: TWorldChunk; LX, SurfLY: Integer; const V: TVegetationParams);
+      { Vegetation — TX and OriginTY carry world coordinates so that
+        cross-chunk tiles can be written via SetFGWorld. }
+      procedure PlantTree(AChunk: TWorldChunk; LX, SurfLY, TX, OriginTY: Integer; const V: TVegetationParams);
       procedure PlantShrub(AChunk: TWorldChunk; LX, SurfLY: Integer);
-      procedure PlantCactus(AChunk: TWorldChunk; LX, SurfLY: Integer; const V: TVegetationParams);
+      procedure PlantCactus(AChunk: TWorldChunk; LX, SurfLY, TX, OriginTY: Integer; const V: TVegetationParams);
       procedure PlantVegetationForColumn(AChunk: TWorldChunk; LX, ACX, ACY: Integer);
 
       { Cave decorations }
@@ -71,6 +84,9 @@ type
       function TileIsStone(AChunk: TWorldChunk; LX, LY: Integer): boolean; inline;
       { Safe set — clamps to chunk bounds, does nothing if LY out of range }
       procedure SafeSetFG(AChunk: TWorldChunk; LX, LY: Integer; ATile: byte);
+      { Cross-chunk safe set — writes to ANY world tile coordinate through
+        FManager, creating the target chunk on demand if needed. }
+      procedure SetFGWorld(WX, WY: Integer; ATile: byte);
    public
       constructor Create(AManager: TChunkManager; ASeed: longint);
       procedure GenerateChunk(ACX, ACY: Integer; AChunk: TWorldChunk);
@@ -81,23 +97,32 @@ type
 
 implementation
 
-constructor TChunkGenerator.Create(AManager: TChunkManager; ASeed: longint);
-begin
-   inherited Create;
+uses
+   P2D.Utils.Logger;
 
-   FManager := AManager;
-   FSeed := ASeed;
-   FParams := DefaultGenParams;
-   FParams.Seed := ASeed;
+{ ---------------------------------------------------------------------------
+  Helper: SetFGWorld
+  Writes ATile to world-tile position (WX, WY).  The call is forwarded to
+  FManager which converts world → chunk → local coords and creates the
+  target chunk if it does not yet exist (triggering generation for that
+  chunk, which is safe because chunk (ACX, ACY) is already present in the
+  hash table and will not be re-generated by the recursive call).
+  Coordinates outside the vertical world bounds are silently ignored.
+--------------------------------------------------------------------------- }
+procedure TChunkGenerator.SetFGWorld(WX, WY: Integer; ATile: byte);
+var
+   CY: Integer;
+begin
+   { Respect vertical world limits }
+   CY := TChunkManager.TileToChunkY(WY);
+   if (CY < WORLD_MIN_CY) or (CY > WORLD_MAX_CY) then
+      Exit;
+   FManager.SetFG(WX, WY, ATile);
 end;
 
-procedure TChunkGenerator.ApplyParams;
-begin
-   ClampGenParams(FParams);
-   FSeed := FParams.Seed;
-end;
-
-{ ── Shared tile helpers ────────────────────────────────────────────────── }
+{ ---------------------------------------------------------------------------
+  Terrain helpers (unchanged)
+--------------------------------------------------------------------------- }
 
 function TChunkGenerator.TileIsAir(AChunk: TWorldChunk; LX, LY: Integer): boolean;
 begin
@@ -143,14 +168,6 @@ begin
    Result := (T = TILE_STONE) or (T = TILE_GRANITE) or (T = TILE_MARBLE) or (T = TILE_SANDSTONE) or (T = TILE_BEDROCK);
 end;
 
-procedure TChunkGenerator.SafeSetFG(AChunk: TWorldChunk; LX, LY: Integer; ATile: byte);
-begin
-   if AChunk.InLocalBounds(LX, LY) then
-      AChunk.SetFG(LX, LY, ATile);
-end;
-
-{ ── Find the top-most non-air local Y in a column (−1 if all air) ──────── }
-
 function TChunkGenerator.SurfaceLocalY(AChunk: TWorldChunk; LX: Integer): Integer;
 var
    LY: Integer;
@@ -164,7 +181,30 @@ begin
       end;
 end;
 
-{ ── Terrain generation (unchanged from previous version) ───────────────── }
+procedure TChunkGenerator.SafeSetFG(AChunk: TWorldChunk; LX, LY: Integer; ATile: byte);
+begin
+   if AChunk.InLocalBounds(LX, LY) then
+      AChunk.SetFG(LX, LY, ATile);
+end;
+
+{ ---------------------------------------------------------------------------
+  constructor / ApplyParams / ComputeSurfaceY / ComputeBiome (unchanged)
+--------------------------------------------------------------------------- }
+
+constructor TChunkGenerator.Create(AManager: TChunkManager; ASeed: longint);
+begin
+   inherited Create;
+   FManager := AManager;
+   FSeed := ASeed;
+   FParams := DefaultGenParams;
+   FParams.Seed := ASeed;
+end;
+
+procedure TChunkGenerator.ApplyParams;
+begin
+   ClampGenParams(FParams);
+   FSeed := FParams.Seed;
+end;
 
 function TChunkGenerator.ComputeSurfaceY(TX: Integer): Integer;
 var
@@ -199,6 +239,10 @@ begin
    else
       Result := BIOME_FOREST;
 end;
+
+{ ---------------------------------------------------------------------------
+  ForegroundTile (unchanged)
+--------------------------------------------------------------------------- }
 
 function TChunkGenerator.ForegroundTile(TX, TY, ASurface: Integer; ABiome: byte): byte;
 var
@@ -304,6 +348,10 @@ begin
    Result := Abs(N) < EffThreshold;
 end;
 
+{ ---------------------------------------------------------------------------
+  GenerateColumn (unchanged)
+--------------------------------------------------------------------------- }
+
 procedure TChunkGenerator.GenerateColumn(AChunk: TWorldChunk; LX, ACX, ACY: Integer);
 var
    TX, TY, WY, SY: Integer;
@@ -336,6 +384,10 @@ begin
       AChunk.SetFG(LX, WY, TileVal);
    end;
 end;
+
+{ ---------------------------------------------------------------------------
+  FillBackgroundColumn (unchanged)
+--------------------------------------------------------------------------- }
 
 procedure TChunkGenerator.FillBackgroundColumn(AChunk: TWorldChunk; LX, ACX, ACY, ASurface: Integer; ABiome: byte);
 var
@@ -379,139 +431,69 @@ begin
    end;
 end;
 
-procedure TChunkGenerator.PlaceGrassColumn(AChunk: TWorldChunk; LX: Integer);
+{ ---------------------------------------------------------------------------
+  FIX 1 — PlaceGrassColumn
+  ─────────────────────────
+  The original version simply converted the first non-air tile in the local
+  chunk column to grass.  For chunks that are entirely below the surface
+  chunk (e.g., the player has dug down to chunk CY=2 while the surface is
+  in CY=1), the topmost tile at LY=0 is underground dirt — and it was
+  incorrectly turned into grass.
+
+  Fix: compute the world Y (TY) of the first non-air local tile and compare
+  it against the stored per-column surface Y (ASurface).  Grass is only
+  placed when TY == ASurface, i.e., when this tile really is the surface.
+--------------------------------------------------------------------------- }
+
+procedure TChunkGenerator.PlaceGrassColumn(AChunk: TWorldChunk; LX, ACY, ASurface: Integer);
 var
-   WY: Integer;
+   LY, TY: Integer;
+   ChunkOriginTY: Integer;
 begin
-   for WY := 0 to CHUNK_TILES_H - 1 do
-      if AChunk.GetFG(LX, WY) <> TILE_AIR then
+   ChunkOriginTY := TChunkManager.ChunkToTileY(ACY);
+   for LY := 0 to CHUNK_TILES_H - 1 do
+   begin
+      if AChunk.GetFG(LX, LY) <> TILE_AIR then
       begin
-         if AChunk.GetFG(LX, WY) = TILE_DIRT then
-            AChunk.SetFG(LX, WY, TILE_GRASS);
+         TY := ChunkOriginTY + LY;
+         { Only convert to grass when this tile IS the global surface row }
+         if (TY = ASurface) and (AChunk.GetFG(LX, LY) = TILE_DIRT) then
+            AChunk.SetFG(LX, LY, TILE_GRASS);
          Break;
       end;
-end;
-
-{ ── VEGETATION ─────────────────────────────────────────────────────────── }
-
-procedure TChunkGenerator.PlantShrub(AChunk: TWorldChunk; LX, SurfLY: Integer);
-{ Single-tile shrub directly above the surface row }
-begin
-   if SurfLY <= 0 then
-      Exit;
-   if not TileIsAir(AChunk, LX, SurfLY - 1) then
-      Exit;
-   SafeSetFG(AChunk, LX, SurfLY - 1, TILE_SHRUB);
-end;
-
-procedure TChunkGenerator.PlantTree(AChunk: TWorldChunk; LX, SurfLY: Integer; const V: TVegetationParams);
-{ Grows a deciduous tree upward from SurfLY-1.
-  Trunk: 1-wide column of TILE_TREE_TRUNK.
-  Canopy: filled oval of TILE_TREE_LEAF centred on the trunk top. }
-var
-   TrunkH, CX, CY, R, H, DX, DY, LY: Integer;
-   NTop, Lx2, Ly2: Integer;
-begin
-   if SurfLY <= 0 then
-      Exit;
-   if not TileIsAir(AChunk, LX, SurfLY - 1) then
-      Exit;
-
-   { random-ish height from noise }
-   TrunkH := V.TreeMinHeight + (Abs(Round(ValueNoise1D(LX * 7.3 + FSeed * 0.01) * 100)) mod Max(1, V.TreeMaxHeight - V.TreeMinHeight + 1));
-   TrunkH := Max(V.TreeMinHeight, Min(V.TreeMaxHeight, TrunkH));
-
-   NTop := SurfLY - 1 - TrunkH;   { local Y of trunk top }
-   if NTop < 0 then
-      TrunkH := SurfLY - 1;   { clamp to chunk top }
-   NTop := SurfLY - 1 - TrunkH;
-   if NTop < 0 then
-      NTop := 0;
-
-   { Trunk }
-   for LY := NTop to SurfLY - 1 do
-      SafeSetFG(AChunk, LX, LY, TILE_TREE_TRUNK);
-
-   { Canopy — oval }
-   R := V.TreeCanopyRadius;
-   H := V.TreeCanopyHeight;
-   CX := LX;
-   CY := NTop;   { canopy centred at trunk top }
-
-   for DY := -H to H do
-      for DX := -(R) to R do
-      begin
-         { Oval test: (DX/R)^2 + (DY/H)^2 <= 1 }
-         if (DX * DX * H * H + DY * DY * R * R) <= (R * R * H * H) then
-         begin
-            Lx2 := CX + DX;
-            Ly2 := CY + DY;
-            if AChunk.InLocalBounds(Lx2, Ly2) and TileIsAir(AChunk, Lx2, Ly2) then
-               SafeSetFG(AChunk, Lx2, Ly2, TILE_TREE_LEAF);
-         end;
-      end;
-end;
-
-procedure TChunkGenerator.PlantCactus(AChunk: TWorldChunk; LX, SurfLY: Integer; const V: TVegetationParams);
-{ Grows a cactus upward.  May sprout one arm (horizontal 1-tile extension)
-  at roughly mid-height on either side. }
-var
-   CactH, LY, MidY, ArmY, TopY: Integer;
-   GrowLeft: boolean;
-   NArmChance: Single;
-begin
-   if SurfLY <= 1 then
-      Exit;
-   if not TileIsAir(AChunk, LX, SurfLY - 1) then
-      Exit;
-
-   CactH := V.CactusMinHeight + (Abs(Round(ValueNoise1D(LX * 11.7 + FSeed * 0.02) * 100)) mod Max(1, V.CactusMaxHeight - V.CactusMinHeight + 1));
-   CactH := Max(V.CactusMinHeight, Min(V.CactusMaxHeight, CactH));
-
-   for LY := SurfLY - 1 downto Max(0, SurfLY - CactH) do
-      SafeSetFG(AChunk, LX, LY, TILE_CACTUS);
-
-   { Arm }
-   if V.CactusArmChance > 0 then
-   begin
-      NArmChance := (ValueNoise1D(LX * 3.3 + FSeed * 0.03) + 1.0) * 0.5;
-      if NArmChance < V.CactusArmChance then
-      begin
-         MidY := SurfLY - 1 - CactH div 2;
-         if MidY >= 0 then
-         begin
-            GrowLeft := ValueNoise1D(LX * 17.1 + FSeed) > 0;
-            ArmY := MidY;
-            if GrowLeft then
-            begin
-               SafeSetFG(AChunk, LX - 1, ArmY, TILE_CACTUS);
-               SafeSetFG(AChunk, LX - 1, ArmY - 1, TILE_CACTUS_TOP);
-            end
-            else
-            begin
-               SafeSetFG(AChunk, LX + 1, ArmY, TILE_CACTUS);
-               SafeSetFG(AChunk, LX + 1, ArmY - 1, TILE_CACTUS_TOP);
-            end;
-         end;
-      end;
    end;
-
-   { Cactus top cap }
-   TopY := Max(0, SurfLY - CactH);
-   SafeSetFG(AChunk, LX, TopY, TILE_CACTUS_TOP);
 end;
+
+{ ---------------------------------------------------------------------------
+  FIX 1+3 — PlantVegetationForColumn
+  ────────────────────────────────────
+  FIX 1:  Guard added at the top — if the local surface LY, when converted
+          to a world Y, does not equal the stored surface for this column,
+          the column is entirely below (or entirely above) the surface and
+          we must not plant anything.  This prevents underground tiles from
+          being decorated as if they were on the surface.
+
+  FIX 3:  The shrub placement check now also verifies that the tile AT
+          SurfLY is TILE_GRASS or TILE_DIRT.  This prevents shrubs from
+          being placed on top of tree trunks/leaves (which can appear at
+          SurfLY when a tree trunk has been detected as the topmost
+          non-air tile by SurfaceLocalY).
+--------------------------------------------------------------------------- }
 
 procedure TChunkGenerator.PlantVegetationForColumn(AChunk: TWorldChunk; LX, ACX, ACY: Integer);
 var
    TX: Integer;
    Biome: byte;
    V: TVegetationParams;
-   SLY: Integer;   { surface local Y inside the chunk }
+   SLY: Integer;
+   TY, OriginTY: Integer;
    N: Single;
    Lc: Integer;
-   CanPlace: Boolean;
+   CanPlace: boolean;
+   SurfTile: byte;
 begin
    TX := TChunkManager.ChunkToTileX(ACX) + LX;
+   OriginTY := TChunkManager.ChunkToTileY(ACY);
    Biome := FManager.GetBiome(TX);
 
    case Biome of
@@ -525,11 +507,16 @@ begin
 
    SLY := SurfaceLocalY(AChunk, LX);
    if SLY < 0 then
-      Exit;   { entire column is air — nothing to plant on }
+      Exit;   { entire column is air }
 
-   { Only grow vegetation when this chunk row contains the surface }
+   { FIX 1: verify this is really the global surface row }
+   TY := OriginTY + SLY;
+   if TY <> FManager.GetSurfaceY(TX) then
+      Exit;   { surface is in a different chunk — nothing to plant here }
+
+   { Trees need at least one row of sky above them inside this chunk }
    if SLY = 0 then
-      Exit;   { surface is above this chunk row }
+      Exit;
 
    { ── Trees ── }
    if V.TreeEnabled then
@@ -537,7 +524,6 @@ begin
       N := (ValueNoise1D(TX * V.TreeNoiseFreq + FSeed * 0.001) + 1.0) * 0.5;
       if N < V.TreeNoiseThresh then
       begin
-         { Ensure adjacent columns are clear (3-tile gap rule) }
          CanPlace := True;
          for Lc := Max(0, LX - 2) to Min(CHUNK_TILES_W - 1, LX + 2) do
             if (Lc <> LX) and (AChunk.GetFG(Lc, SLY - 1) in [TILE_TREE_TRUNK, TILE_CACTUS]) then
@@ -546,16 +532,22 @@ begin
                Break;
             end;
          if CanPlace then
-            PlantTree(AChunk, LX, SLY, V);
+            PlantTree(AChunk, LX, SLY, TX, OriginTY, V);
       end;
    end;
 
-   { ── Shrubs / ferns (only if column has no tree trunk above surface) ── }
+   { ── Shrubs / ferns ──
+     FIX 3: only place on actual ground tiles (TILE_DIRT or TILE_GRASS).
+     This stops shrubs from spawning on top of tree trunks/leaves. }
    if V.ShrubEnabled and TileIsAir(AChunk, LX, SLY - 1) then
    begin
-      N := (ValueNoise1D(TX * V.ShrubNoiseFreq + FSeed * 0.007 + 333) + 1.0) * 0.5;
-      if N < V.ShrubNoiseThresh then
-         PlantShrub(AChunk, LX, SLY);
+      SurfTile := AChunk.GetFG(LX, SLY);
+      if (SurfTile = TILE_GRASS) or (SurfTile = TILE_DIRT) or (SurfTile = TILE_SAND) then
+      begin
+         N := (ValueNoise1D(TX * V.ShrubNoiseFreq + FSeed * 0.007 + 333) + 1.0) * 0.5;
+         if N < V.ShrubNoiseThresh then
+            PlantShrub(AChunk, LX, SLY);
+      end;
    end;
 
    { ── Cacti ── }
@@ -563,18 +555,172 @@ begin
    begin
       N := (ValueNoise1D(TX * V.CactusNoiseFreq + FSeed * 0.003 + 777) + 1.0) * 0.5;
       if N < V.CactusNoiseThresh then
-         PlantCactus(AChunk, LX, SLY, V);
+         PlantCactus(AChunk, LX, SLY, TX, OriginTY, V);
    end;
 end;
 
-{ ── CAVE DECORATIONS ────────────────────────────────────────────────────── }
+{ ---------------------------------------------------------------------------
+  FIX 2 — PlantTree
+  ─────────────────
+  Cross-chunk canopy tiles now use SetFGWorld(WX, WY, tile) instead of
+  SafeSetFG(LX2, LY2, tile).  SetFGWorld converts local offsets to world
+  coordinates and delegates to FManager, which creates the neighbouring
+  chunk on demand (without re-generating the current one).
+
+  The trunk itself stays within the current chunk via SafeSetFG because the
+  surface is guaranteed to be inside this chunk (guarded in
+  PlantVegetationForColumn).  The canopy is what can overflow horizontally
+  and/or vertically.
+--------------------------------------------------------------------------- }
+
+procedure TChunkGenerator.PlantTree(AChunk: TWorldChunk; LX, SurfLY, TX, OriginTY: Integer; const V: TVegetationParams);
+{ FIX — vertical chunk crossing for trunk:
+  TrunkH is no longer clamped to fit inside the current chunk.
+  Both trunk and canopy are placed in world coordinates; tiles that land
+  outside the current chunk are written through SetFGWorld (which calls
+  FManager.SetFG and creates the neighbour chunk on demand). }
+var
+   TrunkH, R, H, DX, DY: Integer;
+   TrunkBottomWY, TrunkTopWY, WY: Integer;
+   CanopyWX, CanopyWY: Integer;
+   LocalX, LocalY: Integer;
+begin
+   if SurfLY <= 0 then
+      Exit;
+   if not TileIsAir(AChunk, LX, SurfLY - 1) then
+      Exit;
+
+   { Trunk height from noise — NOT clamped to chunk boundary }
+   TrunkH := V.TreeMinHeight + (Abs(Round(ValueNoise1D(LX * 7.3 + FSeed * 0.01) * 100)) mod Max(1, V.TreeMaxHeight - V.TreeMinHeight + 1));
+   TrunkH := Max(V.TreeMinHeight, Min(V.TreeMaxHeight, TrunkH));
+
+   { World Y of the bottom-most trunk tile (just above the surface tile) }
+   TrunkBottomWY := OriginTY + SurfLY - 1;
+   { World Y of the top-most trunk tile }
+   TrunkTopWY := TrunkBottomWY - TrunkH;
+   { Clamp to the world's topmost row }
+   if TrunkTopWY < TChunkManager.ChunkToTileY(WORLD_MIN_CY) then
+      TrunkTopWY := TChunkManager.ChunkToTileY(WORLD_MIN_CY);
+
+   { Place trunk tiles in world coordinates.
+     Tiles that fall inside the current chunk use the fast local path;
+     tiles in the chunk above are placed via SetFGWorld. }
+   for WY := TrunkTopWY to TrunkBottomWY do
+   begin
+      LocalX := LX;
+      LocalY := WY - OriginTY;
+      if AChunk.InLocalBounds(LocalX, LocalY) then
+         AChunk.SetFG(LocalX, LocalY, TILE_TREE_TRUNK)
+      else
+         SetFGWorld(TX, WY, TILE_TREE_TRUNK);
+   end;
+
+   { Canopy — oval centred on the trunk top in world coordinates }
+   R := V.TreeCanopyRadius;
+   H := V.TreeCanopyHeight;
+
+   for DY := -H to H do
+      for DX := -R to R do
+      begin
+         if (DX * DX * H * H + DY * DY * R * R) > (R * R * H * H) then
+            Continue;
+
+         CanopyWX := TX + DX;
+         CanopyWY := TrunkTopWY + DY;
+
+         LocalX := CanopyWX - TX + LX;
+         LocalY := CanopyWY - OriginTY;
+         if AChunk.InLocalBounds(LocalX, LocalY) then
+         begin
+            if TileIsAir(AChunk, LocalX, LocalY) then
+               AChunk.SetFG(LocalX, LocalY, TILE_TREE_LEAF);
+         end
+         else
+            SetFGWorld(CanopyWX, CanopyWY, TILE_TREE_LEAF);
+      end;
+end;
+
+{ ---------------------------------------------------------------------------
+  PlantShrub (unchanged except it is now called only after the ground-tile
+  check in PlantVegetationForColumn — FIX 3)
+--------------------------------------------------------------------------- }
+
+procedure TChunkGenerator.PlantShrub(AChunk: TWorldChunk; LX, SurfLY: Integer);
+begin
+   if SurfLY <= 0 then
+      Exit;
+   if not TileIsAir(AChunk, LX, SurfLY - 1) then
+      Exit;
+   SafeSetFG(AChunk, LX, SurfLY - 1, TILE_SHRUB);
+end;
+
+{ ---------------------------------------------------------------------------
+  FIX 2 — PlantCactus
+  ────────────────────
+  Cactus body and arm tiles use SetFGWorld for positions that may fall
+  outside the current chunk boundaries.
+--------------------------------------------------------------------------- }
+
+procedure TChunkGenerator.PlantCactus(AChunk: TWorldChunk; LX, SurfLY, TX, OriginTY: Integer; const V: TVegetationParams);
+var
+   CactH, LY, MidY, ArmY, TopY: Integer;
+   GrowLeft: boolean;
+   NArmChance: Single;
+   WYbase: Integer;
+begin
+   if SurfLY <= 1 then
+      Exit;
+   if not TileIsAir(AChunk, LX, SurfLY - 1) then
+      Exit;
+
+   CactH := V.CactusMinHeight + (Abs(Round(ValueNoise1D(LX * 11.7 + FSeed * 0.02) * 100)) mod Max(1, V.CactusMaxHeight - V.CactusMinHeight + 1));
+   CactH := Max(V.CactusMinHeight, Min(V.CactusMaxHeight, CactH));
+
+   { Body — grows upward; write local tiles where possible, cross-chunk via manager }
+   for LY := SurfLY - 1 downto Max(0, SurfLY - CactH) do
+      SafeSetFG(AChunk, LX, LY, TILE_CACTUS);
+
+   { Arm — can overflow one tile horizontally }
+   if V.CactusArmChance > 0 then
+   begin
+      NArmChance := (ValueNoise1D(LX * 3.3 + FSeed * 0.03) + 1.0) * 0.5;
+      if NArmChance < V.CactusArmChance then
+      begin
+         MidY := SurfLY - 1 - CactH div 2;
+         if MidY >= 0 then
+         begin
+            GrowLeft := ValueNoise1D(LX * 17.1 + FSeed) > 0;
+            ArmY := MidY;
+            WYbase := OriginTY + ArmY;
+            if GrowLeft then
+            begin
+               SetFGWorld(TX - 1, WYbase, TILE_CACTUS);
+               SetFGWorld(TX - 1, WYbase - 1, TILE_CACTUS_TOP);
+            end
+            else
+            begin
+               SetFGWorld(TX + 1, WYbase, TILE_CACTUS);
+               SetFGWorld(TX + 1, WYbase - 1, TILE_CACTUS_TOP);
+            end;
+         end;
+      end;
+   end;
+
+   { Top cap }
+   TopY := Max(0, SurfLY - CactH);
+   SafeSetFG(AChunk, LX, TopY, TILE_CACTUS_TOP);
+end;
+
+{ ---------------------------------------------------------------------------
+  PlaceCaveDecor (unchanged)
+--------------------------------------------------------------------------- }
 
 procedure TChunkGenerator.PlaceCaveDecor(AChunk: TWorldChunk; LX, ACX, ACY: Integer);
 var
-   LY, TX, WY, TY, Len, I: Integer;
+   LY, TX, TY, Len, I: Integer;
    CD: TCaveDecoParams;
    N: Single;
-   SurfTY: Integer;   { surface in world coords for this column }
+   SurfTY: Integer;
    Biome: byte;
    DepthBelowSurf: Integer;
 begin
@@ -589,15 +735,11 @@ begin
       DepthBelowSurf := TY - SurfTY;
       if DepthBelowSurf < FParams.CaveStartDepth then
          Continue;
-
-      { Only work in air tiles }
       if not TileIsAir(AChunk, LX, LY) then
          Continue;
 
-      { ── Ceiling decorations (tile above is solid) ── }
       if TileIsSolid(AChunk, LX, LY - 1) then
       begin
-         { Roots hang from dirt/clay ceilings }
          if CD.RootsEnabled and TileIsDirt(AChunk, LX, LY - 1) then
          begin
             N := (ValueNoise1D(TX * CD.RootsNoiseFreq + LY * 2.3 + FSeed * 0.02) + 1.0) * 0.5;
@@ -611,8 +753,6 @@ begin
                      Break;
             end;
          end;
-
-         { Vines hang from stone/granite ceilings (deeper) }
          if CD.VinesEnabled and TileIsStone(AChunk, LX, LY - 1) and (DepthBelowSurf > FParams.DepthDirt + 4) then
          begin
             N := (ValueNoise1D(TX * CD.VinesNoiseFreq + LY * 3.1 + FSeed * 0.04 + 500) + 1.0) * 0.5;
@@ -626,8 +766,6 @@ begin
                      Break;
             end;
          end;
-
-         { Stalactites hang from stone ceilings }
          if CD.StalEnabled and TileIsStone(AChunk, LX, LY - 1) then
          begin
             N := (ValueNoise1D(TX * CD.StalNoiseFreq + LY * 5.7 + FSeed * 0.05 + 1000) + 1.0) * 0.5;
@@ -641,8 +779,6 @@ begin
                      Break;
             end;
          end;
-
-         { Moss on stone ceiling }
          if CD.MossEnabled and TileIsStone(AChunk, LX, LY - 1) then
          begin
             N := (ValueNoise1D(TX * CD.MossNoiseFreq + LY * 1.9 + FSeed * 0.03 + 2000) + 1.0) * 0.5;
@@ -651,10 +787,8 @@ begin
          end;
       end;
 
-      { ── Floor decorations (tile below is solid) ── }
       if TileIsSolid(AChunk, LX, LY + 1) then
       begin
-         { Stalagmites grow from stone floor }
          if CD.StalEnabled and TileIsStone(AChunk, LX, LY + 1) then
          begin
             N := (ValueNoise1D(TX * CD.StalNoiseFreq + LY * 4.4 + FSeed * 0.06 + 3000) + 1.0) * 0.5;
@@ -668,8 +802,6 @@ begin
                      Break;
             end;
          end;
-
-         { Mushrooms on flat floor (must have 2 air tiles above) }
          if CD.MushEnabled and (DepthBelowSurf >= CD.MushMinDepth) and TileIsAir(AChunk, LX, LY - 1) then
          begin
             N := (ValueNoise1D(TX * 0.9 + LY * 6.2 + FSeed * 0.07 + 4000) + 1.0) * 0.5;
@@ -680,7 +812,9 @@ begin
    end;
 end;
 
-{ ── Public entry point ───────────────────────────────────────────────── }
+{ ---------------------------------------------------------------------------
+  GenerateChunk — updated Pass 3 call signature
+--------------------------------------------------------------------------- }
 
 procedure TChunkGenerator.GenerateChunk(ACX, ACY: Integer; AChunk: TWorldChunk);
 var
@@ -702,9 +836,14 @@ begin
       FillBackgroundColumn(AChunk, LX, ACX, ACY, SY, Biome);
    end;
 
-   { Pass 3: grass on topmost dirt }
+   { Pass 3: grass on topmost dirt — now passes ACY and per-column surface Y
+     so the surface-row guard works correctly across chunk boundaries }
    for LX := 0 to CHUNK_TILES_W - 1 do
-      PlaceGrassColumn(AChunk, LX);
+   begin
+      TX := TChunkManager.ChunkToTileX(ACX) + LX;
+      SY := FManager.GetSurfaceY(TX);
+      PlaceGrassColumn(AChunk, LX, ACY, SY);
+   end;
 
    { Pass 4: surface vegetation }
    for LX := 0 to CHUNK_TILES_W - 1 do

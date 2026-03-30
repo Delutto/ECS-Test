@@ -74,6 +74,7 @@ const
    EDIT_W = 260;
    EDIT_H = 720;
    ROW_H = 22;
+
    COL_BG: TColor = (R: 20; G: 20; B: 28; A: 240);
    COL_HDR: TColor = (R: 30; G: 30; B: 42; A: 255);
    COL_OK: TColor = (R: 80; G: 220; B: 80; A: 255);
@@ -85,6 +86,7 @@ const
    COL_PLAINS: TColor = (R: 80; G: 180; B: 80; A: 255);
    COL_DESERT: TColor = (R: 210; G: 170; B: 50; A: 255);
    COL_FOREST: TColor = (R: 40; G: 140; B: 60; A: 255);
+
    COL_SEC_SURF: TColor = (R: 100; G: 200; B: 100; A: 255);
    COL_SEC_DEPTH: TColor = (R: 160; G: 120; B: 60; A: 255);
    COL_SEC_CAVE: TColor = (R: 80; G: 80; B: 180; A: 255);
@@ -179,7 +181,8 @@ begin
    BW := EDIT_W - 8;
    DrawRectangle(FCX, FCY, BW, ROW_H - 1, AColor);
    DrawRectangleLinesEx(RectangleCreate(FCX, FCY, BW, ROW_H - 1), 1, ColorCreate(255, 255, 255, 40));
-   DrawText(PChar(ALabel), FCX + BW div 2 - Round(MeasureText(PChar(ALabel), 11) * 0.5), FCY + 4, 11, ColorCreate(20, 20, 20, 255));
+   DrawText(PChar(ALabel), FCX + BW div 2 - Round(MeasureText(PChar(ALabel), 11) * 0.5), FCY + 4, 11,
+      ColorCreate(20, 20, 20, 255));
    if Clicked(FCX, FCY, BW, ROW_H) then
       Result := True;
    FCY := FCY + ROW_H + 2;
@@ -205,7 +208,8 @@ begin
    if Clicked(FCX + LW, FCY, BW, ROW_H) then
       AValue := Max(AMin, AValue - AStep);
    DrawRectangle(VX, FCY, 44, ROW_H - 1, ColorCreate(35, 35, 50, 255));
-   DrawText(PChar(IntToStr(AValue)), VX + 22 - MeasureText(PChar(IntToStr(AValue)), 10) div 2, FCY + 4, 10, ColorCreate(240, 240, 100, 255));
+   DrawText(PChar(IntToStr(AValue)), VX + 22 - MeasureText(PChar(IntToStr(AValue)), 10) div 2,
+      FCY + 4, 10, ColorCreate(240, 240, 100, 255));
    DrawRectangle(VX + 46, FCY, BW, ROW_H - 1, ColorCreate(50, 50, 70, 255));
    DrawText(PChar('+'), VX + 46 + BW div 2 - 3, FCY + 4, 11, ColorCreate(220, 220, 220, 255));
    if Clicked(VX + 46, FCY, BW, ROW_H) then
@@ -247,7 +251,8 @@ begin
    DrawRectangle(VX, FCY, 44, ROW_H - 1, ColorCreate(35, 35, 50, 255));
    Fmt := '%.' + IntToStr(ADecimals) + 'f';
    VS := Format(Fmt, [AValue]);
-   DrawText(PChar(VS), VX + 22 - MeasureText(PChar(VS), 10) div 2, FCY + 4, 10, ColorCreate(240, 240, 100, 255));
+   DrawText(PChar(VS), VX + 22 - MeasureText(PChar(VS), 10) div 2, FCY + 4, 10,
+      ColorCreate(240, 240, 100, 255));
    DrawRectangle(VX + 46, FCY, BW, ROW_H - 1, ColorCreate(50, 50, 70, 255));
    DrawText(PChar('+'), VX + 46 + BW div 2 - 3, FCY + 4, 11, ColorCreate(220, 220, 220, 255));
    if Clicked(VX + 46, FCY, BW, ROW_H) then
@@ -319,11 +324,14 @@ begin
    else
       C3 := ColorCreate(20, 50, 30, 255);
    DrawRectangle(TX1, FCY, TW, ROW_H - 1, C1);
-   DrawText(PChar('Plains'), TX1 + TW div 2 - MeasureText('Plains', 10) div 2, FCY + 4, 10, ColorCreate(220, 220, 220, 255));
+   DrawText(PChar('Plains'), TX1 + TW div 2 - MeasureText('Plains', 10) div 2, FCY + 4, 10,
+      ColorCreate(220, 220, 220, 255));
    DrawRectangle(TX2, FCY, TW, ROW_H - 1, C2);
-   DrawText(PChar('Desert'), TX2 + TW div 2 - MeasureText('Desert', 10) div 2, FCY + 4, 10, ColorCreate(220, 220, 220, 255));
+   DrawText(PChar('Desert'), TX2 + TW div 2 - MeasureText('Desert', 10) div 2, FCY + 4, 10,
+      ColorCreate(220, 220, 220, 255));
    DrawRectangle(TX3, FCY, TW, ROW_H - 1, C3);
-   DrawText(PChar('Forest'), TX3 + TW div 2 - MeasureText('Forest', 10) div 2, FCY + 4, 10, ColorCreate(220, 220, 220, 255));
+   DrawText(PChar('Forest'), TX3 + TW div 2 - MeasureText('Forest', 10) div 2, FCY + 4, 10,
+      ColorCreate(220, 220, 220, 255));
    if Clicked(TX1, FCY, TW, ROW_H) then
       FBiomeTab := btPlains;
    if Clicked(TX2, FCY, TW, ROW_H) then
@@ -402,7 +410,8 @@ var
    P: PGenParams;
    L: PLightSettings;
    B: PBiomeParams;
-   HW, BLY, ContentH, MaxScroll, ThumbH, ThumbY, ScrollBarH: Integer;
+   HW, BLY: Integer;
+   ContentH, MaxScroll, ThumbH, ThumbY, ScrollBarH: Integer;
    FinalCY: Integer;
    VisibleFrac: Single;
    BoxBlink: TColor;
@@ -418,6 +427,7 @@ begin
    FResetPressed := DrawButton('Reset to Defaults', COL_RST) or FResetPressed;
    SkipRow;
 
+   { ── Surface Shape ───────────────────────────────────────────────────── }
    DrawSectionHeader('Surface Shape', FSections.Surface, COL_SEC_SURF);
    if FSections.Surface then
    begin
@@ -432,6 +442,7 @@ begin
       SkipRow;
    end;
 
+   { ── Depth Zones ─────────────────────────────────────────────────────── }
    DrawSectionHeader('Depth Zones', FSections.Depth, COL_SEC_DEPTH);
    if FSections.Depth then
    begin
@@ -443,6 +454,7 @@ begin
       SkipRow;
    end;
 
+   { ── Cave System ─────────────────────────────────────────────────────── }
    DrawSectionHeader('Cave System', FSections.Caves, COL_SEC_CAVE);
    if FSections.Caves then
    begin
@@ -455,6 +467,7 @@ begin
       SkipRow;
    end;
 
+   { ── Ore Veins ───────────────────────────────────────────────────────── }
    DrawSectionHeader('Ore Veins', FSections.Veins, COL_SEC_VEIN);
    if FSections.Veins then
    begin
@@ -467,16 +480,37 @@ begin
       SkipRow;
    end;
 
+   { ── Biomes ───────────────────────────────────────────────────────────── }
    DrawSectionHeader('Biomes', FSections.Biomes, COL_SEC_BIOME);
    if FSections.Biomes then
    begin
+      { Global biome distribution controls }
       DrawFloatSlider('Biome Freq', P^.BiomeFreq, 0.002, 0.05, 0.001, 3);
       DrawIntSlider('Biome Octaves', P^.BiomeOctaves, 1, 4, 1);
       DrawFloatSlider('Desert Thresh', P^.DesertThreshold, 0.1, 0.6, 0.05, 2);
       DrawFloatSlider('Forest Thresh', P^.ForestThreshold, 0.3, 0.9, 0.05, 2);
       SkipRow;
+
+      { Per-biome tabs }
       DrawBiomeTabs;
       B := CurrentBiome;
+
+      { ── Width constraints (NEW) ─────────────────────────────────────────
+        These two sliders control how wide (in world tiles) a continuous
+        zone of the selected biome can be.  The segment generator picks a
+        random width in [MinBiomeWidth .. MaxBiomeWidth] for every new
+        segment, so the user gets direct, predictable control over biome
+        size without having to tweak noise frequencies.
+
+        Step size is 8 tiles (= half a chunk) so adjustments are
+        meaningful but not overwhelming.  The − button enforces the lower
+        bound automatically and the + button enforces the upper bound;
+        ClampGenParams guarantees max >= min on Regenerate. }
+      DrawIntSlider('Min Width (tiles)', B^.MinBiomeWidth, 16, 2000, 8);
+      DrawIntSlider('Max Width (tiles)', B^.MaxBiomeWidth, 32, 4096, 8);
+      SkipRow;
+
+      { Rest of per-biome terrain params }
       DrawIntSlider('Surface Offset Y', B^.SurfaceOffsetY, -20, 20, 1);
       DrawFloatSlider('Amp Bonus', B^.SurfaceAmpBonus, 0, 20, 0.5, 1);
       DrawIntSlider('Dirt Override', B^.DepthDirtOverride, 0, 20, 1);
@@ -490,6 +524,7 @@ begin
       SkipRow;
    end;
 
+   { ── Deep Zone ───────────────────────────────────────────────────────── }
    DrawSectionHeader('Deep Zone', FSections.Deep, COL_SEC_DEEP);
    if FSections.Deep then
    begin
@@ -497,6 +532,7 @@ begin
       SkipRow;
    end;
 
+   { ── Vegetation ──────────────────────────────────────────────────────── }
    DrawSectionHeader('Vegetation', FSections.Vegetation, COL_SEC_VEG);
    if FSections.Vegetation then
    begin
@@ -511,6 +547,7 @@ begin
       DrawToggle('Shrubs', P^.VegPlains.ShrubEnabled);
       DrawFloatSlider('Shrub Density', P^.VegPlains.ShrubDensity, 0.0, 1.0, 0.05, 2);
       SkipRow;
+
       DrawText(PChar('-- Desert --'), FCX, FCY + 4, 10, COL_DESERT);
       FCY := FCY + ROW_H;
       DrawToggle('Cacti', P^.VegDesert.CactusEnabled);
@@ -519,6 +556,7 @@ begin
       DrawIntSlider('Max Height', P^.VegDesert.CactusMaxHeight, 4, 12, 1);
       DrawFloatSlider('Arm Chance', P^.VegDesert.CactusArmChance, 0.0, 1.0, 0.05, 2);
       SkipRow;
+
       DrawText(PChar('-- Forest --'), FCX, FCY + 4, 10, COL_FOREST);
       FCY := FCY + ROW_H;
       DrawToggle('Trees', P^.VegForest.TreeEnabled);
@@ -532,6 +570,7 @@ begin
       SkipRow;
    end;
 
+   { ── Cave Decor ──────────────────────────────────────────────────────── }
    DrawSectionHeader('Cave Decor', FSections.CaveDecor, COL_SEC_CDEC);
    if FSections.CaveDecor then
    begin
@@ -555,7 +594,7 @@ begin
       SkipRow;
    end;
 
-   { Lighting section }
+   { ── Lighting ─────────────────────────────────────────────────────────── }
    if Assigned(L) then
    begin
       DrawSectionHeader('Lighting', FSections.Lighting, COL_SEC_LIGHT);
@@ -589,6 +628,7 @@ begin
       end;
    end;
 
+   { ── Save / Load ──────────────────────────────────────────────────────── }
    DrawSectionHeader('Save / Load', FSections.SaveLoad, COL_SEC_SAVE);
    if FSections.SaveLoad then
    begin
@@ -659,6 +699,7 @@ begin
       end;
    end;
 
+   { ── Scrollbar ─────────────────────────────────────────────────────────── }
    FinalCY := FCY + FScrollY + 8;
    ContentH := FinalCY - FPY;
    MaxScroll := Max(0, ContentH - EDIT_H + 20);

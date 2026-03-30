@@ -3,8 +3,42 @@ unit Terraria.Systems.ChunkRender;
 {$mode objfpc}{$H+}
 
 { TChunkRenderSystem — renders loaded chunks with optional BFS lighting.
-  When LightMap is assigned, each tile is tinted by its computed RGB light
-  value.  Background tiles are additionally dimmed by BackgroundDimFactor. }
+
+  SOIL SPRITESHEET RENDERING
+  ──────────────────────────
+  All solid terrain tiles (IDs 1–13, i.e. TILE_AIR < ID < TILE_SHRUB) are
+  rendered from the external spritesheet  soils_better_16x16.png  instead of
+  procedurally-generated CPU textures.
+
+  Spritesheet layout:
+    • 4 columns × 13 rows
+    • Each cell is SOIL_SHEET_TILE (16) × SOIL_SHEET_TILE (16) pixels
+    • Column index  (0–3) = visual variation of the same soil type
+    • Row index     (0–12) = soil type (see SOIL_SHEET_ROW in Terraria.Common)
+
+  VARIATION SELECTION
+  ───────────────────
+  For every solid tile at world position (WTX, WTY) a variation column is
+  selected using a fast, branchless integer hash:
+
+      H  = (WTX * 1664525) XOR (WTY * 22695477)
+      H  = H XOR (H SHR 16)
+      col = H AND 3   →  0, 1, 2, or 3
+
+  This hash is deterministic (same seed-less position → same column) and
+  produces visually uncorrelated values for adjacent tiles, making the map
+  look organic without any extra storage.
+
+  BACKGROUND TILES
+  ────────────────
+  Background (wall) soil tiles are rendered from the same spritesheet but with
+  all RGB channels of the computed tint multiplied by SOIL_BG_DIM (0.45),
+  giving the characteristic darker-behind-wall appearance.
+
+  DECORATION TILES
+  ────────────────
+  Tiles with ID >= TILE_SHRUB (shrubs, trees, roots, vines, etc.) continue to
+  use the procedurally-generated FTex / FTexBG textures from GenTileTextures. }
 
 interface
 
@@ -27,13 +61,29 @@ type
       FManager: TChunkManager;
       FLightMap: TLightMap;
       FCamSys: TCameraSystem;
-      FScreenW, FScreenH: Integer;
+      FScreenW: Integer;
+      FScreenH: Integer;
+
+      { Spritesheet for all solid terrain tiles }
+      FSoilSheet: TTexture2D;
+
+      { Procedural textures for decoration tiles (ID >= TILE_SHRUB).
+        FTex  = foreground (full brightness).
+        FTexBG = background wall version (darker, tinted at generation time). }
       FTex: array[0..TILE_COUNT - 1] of TTexture2D;
       FTexBG: array[0..TILE_COUNT - 1] of TTexture2D;
+
       FVisible: array[0..MAX_VISIBLE_CHUNKS - 1] of TWorldChunk;
 
-      procedure GenTileTextures;
-      procedure FreeTileTextures;
+      { Returns the variation column (0–3) for a world tile coordinate pair.
+        The result is deterministic and spatially uncorrelated — adjacent tiles
+        almost never share the same column. }
+      function TileVariation(WTX, WTY: Integer): Integer; inline;
+
+      { Generates procedural CPU textures only for decoration tiles
+        (ID >= TILE_SHRUB).  Soil tiles are served by the spritesheet. }
+      procedure GenDecorTextures;
+      procedure FreeAllTextures;
       procedure RenderChunk(AChunk: TWorldChunk; AIsFG: boolean);
    public
       constructor Create(AWorld: TWorldBase; AManager: TChunkManager; AScrW, AScrH: Integer); reintroduce;
@@ -47,95 +97,73 @@ type
 
 implementation
 
-{ ── CPU texture helpers ─────────────────────────────────────────────────── }
-procedure MakeTileImg(var Img: TImage; BR, BG, BB: byte; const Det: array of TRect4);
+{ ── Inline variation hash ────────────────────────────────────────────────── }
+
+function TChunkRenderSystem.TileVariation(WTX, WTY: Integer): Integer;
 var
-   I: Integer;
+   H: cardinal;
 begin
-   Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(BR, BG, BB, 255));
-   ImageDrawRectangle(@Img, 0, 0, TILE_SIZE, 1, ColorCreate(Min(255, BR + 24), Min(255, BG + 24), Min(255, BB + 24), 255));
-   ImageDrawRectangle(@Img, 0, TILE_SIZE - 1, TILE_SIZE, 1, ColorCreate(Max(0, BR - 20), Max(0, BG - 20), Max(0, BB - 20), 255));
-   ImageDrawRectangle(@Img, 0, 0, 1, TILE_SIZE, ColorCreate(Min(255, BR + 16), Min(255, BG + 16), Min(255, BB + 16), 255));
-   for I := 0 to High(Det) do
-      ImageDrawRectangle(@Img, Det[I].X, Det[I].Y, Det[I].W, Det[I].H, ColorCreate(Det[I].R, Det[I].G, Det[I].B, 255));
+   { Mix X and Y with distinct multipliers, then fold the high bits down. }
+   H := cardinal(WTX) * 1664525 xor cardinal(WTY) * 22695477;
+   H := H xor (H shr 16);
+   Result := Integer(H and 3);   { 0, 1, 2, or 3 — never negative }
 end;
 
-procedure TChunkRenderSystem.GenTileTextures;
+{ ── Procedural decoration texture helpers ────────────────────────────────── }
+
+{ Builds a foreground image and a matching background image for a decoration
+  tile, both starting from a transparent base so they blend correctly over
+  the soil or sky behind them. }
+procedure MakeDecorPair(var ATex, ATex_BG: TTexture2D; BR, BG, BB: byte; const Det: array of TRect4; Alpha: byte = 255);
 var
    Img: TImage;
-   I: Integer;
-
-   procedure Make(Idx: Integer; BR, BG, BB: byte; const Det: array of TRect4);
-   var
-      J: Integer;
-      D: TRect4;
-   begin
-      MakeTileImg(Img, BR, BG, BB, Det);
-      FTex[Idx] := LoadTextureFromImage(Img);
-      UnloadImage(Img);
-      Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(Round(BR * 0.45), Round(BG * 0.45), Round(BB * 0.45), 255));
-      ImageDrawRectangle(@Img, 0, 0, 1, TILE_SIZE, ColorCreate(Round(BR * 0.50), Round(BG * 0.50), Round(BB * 0.50), 255));
-      for J := 0 to High(Det) do
-      begin
-         D := Det[J];
-         D.R := Round(D.R * 0.45);
-         D.G := Round(D.G * 0.45);
-         D.B := Round(D.B * 0.45);
-         ImageDrawRectangle(@Img, D.X, D.Y, D.W, D.H,
-            ColorCreate(D.R, D.G, D.B, 255));
-      end;
-      FTexBG[Idx] := LoadTextureFromImage(Img);
-      UnloadImage(Img);
-   end;
-
-   procedure MakeDecor(Idx: Integer; BR, BG, BB: byte; const Det: array of TRect4; Alpha: byte = 255);
-   var
-      J: Integer;
-   begin
-      Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
-      if Alpha = 255 then
-         ImageDrawRectangle(@Img, 1, 0, TILE_SIZE - 2, TILE_SIZE, ColorCreate(BR, BG, BB, 255));
-      for J := 0 to High(Det) do
-         ImageDrawRectangle(@Img, Det[J].X, Det[J].Y, Det[J].W, Det[J].H, ColorCreate(Det[J].R, Det[J].G, Det[J].B, Alpha));
-      FTex[Idx] := LoadTextureFromImage(Img);
-      UnloadImage(Img);
-      Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
-      FTexBG[Idx] := LoadTextureFromImage(Img);
-      UnloadImage(Img);
-   end;
-
+   J: Integer;
 begin
-   Make(TILE_DIRT, 128, 88, 52, TILE_DIRT_RGB);
-   Make(TILE_STONE, 118, 118, 118, TILE_STONE_RGB);
-   Make(TILE_SAND, 196, 174, 112, TILE_SAND_RGB);
-   Make(TILE_SANDSTONE, 168, 142, 88, TILE_SANDSTONE_RGB);
-   Make(TILE_GRANITE, 82, 78, 96, TILE_GRANITE_RGB);
-   Make(TILE_MARBLE, 214, 210, 220, TILE_MARBLE_RGB);
-   Make(TILE_CLAY, 154, 84, 62, TILE_CLAY_RGB);
-   Make(TILE_GRAVEL, 112, 108, 104, TILE_GRAVEL_RGB);
-   Make(TILE_BEDROCK, 28, 26, 32, TILE_BEDROCK_RGB);
-
-   { Grass — custom pixel art }
-   Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(128, 88, 52, 255));
-   ImageDrawRectangle(@Img, 0, 0, TILE_SIZE, 2, ColorCreate(56, 140, 36, 255));
-   ImageDrawRectangle(@Img, 0, 0, TILE_SIZE, 1, ColorCreate(72, 164, 48, 255));
-   ImageDrawRectangle(@Img, 1, 0, 1, 1, ColorCreate(48, 160, 32, 255));
-   ImageDrawRectangle(@Img, 4, 0, 1, 1, ColorCreate(80, 172, 56, 255));
-   ImageDrawRectangle(@Img, 6, 0, 1, 1, ColorCreate(52, 156, 36, 255));
-   ImageDrawRectangle(@Img, 2, 3, 3, 2, ColorCreate(142, 100, 62, 255));
-   ImageDrawRectangle(@Img, 5, 5, 3, 2, ColorCreate(112, 76, 44, 255));
-   FTex[TILE_GRASS] := LoadTextureFromImage(Img);
-   UnloadImage(Img);
-   Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(58, 40, 24, 255));
-   ImageDrawRectangle(@Img, 0, 0, 1, TILE_SIZE, ColorCreate(65, 46, 28, 255));
-   FTexBG[TILE_GRASS] := LoadTextureFromImage(Img);
+   { Foreground — transparent background, only detail rects drawn }
+   Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
+   if Alpha = 255 then
+      ImageDrawRectangle(@Img, 1, 0, TILE_SIZE - 2, TILE_SIZE,
+         ColorCreate(BR, BG, BB, 255));
+   for J := 0 to High(Det) do
+      ImageDrawRectangle(@Img, Det[J].X, Det[J].Y, Det[J].W, Det[J].H,
+         ColorCreate(Det[J].R, Det[J].G, Det[J].B, Alpha));
+   ATex := LoadTextureFromImage(Img);
    UnloadImage(Img);
 
-   MakeDecor(TILE_SHRUB, 0, 0, 0, TILE_SHRUB_RGB, 200);
+   { Background — always fully transparent for decorations }
+   Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
+   ATex_BG := LoadTextureFromImage(Img);
+   UnloadImage(Img);
+end;
 
-   MakeDecor(TILE_TREE_TRUNK, 110, 72, 40, TILE_TREE_TRUNK_RGB);
-   MakeDecor(TILE_TREE_LEAF, 0, 0, 0, TILE_TREE_LEAF_RGB, 200);
-   { Overdraw leaf detail }
+{ Fills any slot whose texture was never set with a 1×1 transparent fallback,
+  preventing a spurious Id=0 crash in the render path. }
+procedure EnsureTransparentFallback(var ATex: TTexture2D);
+var
+   Img: TImage;
+begin
+   if ATex.Id = 0 then
+   begin
+      Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
+      ATex := LoadTextureFromImage(Img);
+      UnloadImage(Img);
+   end;
+end;
+
+procedure TChunkRenderSystem.GenDecorTextures;
+var
+   I: Integer;
+   Img: TImage;
+begin
+   { ── Surface vegetation ────────────────────────────────────────────────── }
+   MakeDecorPair(FTex[TILE_SHRUB], FTexBG[TILE_SHRUB], 0, 0, 0, TILE_SHRUB_RGB, 200);
+
+   MakeDecorPair(FTex[TILE_TREE_TRUNK], FTexBG[TILE_TREE_TRUNK], 110, 72, 40, TILE_TREE_TRUNK_RGB);
+
+   { Tree leaf — use full detail overdraw for realistic canopy }
+   MakeDecorPair(FTex[TILE_TREE_LEAF], FTexBG[TILE_TREE_LEAF], 40, 130, 36, TILE_TREE_LEAF_RGB, 200);
+
+   { Additional leaf overdraw for rounder canopy appearance }
    begin
       Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(40, 130, 36, 200));
       ImageDrawRectangle(@Img, 1, 1, 2, 2, ColorCreate(60, 160, 50, 220));
@@ -148,44 +176,43 @@ begin
       UnloadTexture(FTex[TILE_TREE_LEAF]);
       FTex[TILE_TREE_LEAF] := LoadTextureFromImage(Img);
       UnloadImage(Img);
-      Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
-      UnloadTexture(FTexBG[TILE_TREE_LEAF]);
-      FTexBG[TILE_TREE_LEAF] := LoadTextureFromImage(Img);
-      UnloadImage(Img);
    end;
 
-   MakeDecor(TILE_CACTUS, 0, 0, 0, TILE_CACTUS_RGB, 200);
-   MakeDecor(TILE_CACTUS_TOP, 0, 0, 0, TILE_CACTUS_TOP_RGB, 200);
-   MakeDecor(TILE_FERN, 0, 0, 0, TILE_FERN_RGB, 200);
-   MakeDecor(TILE_ROOT, 0, 0, 0, TILE_ROOT_RGB, 200);
-   MakeDecor(TILE_VINE, 0, 0, 0, TILE_VINE_RGB, 200);
-   MakeDecor(TILE_STALACTITE, 0, 0, 0, TILE_STALACTITE_RGB, 200);
-   MakeDecor(TILE_STALAGMITE, 0, 0, 0, TILE_STALAGMITE_RGB, 200);
-   MakeDecor(TILE_MUSHROOM, 0, 0, 0, TILE_MUSHROOM_RGB, 240);
-   MakeDecor(TILE_MOSS, 0, 0, 0, TILE_MOSS_RGB, 180);
+   MakeDecorPair(FTex[TILE_CACTUS], FTexBG[TILE_CACTUS], 0, 0, 0, TILE_CACTUS_RGB, 200);
+   MakeDecorPair(FTex[TILE_CACTUS_TOP], FTexBG[TILE_CACTUS_TOP], 0, 0, 0, TILE_CACTUS_TOP_RGB, 200);
+   MakeDecorPair(FTex[TILE_FERN], FTexBG[TILE_FERN], 0, 0, 0, TILE_FERN_RGB, 200);
 
-   for I := 0 to TILE_COUNT - 1 do
+   { ── Cave decorations ──────────────────────────────────────────────────── }
+   MakeDecorPair(FTex[TILE_ROOT], FTexBG[TILE_ROOT], 0, 0, 0, TILE_ROOT_RGB, 255);
+   MakeDecorPair(FTex[TILE_VINE], FTexBG[TILE_VINE], 0, 0, 0, TILE_VINE_RGB, 200);
+   MakeDecorPair(FTex[TILE_STALACTITE], FTexBG[TILE_STALACTITE], 0, 0, 0, TILE_STALACTITE_RGB, 200);
+   MakeDecorPair(FTex[TILE_STALAGMITE], FTexBG[TILE_STALAGMITE], 0, 0, 0, TILE_STALAGMITE_RGB, 200);
+   MakeDecorPair(FTex[TILE_MUSHROOM], FTexBG[TILE_MUSHROOM], 0, 0, 0, TILE_MUSHROOM_RGB, 240);
+   MakeDecorPair(FTex[TILE_MOSS], FTexBG[TILE_MOSS], 0, 0, 0, TILE_MOSS_RGB, 180);
+
+   { Guarantee every slot has a valid (possibly transparent) texture.
+     Soil tile slots (0..TILE_SHRUB-1) are intentionally left with Id=0 here because the render path never indexes FTex/FTexBG for those IDs —
+     it uses FSoilSheet instead.  The fallback covers any future decoration tile IDs that were not explicitly generated above. }
+   for I := TILE_SHRUB to TILE_COUNT - 1 do
    begin
-      if FTex[I].Id = 0 then
-      begin
-         Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
-         FTex[I] := LoadTextureFromImage(Img);
-         UnloadImage(Img);
-      end;
-      if FTexBG[I].Id = 0 then
-      begin
-         Img := GenImageColor(TILE_SIZE, TILE_SIZE, ColorCreate(0, 0, 0, 0));
-         FTexBG[I] := LoadTextureFromImage(Img);
-         UnloadImage(Img);
-      end;
+      EnsureTransparentFallback(FTex[I]);
+      EnsureTransparentFallback(FTexBG[I]);
    end;
 end;
 
-procedure TChunkRenderSystem.FreeTileTextures;
+procedure TChunkRenderSystem.FreeAllTextures;
 var
    I: Integer;
 begin
-   for I := 0 to TILE_COUNT - 1 do
+   { Unload the soil spritesheet }
+   if FSoilSheet.Id > 0 then
+   begin
+      UnloadTexture(FSoilSheet);
+      FSoilSheet.Id := 0;
+   end;
+
+   { Unload decoration textures }
+   for I := TILE_SHRUB to TILE_COUNT - 1 do
    begin
       if FTex[I].Id > 0 then
       begin
@@ -200,28 +227,32 @@ begin
    end;
 end;
 
-{ ── Chunk rendering ─────────────────────────────────────────────────────── }
+{ ── Chunk rendering ──────────────────────────────────────────────────────── }
 
 procedure TChunkRenderSystem.RenderChunk(AChunk: TWorldChunk; AIsFG: boolean);
 const
    DECOR_TINT: TColor = (R: 255; G: 255; B: 255; A: 220);
 var
-   LX, LY, TileType, FGTile: Integer;
+   LX, LY: Integer;
+   TileType, FGTile: Integer;
    WX, WY: Single;
-   Tex: TTexture2D;
-   Src, Dst: TRectangle;
    BaseWX, BaseWY: Single;
+   Src, Dst: TRectangle;
    Tint: TColor;
    Light: TRGBLight;
    UseLighting: boolean;
-   TWX, TWY: Integer;
    DimFactor: Single;
    DecorMinBright: byte;
+   TWX, TWY: Integer;   { world-tile coordinates of current cell }
+   SheetRow: shortint;
+   Variation: Integer;
+   IsSoil: boolean;
+   Tex: TTexture2D;
 begin
-   Src := RectangleCreate(0, 0, TILE_SIZE, TILE_SIZE);
    BaseWX := AChunk.CX * CHUNK_PIXEL_W;
    BaseWY := AChunk.CY * CHUNK_PIXEL_H;
    UseLighting := Assigned(FLightMap) and FLightMap.Settings.Enabled;
+
    DimFactor := 0.55;
    if UseLighting then
       DimFactor := FLightMap.Settings.BackgroundDimFactor;
@@ -229,39 +260,37 @@ begin
    for LY := 0 to CHUNK_TILES_H - 1 do
       for LX := 0 to CHUNK_TILES_W - 1 do
       begin
+         { ── Select the tile type to render ─────────────────────────────── }
          if AIsFG then
          begin
             TileType := AChunk.GetFG(LX, LY);
             if TileType = TILE_AIR then
                Continue;
-            Tex := FTex[TileType];
          end
          else
          begin
-            { Draw the BG wall tile unless a solid foreground block is present.
-              Decor tiles (TILE_SHRUB+) are semi-transparent; the wall behind
-              them must still render so their edges blend with stone/dirt
-              instead of the sky-blue background. }
+            { Skip background when a solid foreground block covers this cell.
+              Decoration tiles (>= TILE_SHRUB) are semi-transparent; we must still render the wall behind them so their edges don't cut into the sky. }
             FGTile := AChunk.GetFG(LX, LY);
             if (FGTile <> TILE_AIR) and (FGTile < TILE_SHRUB) then
                Continue;
             TileType := AChunk.GetBG(LX, LY);
             if TileType = TILE_AIR then
                Continue;
-            Tex := FTexBG[TileType];
          end;
-         if Tex.Id = 0 then
-            Continue;
 
+         { ── World-tile coordinates (needed for both hash and lighting) ─── }
+         TWX := TChunkManager.ChunkToTileX(AChunk.CX) + LX;
+         TWY := TChunkManager.ChunkToTileY(AChunk.CY) + LY;
+
+         { ── Destination rectangle (world pixels) ─────────────────────── }
          WX := BaseWX + LX * TILE_SIZE;
          WY := BaseWY + LY * TILE_SIZE;
          Dst := RectangleCreate(WX, WY, TILE_SIZE, TILE_SIZE);
 
-         { ── Compute tint ── }
+         { ── Lighting tint ────────────────────────────────────────────── }
          if UseLighting then
          begin
-            TWX := TChunkManager.ChunkToTileX(AChunk.CX) + LX;
-            TWY := TChunkManager.ChunkToTileY(AChunk.CY) + LY;
             Light := FLightMap.GetLight(TWX, TWY);
             if AIsFG then
             begin
@@ -271,14 +300,10 @@ begin
             end
             else
             begin
-               { Background tiles are dimmer than foreground }
                Tint.R := byte(Round(Light.R * DimFactor));
                Tint.G := byte(Round(Light.G * DimFactor));
                Tint.B := byte(Round(Light.B * DimFactor));
             end;
-            { Decor tiles: set alpha and enforce a minimum brightness so
-              underground decor (roots, vines, mushrooms) is always faintly
-              visible even at ambient light, instead of nearly black. }
             if TileType >= TILE_SHRUB then
             begin
                Tint.A := DECOR_TINT.A;
@@ -301,15 +326,51 @@ begin
                Tint := WHITE;
          end;
 
-         DrawTexturePro(Tex, Src, Dst, Vector2Create(0, 0), 0, Tint);
+         { ── Render ───────────────────────────────────────────────────── }
+         SheetRow := SOIL_SHEET_ROW[TileType];
+         IsSoil := SheetRow >= 0;
+
+         if IsSoil then
+         begin
+            { ── Spritesheet path for solid terrain tiles ──────────────── }
+            if FSoilSheet.Id = 0 then
+               Continue;  { sheet not loaded — skip }
+
+            Variation := TileVariation(TWX, TWY);
+
+            Src := RectangleCreate(Variation * SOIL_SHEET_TILE, SheetRow * SOIL_SHEET_TILE, SOIL_SHEET_TILE, SOIL_SHEET_TILE);
+
+            { Background soil tiles get the same spritesheet but with a darker tint, matching the 45% dim factor of the old procedural background textures. }
+            if not AIsFG then
+            begin
+               Tint.R := byte(Round(Tint.R * SOIL_BG_DIM));
+               Tint.G := byte(Round(Tint.G * SOIL_BG_DIM));
+               Tint.B := byte(Round(Tint.B * SOIL_BG_DIM));
+            end;
+
+            DrawTexturePro(FSoilSheet, Src, Dst, Vector2Create(0, 0), 0, Tint);
+         end
+         else
+         begin
+            { ── Procedural-texture path for decoration tiles ──────────── }
+            if AIsFG then
+               Tex := FTex[TileType]
+            else
+               Tex := FTexBG[TileType];
+            if Tex.Id = 0 then
+               Continue;
+
+            Src := RectangleCreate(0, 0, TILE_SIZE, TILE_SIZE);
+            DrawTexturePro(Tex, Src, Dst, Vector2Create(0, 0), 0, Tint);
+         end;
       end;
 end;
 
-{ ── System lifecycle ────────────────────────────────────────────────────── }
+{ ── System lifecycle ─────────────────────────────────────────────────────── }
+
 constructor TChunkRenderSystem.Create(AWorld: TWorldBase; AManager: TChunkManager; AScrW, AScrH: Integer);
 begin
    inherited Create(AWorld);
-
    FManager := AManager;
    FLightMap := nil;
    FScreenW := AScrW;
@@ -317,6 +378,9 @@ begin
    Priority := 5;
    Name := 'ChunkRenderSystem';
    RenderLayer := rlWorld;
+   FSoilSheet.Id := 0;
+   FillChar(FTex, SizeOf(FTex), 0);
+   FillChar(FTexBG, SizeOf(FTexBG), 0);
 end;
 
 destructor TChunkRenderSystem.Destroy;
@@ -331,14 +395,29 @@ begin
    inherited;
    W := (World as TWorld);
    FCamSys := TCameraSystem(W.GetSystem(TCameraSystem));
-   GenTileTextures;
+
+   { Load the soil spritesheet first so it is available the moment the first
+     chunk is rendered.  If the file is missing, FSoilSheet.Id stays 0 and
+     soil tiles are silently skipped (the world appears cave-only until the
+     asset is placed correctly). }
+   FSoilSheet := LoadTexture(SOIL_SHEET_PATH);
+
+   { Enable bilinear filtering so the 16×16 source tiles scale cleanly to
+     the 8×8 world-space destination rectangles. }
+   if FSoilSheet.Id > 0 then
+      SetTextureFilter(FSoilSheet, TEXTURE_FILTER_ANISOTROPIC_16X);
+
+   { Generate procedural textures for every decoration tile. }
+   GenDecorTextures;
 end;
 
 procedure TChunkRenderSystem.Render;
 var
    Cam: TCamera2D;
    TL, BR: TVector2;
-   CX0, CY0, CX1, CY1, N, I: Integer;
+   CX0, CY0: Integer;
+   CX1, CY1: Integer;
+   N, I: Integer;
 begin
    if not Assigned(FManager) then
       Exit;
@@ -359,16 +438,18 @@ begin
       CY1 := WORLD_MAX_CY;
 
    N := FManager.GetLoadedInRange(CX0, CY0, CX1, CY1, FVisible, MAX_VISIBLE_CHUNKS);
+
+   { Background pass }
    for I := 0 to N - 1 do
       RenderChunk(FVisible[I], False);
+   { Foreground pass }
    for I := 0 to N - 1 do
       RenderChunk(FVisible[I], True);
 end;
 
 procedure TChunkRenderSystem.Shutdown;
 begin
-   FreeTileTextures;
-
+   FreeAllTextures;
    inherited;
 end;
 

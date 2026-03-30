@@ -13,81 +13,88 @@ type
    PBiomeParams = ^TBiomeParams;
 
    TBiomeParams = record
-      SurfaceOffsetY: Integer;     { [-20..20]  }
-      SurfaceAmpBonus: Single;     { [-20..20]  }
-      DepthDirtOverride: Integer;  { [0..20]    }
-      DepthDirtStoneOverride: Integer;  { [0..60]    }
-      SandstoneDepth: Integer;     { [0..30]    }
-      GraniteThreshold: Single;    { [0..1]     }
+      SurfaceOffsetY: Integer;      { [-20..20]   }
+      SurfaceAmpBonus: Single;      { [-20..20]   }
+      DepthDirtOverride: Integer;   { [0..20]     }
+      DepthDirtStoneOverride: Integer;   { [0..60]     }
+      SandstoneDepth: Integer;      { [0..30]     }
+      GraniteThreshold: Single;     { [0..1]      }
       MarbleThreshold: Single;
       ClayThreshold: Single;
       GravelThreshold: Single;
-      CaveDensityMult: Single;   { [0..3]     }
+      CaveDensityMult: Single;    { [0..3]      }
       SurfaceTileOverride: Integer;
+
+      { ── Biome width constraints ──────────────────────────────────────── }
+      { Minimum and maximum width (in world tiles) of a continuous zone of
+        this biome type.  The segment generator always picks a width in
+        [MinBiomeWidth .. MaxBiomeWidth] using a seeded LCG, guaranteeing
+        that each biome zone is at least MinBiomeWidth tiles wide and never
+        exceeds MaxBiomeWidth tiles.
+        Sensible range: 32..4096 tiles (2..256 chunks of 16 tiles each). }
+      MinBiomeWidth: Integer;   { [16..2000]  }
+      MaxBiomeWidth: Integer;   { [32..4096]  }
    end;
 
    { ── Surface vegetation params (per biome) ─────────────────────────────── }
    PVegetationParams = ^TVegetationParams;
+
    TVegetationParams = record
       { Trees (Plains / Forest) }
       TreeEnabled: boolean;
-      TreeDensity: Single;        { probability per column [0..1]          }
-      TreeMinHeight: Integer;     { trunk tiles [1..12]                    }
-      TreeMaxHeight: Integer;     { trunk tiles [1..20]                    }
-      TreeCanopyRadius: Integer;  { leaf spread radius [1..8]              }
-      TreeCanopyHeight: Integer;  { leaf height [1..6]                     }
-      TreeNoiseFreq: Single;      { spacing noise freq [0.05..2.0]         }
-      TreeNoiseThresh: Single;    { below this → grow tree [0..1]          }
+      TreeDensity: Single;
+      TreeMinHeight: Integer;
+      TreeMaxHeight: Integer;
+      TreeCanopyRadius: Integer;
+      TreeCanopyHeight: Integer;
+      TreeNoiseFreq: Single;
+      TreeNoiseThresh: Single;
 
       { Shrubs / ferns (Plains / Forest) }
       ShrubEnabled: boolean;
-      ShrubDensity: Single;       { [0..1]                                 }
-      ShrubNoiseFreq: Single;     { [0.1..3.0]                             }
-      ShrubNoiseThresh: Single;   { [0..1]                                 }
+      ShrubDensity: Single;
+      ShrubNoiseFreq: Single;
+      ShrubNoiseThresh: Single;
 
       { Cacti (Desert) }
       CactusEnabled: boolean;
-      CactusDensity: Single;       { [0..1]                                 }
-      CactusMinHeight: Integer;    { [1..8]                                 }
-      CactusMaxHeight: Integer;    { [1..12]                                }
-      CactusArmChance: Single;     { probability an arm grows [0..1]        }
-      CactusNoiseFreq: Single;     { [0.05..2.0]                            }
-      CactusNoiseThresh: Single;   { [0..1]                                 }
+      CactusDensity: Single;
+      CactusMinHeight: Integer;
+      CactusMaxHeight: Integer;
+      CactusArmChance: Single;
+      CactusNoiseFreq: Single;
+      CactusNoiseThresh: Single;
    end;
 
    { ── Cave decoration params ────────────────────────────────────────────── }
    PCaveDecoParams = ^TCaveDecoParams;
+
    TCaveDecoParams = record
-      { Roots (hang from ceiling, inside dirt) }
       RootsEnabled: boolean;
-      RootsDensity: Single;     { [0..1]  }
-      RootsMinLen: Integer;     { [1..8]  }
-      RootsMaxLen: Integer;     { [1..14] }
-      RootsNoiseFreq: Single;   { [0.05..2.0] }
+      RootsDensity: Single;
+      RootsMinLen: Integer;
+      RootsMaxLen: Integer;
+      RootsNoiseFreq: Single;
 
-      { Vines (hang from ceiling, inside stone / deep areas) }
       VinesEnabled: boolean;
-      VinesDensity: Single;     { [0..1]  }
-      VinesMinLen: Integer;     { [1..10] }
-      VinesMaxLen: Integer;     { [1..20] }
-      VinesNoiseFreq: Single;   { [0.05..2.0] }
+      VinesDensity: Single;
+      VinesMinLen: Integer;
+      VinesMaxLen: Integer;
+      VinesNoiseFreq: Single;
 
-      { Stalactites / Stalagmites }
       StalEnabled: boolean;
-      StalDensity: Single;     { [0..1]  }
-      StalMinLen: Integer;     { [1..6]  }
-      StalMaxLen: Integer;     { [1..12] }
-      StalNoiseFreq: Single;   { [0.05..2.0] }
+      StalDensity: Single;
+      StalMinLen: Integer;
+      StalMaxLen: Integer;
+      StalNoiseFreq: Single;
 
-      { Cave mushrooms (floor, deep caves) }
       MushEnabled: boolean;
-      MushDensity: Single;    { [0..1]  }
-      MushMinDepth: Integer;  { min rows below surface [10..80] }
+      MushDensity: Single;
+      MushMinDepth: Integer;
 
-      { Moss patches (ceiling / wall, damp areas) }
       MossEnabled: boolean;
-      MossDensity: Single;     { [0..1]  }
-      MossNoiseFreq: Single;   { [0.05..2.0] }
+      MossDensity: Single;
+      MossNoiseFreq: Single;
    end;
 
    PGenParams = ^TGenParams;
@@ -273,6 +280,8 @@ begin
    Result.GravelThreshold := 0;
    Result.CaveDensityMult := 1.0;
    Result.SurfaceTileOverride := 0;
+   Result.MinBiomeWidth := 120;
+   Result.MaxBiomeWidth := 600;
 end;
 
 function DefaultBiomeDesert: TBiomeParams;
@@ -288,6 +297,8 @@ begin
    Result.GravelThreshold := 0;
    Result.CaveDensityMult := 0.7;
    Result.SurfaceTileOverride := 0;
+   Result.MinBiomeWidth := 80;
+   Result.MaxBiomeWidth := 400;
 end;
 
 function DefaultBiomeForest: TBiomeParams;
@@ -303,6 +314,8 @@ begin
    Result.GravelThreshold := 0;
    Result.CaveDensityMult := 1.3;
    Result.SurfaceTileOverride := 0;
+   Result.MinBiomeWidth := 150;
+   Result.MaxBiomeWidth := 700;
 end;
 
 function DefaultGenParams: TGenParams;
@@ -381,6 +394,11 @@ procedure ClampGenParams(var P: TGenParams);
       B.ClayThreshold := ClF(B.ClayThreshold, 0, 1);
       B.GravelThreshold := ClF(B.GravelThreshold, 0, 1);
       B.CaveDensityMult := ClF(B.CaveDensityMult, 0, 3);
+      B.MinBiomeWidth := Cl(B.MinBiomeWidth, 16, 2000);
+      B.MaxBiomeWidth := Cl(B.MaxBiomeWidth, 32, 4096);
+      { Ensure max >= min }
+      if B.MaxBiomeWidth < B.MinBiomeWidth then
+         B.MaxBiomeWidth := B.MinBiomeWidth;
    end;
 
    procedure ClampVeg(var V: TVegetationParams);
@@ -472,11 +490,11 @@ begin
    ClampCaveDecor(P.CaveDecor);
 end;
 
-{ ── Serialisation ──────────────────────────────────────────────────────── }
+{ ── Serialisation helpers ──────────────────────────────────────────────── }
 
 const
    FILE_MAGIC = 'TerrariaGenParams';
-   FILE_VERSION = '3';   { bumped for vegetation/cave fields }
+   FILE_VERSION = '4';   { bumped: added MinBiomeWidth / MaxBiomeWidth }
 
 procedure WriteI(SL: TStringList; const K: string; V: Integer);
 begin
@@ -506,6 +524,8 @@ begin
    WriteF(SL, Pfx + 'GravThr', B.GravelThreshold);
    WriteF(SL, Pfx + 'CaveMult', B.CaveDensityMult);
    WriteI(SL, Pfx + 'SurfTile', B.SurfaceTileOverride);
+   WriteI(SL, Pfx + 'MinW', B.MinBiomeWidth);
+   WriteI(SL, Pfx + 'MaxW', B.MaxBiomeWidth);
 end;
 
 procedure WriteVeg(SL: TStringList; const Pfx: string; const V: TVegetationParams);
@@ -610,7 +630,7 @@ begin
    SL.Free;
 end;
 
-{ ── Reader ──────────────────────────────────────────────────────────────── }
+{ ── Reader helpers ──────────────────────────────────────────────────────── }
 
 function ReadVal(SL: TStringList; const K, Def: string): string;
 var
@@ -657,6 +677,8 @@ begin
    B.GravelThreshold := RF(SL, Pfx + 'GravThr', B.GravelThreshold);
    B.CaveDensityMult := RF(SL, Pfx + 'CaveMult', B.CaveDensityMult);
    B.SurfaceTileOverride := RI(SL, Pfx + 'SurfTile', B.SurfaceTileOverride);
+   B.MinBiomeWidth := RI(SL, Pfx + 'MinW', B.MinBiomeWidth);
+   B.MaxBiomeWidth := RI(SL, Pfx + 'MaxW', B.MaxBiomeWidth);
 end;
 
 procedure ReadVeg(SL: TStringList; const Pfx: string; var V: TVegetationParams);

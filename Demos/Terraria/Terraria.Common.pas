@@ -30,8 +30,17 @@ const
    CAVE_START_DEPTH = 6;
    CAVE_THRESHOLD = 0.14;
 
-   { ── Terrain tile type byte codes ─────────────────────────────────────── }
+   { =========================================================================
+     TERRAIN TILE TYPE BYTE CODES
+     =========================================================================
+     IDs 1–13 are SOLID terrain tiles rendered via the soil spritesheet.
+     TILE_SHRUB (14) is the decoration boundary — every ID >= TILE_SHRUB is
+     a transparent decoration tile rendered via procedurally-generated textures.
+     ========================================================================= }
+
    TILE_AIR = 0;
+
+   { ── Solid terrain (IDs 1–13) — rendered from soils_better_16x16.png ─── }
    TILE_DIRT = 1;
    TILE_GRASS = 2;
    TILE_STONE = 3;
@@ -43,149 +52,167 @@ const
    TILE_GRAVEL = 9;
    TILE_BEDROCK = 10;
 
-   { ── Vegetation / decoration tile type byte codes ─────────────────────── }
-   { Surface vegetation — foreground layer }
-   TILE_SHRUB = 11;   { small bush / grass tuft (plains)           }
-   TILE_TREE_TRUNK = 12;   { tree trunk segment                         }
-   TILE_TREE_LEAF = 13;   { tree leaf / canopy block                   }
-   TILE_CACTUS = 14;   { cactus segment (desert)                    }
-   TILE_CACTUS_TOP = 15;   { cactus top / arm                           }
-   TILE_FERN = 16;   { forest fern / undergrowth                  }
+   { New solid tiles — also rendered from the spritesheet }
+   TILE_MUD = 11;   { muddy ground (swamp/cave transition zones) }
+   TILE_SNOW = 12;   { surface snow (snow biome)                  }
+   TILE_ICE = 13;   { solid ice (deep snow biome)                }
 
-   { Cave decorations — foreground layer (hang/grow on solid tiles) }
-   TILE_ROOT = 17;   { root hanging down from ceiling             }
-   TILE_VINE = 18;   { vine hanging down from ceiling             }
-   TILE_STALACTITE = 19;   { mineral spike hanging from ceiling         }
-   TILE_STALAGMITE = 20;   { mineral spike growing from floor           }
-   TILE_MUSHROOM = 21;   { cave mushroom growing on floor             }
-   TILE_MOSS = 22;   { moss patch on wall / ceiling               }
+   { ── Decoration boundary ─────────────────────────────────────────────── }
+   { Every tile ID >= TILE_SHRUB is a decoration (semi-transparent,
+     rendered from procedurally-generated CPU textures). }
+   TILE_SHRUB = 14;   { small bush / grass tuft (plains)           }
 
-   TILE_COUNT = 23;  { total number of tile types                         }
+   { ── Surface vegetation (IDs 15–19) ──────────────────────────────────── }
+   TILE_TREE_TRUNK = 15;
+   TILE_TREE_LEAF = 16;
+   TILE_CACTUS = 17;
+   TILE_CACTUS_TOP = 18;
+   TILE_FERN = 19;
 
-   { ── Tile palette data (terrain tiles) ───────────────────────────────── }
-   TILE_DIRT_RGB: array[0..2] of TRect4 = (
-      (X: 2; Y: 2; W: 3; H: 2; R: 142; G: 100; B: 62),
-      (X: 0; Y: 5; W: 2; H: 2; R: 112; G: 76; B: 44),
-      (X: 5; Y: 4; W: 3; H: 3; R: 138; G: 95; B: 58));
+   { ── Cave decorations (IDs 20–25) ────────────────────────────────────── }
+   TILE_ROOT = 20;
+   TILE_VINE = 21;
+   TILE_STALACTITE = 22;
+   TILE_STALAGMITE = 23;
+   TILE_MUSHROOM = 24;
+   TILE_MOSS = 25;
 
-   TILE_STONE_RGB: array[0..3] of TRect4 = (
-      (X: 1; Y: 2; W: 2; H: 1; R: 98; G: 98; B: 98),
-      (X: 4; Y: 1; W: 3; H: 2; R: 136; G: 136; B: 136),
-      (X: 0; Y: 5; W: 2; H: 3; R: 102; G: 102; B: 102),
-      (X: 5; Y: 5; W: 3; H: 2; R: 130; G: 130; B: 130));
+   TILE_COUNT = 26;   { total number of tile types }
 
-   TILE_SAND_RGB: array[0..2] of TRect4 = (
-      (X: 1; Y: 2; W: 4; H: 1; R: 210; G: 190; B: 128),
-      (X: 3; Y: 4; W: 3; H: 2; R: 180; G: 158; B: 96),
-      (X: 0; Y: 6; W: 2; H: 2; R: 204; G: 182; B: 118));
+   { =========================================================================
+     SOIL SPRITESHEET — soils_better_16x16.png
+     =========================================================================
+     Layout: 4 columns × 13 rows, each cell is 16×16 pixels.
+       Columns 0–3  = four visual variations of the same soil type.
+       Rows 0–12    = one soil type per row (see SOIL_SHEET_ROW below).
 
-   TILE_SANDSTONE_RGB: array[0..2] of TRect4 = (
-      (X: 0; Y: 2; W: 8; H: 1; R: 148; G: 122; B: 68),
-      (X: 0; Y: 5; W: 8; H: 1; R: 148; G: 122; B: 68),
-      (X: 2; Y: 3; W: 3; H: 1; R: 180; G: 156; B: 100));
+     Each solid tile is rendered by picking one of the four variation columns
+     using a deterministic hash of its world-tile coordinates, producing a
+     natural, non-repeating appearance with zero extra memory cost.
+     ========================================================================= }
+   SOIL_SHEET_PATH = 'assets/graphics/soils_better_16x16.png';
+   SOIL_SHEET_TILE = 16;   { pixel size of each cell in the spritesheet   }
+   SOIL_SHEET_COLS = 4;    { variation columns per soil type               }
+   SOIL_SHEET_ROWS = 13;   { number of soil-type rows in the spritesheet   }
 
-   TILE_GRANITE_RGB: array[0..2] of TRect4 = (
-      (X: 2; Y: 1; W: 2; H: 2; R: 152; G: 148; B: 170),
-      (X: 5; Y: 4; W: 1; H: 1; R: 158; G: 154; B: 176),
-      (X: 1; Y: 5; W: 2; H: 2; R: 68; G: 64; B: 80));
+   { Maps tile ID → spritesheet row.
+     -1 = tile is not in the spritesheet (decoration or air) — use FTex/FTexBG. }
+   SOIL_SHEET_ROW: array[0..TILE_COUNT - 1] of shortint = (
+      -1,   {  0: TILE_AIR        — not rendered                  }
+      1,    {  1: TILE_DIRT       — row  1  DIRT                  }
+      0,    {  2: TILE_GRASS      — row  0  DIRTGRASS             }
+      2,    {  3: TILE_STONE      — row  2  STONE                 }
+      3,    {  4: TILE_SAND       — row  3  SAND                  }
+      4,    {  5: TILE_SANDSTONE  — row  4  SANDSTONE             }
+      5,    {  6: TILE_GRANITE    — row  5  GRANITE               }
+      6,    {  7: TILE_MARBLE     — row  6  MARBLE                }
+      7,    {  8: TILE_CLAY       — row  7  CLAY                  }
+      9,    {  9: TILE_GRAVEL     — row  9  GRAVEL                }
+      12,   { 10: TILE_BEDROCK    — row 12  BEDROCK               }
+      8,    { 11: TILE_MUD        — row  8  MUD                   }
+      10,   { 12: TILE_SNOW       — row 10  SNOW                  }
+      11,   { 13: TILE_ICE        — row 11  ICE                   }
+      -1,   { 14: TILE_SHRUB      — decoration (procedural)       }
+      -1,   { 15: TILE_TREE_TRUNK — decoration                    }
+      -1,   { 16: TILE_TREE_LEAF  — decoration                    }
+      -1,   { 17: TILE_CACTUS     — decoration                    }
+      -1,   { 18: TILE_CACTUS_TOP — decoration                    }
+      -1,   { 19: TILE_FERN       — decoration                    }
+      -1,   { 20: TILE_ROOT       — decoration                    }
+      -1,   { 21: TILE_VINE       — decoration                    }
+      -1,   { 22: TILE_STALACTITE — decoration                    }
+      -1,   { 23: TILE_STALAGMITE — decoration                    }
+      -1,   { 24: TILE_MUSHROOM   — decoration                    }
+      -1    { 25: TILE_MOSS       — decoration                    }
+      );
 
-   TILE_MARBLE_RGB: array[0..2] of TRect4 = (
-      (X: 1; Y: 2; W: 1; H: 5; R: 172; G: 164; B: 180),
-      (X: 4; Y: 1; W: 1; H: 4; R: 160; G: 152; B: 170),
-      (X: 6; Y: 4; W: 2; H: 3; R: 194; G: 188; B: 202));
+   { ── Background dim factor for soil sheet tiles ───────────────────────── }
+   { Background (wall) soil tiles are rendered from the same spritesheet but with this multiplier applied to all RGB channels of the computed tint. }
+   SOIL_BG_DIM: Single = 0.60;
 
-   TILE_CLAY_RGB: array[0..2] of TRect4 = (
-      (X: 1; Y: 1; W: 3; H: 2; R: 168; G: 96; B: 72),
-      (X: 4; Y: 4; W: 3; H: 3; R: 140; G: 74; B: 54),
-      (X: 0; Y: 5; W: 2; H: 2; R: 130; G: 68; B: 50));
+   { =========================================================================
+     DECORATION TILE PALETTE DATA
+     Used by TChunkRenderSystem.GenTileTextures to build procedural CPU
+     textures for decoration tiles (TILE_SHRUB and above).
+     Soil tile palette arrays are kept for reference but are no longer used
+     by the renderer — the spritesheet replaces them.
+     ========================================================================= }
 
-   TILE_GRAVEL_RGB: array[0..3] of TRect4 = (
-      (X: 0; Y: 0; W: 3; H: 3; R: 124; G: 120; B: 116),
-      (X: 4; Y: 0; W: 4; H: 4; R: 100; G: 96; B: 92),
-      (X: 1; Y: 4; W: 3; H: 4; R: 118; G: 114; B: 110),
-      (X: 5; Y: 5; W: 3; H: 3; R: 96; G: 92; B: 88));
-
-   TILE_BEDROCK_RGB: array[0..2] of TRect4 = (
-      (X: 2; Y: 1; W: 2; H: 2; R: 42; G: 38; B: 48),
-      (X: 5; Y: 3; W: 2; H: 2; R: 38; G: 34; B: 44),
-      (X: 1; Y: 5; W: 3; H: 2; R: 20; G: 18; B: 24));
-
-   { ── Vegetation and Cave decoration ──────────────────────────────────── }
-   { TILE_SHRUB (11) — leafy green bush }
+   { ── TILE_SHRUB (14) — leafy green bush ───────────────────────────────── }
    TILE_SHRUB_RGB: array[0..3] of TRect4 = (
       (X: 1; Y: 3; W: 6; H: 4; R: 50; G: 150; B: 40),
       (X: 0; Y: 4; W: 8; H: 3; R: 60; G: 170; B: 50),
       (X: 2; Y: 2; W: 4; H: 2; R: 70; G: 160; B: 44),
       (X: 3; Y: 6; W: 2; H: 2; R: 100; G: 70; B: 40));
 
-   { TILE_TREE_TRUNK (12) — brown wood column }
+   { ── TILE_TREE_TRUNK (15) ─────────────────────────────────────────────── }
    TILE_TREE_TRUNK_RGB: array[0..3] of TRect4 = (
       (X: 2; Y: 0; W: 4; H: 8; R: 120; G: 80; B: 46),
       (X: 3; Y: 0; W: 2; H: 8; R: 130; G: 90; B: 52),
       (X: 2; Y: 2; W: 1; H: 2; R: 90; G: 58; B: 32),
       (X: 5; Y: 5; W: 1; H: 2; R: 90; G: 58; B: 32));
 
-   { TILE_TREE_LEAF (13) — leafy green canopy }
-   TILE_TREE_LEAF_RGB: array[0..0] of TRect4 = ((X: 0; Y: 0; W: 8; H: 8; R: 40; G: 130; B: 36));
+   { ── TILE_TREE_LEAF (16) ──────────────────────────────────────────────── }
+   TILE_TREE_LEAF_RGB: array[0..0] of TRect4 = (
+      (X: 0; Y: 0; W: 8; H: 8; R: 40; G: 130; B: 36));
 
-   { TILE_CACTUS (14) — green spiky column }
+   { ── TILE_CACTUS (17) ─────────────────────────────────────────────────── }
    TILE_CACTUS_RGB: array[0..3] of TRect4 = (
       (X: 2; Y: 0; W: 4; H: 8; R: 50; G: 140; B: 50),
       (X: 1; Y: 2; W: 1; H: 1; R: 40; G: 120; B: 40),
       (X: 6; Y: 5; W: 1; H: 1; R: 40; G: 120; B: 40),
       (X: 3; Y: 0; W: 2; H: 8; R: 60; G: 160; B: 58));
 
-   { TILE_CACTUS_TOP (15) — cactus top / arm end }
+   { ── TILE_CACTUS_TOP (18) ─────────────────────────────────────────────── }
    TILE_CACTUS_TOP_RGB: array[0..2] of TRect4 = (
       (X: 2; Y: 2; W: 4; H: 6; R: 50; G: 140; B: 50),
       (X: 3; Y: 0; W: 2; H: 3; R: 60; G: 160; B: 58),
       (X: 3; Y: 0; W: 2; H: 1; R: 80; G: 180; B: 70));
 
-   { TILE_FERN (16) — small forest fern }
+   { ── TILE_FERN (19) ───────────────────────────────────────────────────── }
    TILE_FERN_RGB: array[0..3] of TRect4 = (
       (X: 3; Y: 5; W: 2; H: 3; R: 80; G: 110; B: 40),
       (X: 1; Y: 3; W: 3; H: 3; R: 60; G: 140; B: 40),
       (X: 4; Y: 2; W: 3; H: 4; R: 55; G: 135; B: 38),
       (X: 2; Y: 1; W: 2; H: 2; R: 70; G: 150; B: 44));
 
-   { TILE_ROOT (17) — brown root hanging from dirt ceiling }
+   { ── TILE_ROOT (20) ───────────────────────────────────────────────────── }
    TILE_ROOT_RGB: array[0..2] of TRect4 = (
       (X: 3; Y: 0; W: 2; H: 8; R: 120; G: 80; B: 44),
       (X: 2; Y: 2; W: 1; H: 2; R: 100; G: 64; B: 34),
       (X: 5; Y: 5; W: 1; H: 2; R: 100; G: 64; B: 34));
 
-   { TILE_VINE (18) — green vine hanging from stone }
+   { ── TILE_VINE (21) ───────────────────────────────────────────────────── }
    TILE_VINE_RGB: array[0..2] of TRect4 = (
       (X: 3; Y: 0; W: 2; H: 8; R: 44; G: 130; B: 44),
       (X: 1; Y: 3; W: 2; H: 2; R: 36; G: 110; B: 36),
       (X: 5; Y: 6; W: 2; H: 1; R: 36; G: 110; B: 36));
 
-   { TILE_STALACTITE (19) — grey mineral spike from ceiling }
+   { ── TILE_STALACTITE (22) ─────────────────────────────────────────────── }
    TILE_STALACTITE_RGB: array[0..2] of TRect4 = (
       (X: 3; Y: 0; W: 2; H: 5; R: 130; G: 128; B: 140),
       (X: 3; Y: 5; W: 2; H: 2; R: 110; G: 108; B: 120),
       (X: 3; Y: 7; W: 2; H: 1; R: 90; G: 88; B: 100));
 
-   { TILE_STALAGMITE (20) — grey spike growing from floor }
+   { ── TILE_STALAGMITE (23) ─────────────────────────────────────────────── }
    TILE_STALAGMITE_RGB: array[0..2] of TRect4 = (
       (X: 3; Y: 3; W: 2; H: 5; R: 130; G: 128; B: 140),
       (X: 3; Y: 1; W: 2; H: 2; R: 110; G: 108; B: 120),
       (X: 3; Y: 0; W: 2; H: 1; R: 90; G: 88; B: 100));
 
-   { TILE_MUSHROOM (21) — cave mushroom on floo }
+   { ── TILE_MUSHROOM (24) ───────────────────────────────────────────────── }
    TILE_MUSHROOM_RGB: array[0..4] of TRect4 = (
-      (X: 2; Y: 3; W: 4; H: 5; R: 200; G: 60; B: 140),   { stem }
-      (X: 1; Y: 2; W: 6; H: 3; R: 220; G: 80; B: 160),   { cap }
-      (X: 0; Y: 3; W: 8; H: 2; R: 240; G: 100; B: 180),  { cap brim }
-      (X: 3; Y: 1; W: 2; H: 2; R: 200; G: 60; B: 140),   { cap top }
-      (X: 2; Y: 6; W: 4; H: 2; R: 180; G: 170; B: 175)); { root base }
+      (X: 2; Y: 3; W: 4; H: 5; R: 200; G: 60; B: 140),
+      (X: 1; Y: 2; W: 6; H: 3; R: 220; G: 80; B: 160),
+      (X: 0; Y: 3; W: 8; H: 2; R: 240; G: 100; B: 180),
+      (X: 3; Y: 1; W: 2; H: 2; R: 200; G: 60; B: 140),
+      (X: 2; Y: 6; W: 4; H: 2; R: 180; G: 170; B: 175));
 
-   { TILE_MOSS (22) — green moss patch on stone }
+   { ── TILE_MOSS (25) ───────────────────────────────────────────────────── }
    TILE_MOSS_RGB: array[0..2] of TRect4 = (
       (X: 0; Y: 0; W: 8; H: 3; R: 38; G: 110; B: 38),
       (X: 1; Y: 1; W: 2; H: 2; R: 50; G: 130; B: 48),
       (X: 5; Y: 0; W: 2; H: 2; R: 44; G: 120; B: 42));
-
 
    { ── Biome identifiers ───────────────────────────────────────────────── }
    BIOME_PLAINS = 0;
@@ -202,8 +229,8 @@ const
    VIRT_W = 1280;
    VIRT_H = 720;
 
-   CHUNK_TILES_W = 32;   { tiles per chunk, horizontal }
-   CHUNK_TILES_H = 32;   { tiles per chunk, vertical   }
+   CHUNK_TILES_W = 32;
+   CHUNK_TILES_H = 32;
    CHUNK_PIXEL_W = CHUNK_TILES_W * TILE_SIZE;
    CHUNK_PIXEL_H = CHUNK_TILES_H * TILE_SIZE;
 

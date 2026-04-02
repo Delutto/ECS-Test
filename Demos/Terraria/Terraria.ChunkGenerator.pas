@@ -1,10 +1,13 @@
 unit Terraria.ChunkGenerator;
+
 {$mode objfpc}{$H+}
+
 { IsCaveAt — four-stage improved cave algorithm
   Stage 1  Depth fraction: DepthFrac in [0,1] from CaveStartDepth to DepthStone.
   Stage 2  Domain warp: two FBM fields displace coords → organic curving tunnels.
   Stage 3  Depth-variable threshold: lerp(CaveThreshold, CaveThresholdDeep, DepthFrac).
   Stage 4  Chamber system: lower-freq independent warped FBM OR'd with tunnel. }
+
 interface
 
 uses
@@ -521,43 +524,35 @@ begin
 end;
 
 procedure TChunkGenerator.FillBGColumn(AC: TWorldChunk; LX, ACX, ACY, _AS: Integer; AB: byte);
+{ FIX: Derive the background (wall) tile from ForegroundTile() instead of a
+  simplified depth-only table. This ensures caves always expose the correct
+  material on their walls: granite caves show granite walls, marble caves show
+  marble walls, sandstone zones show sandstone walls, clay/gravel pockets show
+  the respective wall, etc. The foreground tile function is called without the
+  cave-carving check, so the background layer faithfully reflects the solid
+  material distribution of the world at every coordinate. }
 var
-   WY, TY, D: Integer;
+   WY, TY, TX: Integer;
    WT: byte;
-   BP: TBiomeParams;
-   ED, EDS: Integer;
 begin
-   case AB of
-      BIOME_DESERT:
-         BP := FParams.BiomeDesert;
-      BIOME_FOREST:
-         BP := FParams.BiomeForest;
-      else
-         BP := FParams.BiomePlains;
-   end;
-   ED := IfThen(BP.DepthDirtOverride > 0, BP.DepthDirtOverride, FParams.DepthDirt);
-   EDS := IfThen(BP.DepthDirtStoneOverride > 0, BP.DepthDirtStoneOverride, FParams.DepthDirtStone);
+   TX := TChunkManager.ChunkToTileX(ACX) + LX;
    for WY := 0 to CHUNK_TILES_H - 1 do
    begin
       TY := TChunkManager.ChunkToTileY(ACY) + WY;
-      D := TY - _AS;
       if TY < _AS then
       begin
          AC.SetBG(LX, WY, TILE_AIR);
          Continue;
       end;
-      if D <= ED then
-         if AB = BIOME_DESERT then
-            WT := TILE_SAND
-         else
-            WT := TILE_DIRT
-      else
-      if D <= EDS then
-         WT := TILE_DIRT
-      else
+      { ForegroundTile encodes the correct biome-aware, depth-zoned and
+        noise-driven material for this world coordinate, identical to what
+        GenerateColumn would place before cave carving. Decoration tiles
+        (ID >= TILE_SHRUB) cannot appear here since ForegroundTile only
+        returns solid tile IDs or TILE_AIR for positions above the surface.
+        A fallback to TILE_STONE guards against any future TILE_AIR path. }
+      WT := ForegroundTile(TX, TY, _AS, AB);
+      if WT = TILE_AIR then
          WT := TILE_STONE;
-      if TY >= TChunkManager.ChunkToTileY(WORLD_MAX_CY + 1) - FParams.BedrockRows then
-         WT := TILE_BEDROCK;
       AC.SetBG(LX, WY, WT);
    end;
 end;

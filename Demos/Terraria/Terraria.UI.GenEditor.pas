@@ -5,11 +5,16 @@ unit Terraria.UI.GenEditor;
 interface
 
 uses
-   SysUtils, Math, raylib, Terraria.GenParams, Terraria.Lighting;
+   SysUtils, Math, raylib,
+   Terraria.GenParams,
+   Terraria.Lighting,
+   Terraria.Liquid;
 
 type
    TSectionFlags = record
-      Surface, Depth, Caves, Veins, Biomes, Deep, SaveLoad, Vegetation, CaveDecor, Lighting: boolean;
+      Surface, Depth, Caves, Veins, Biomes, Deep, SaveLoad,
+      Vegetation, CaveDecor, Lighting,
+      Liquids: boolean;
    end;
    TBiomeTab = (btPlains, btDesert, btForest);
 
@@ -80,10 +85,32 @@ const
    CVG: TColor = (R: 80; G: 200; B: 80; A: 255);
    CCD: TColor = (R: 100; G: 80; B: 160; A: 255);
    CLT: TColor = (R: 255; G: 220; B: 80; A: 255);
-   { Sub-group label colours for the Cave System section }
-   CTU: TColor = (R: 140; G: 160; B: 220; A: 255);  { Tunnels }
-   CWP: TColor = (R: 160; G: 140; B: 220; A: 255);  { Domain Warp }
-   CCH: TColor = (R: 180; G: 120; B: 220; A: 255);  { Chambers }
+   CTU: TColor = (R: 140; G: 160; B: 220; A: 255);
+   CWP: TColor = (R: 160; G: 140; B: 220; A: 255);
+   CCH: TColor = (R: 180; G: 120; B: 220; A: 255);
+   { NEW — Liquid section header colour }
+   CLQ: TColor = (R: 60; G: 160; B: 220; A: 255);
+
+{ =============================================================================
+  Liquid type name helper
+  Returns a short readable label for a TLiquidType ordinal value.
+  Used in the editor to annotate the integer type selector.
+  ============================================================================= }
+function LiqTypeName(V: Integer): string;
+begin
+   case V of
+      0:
+         Result := 'None';
+      1:
+         Result := 'Water';
+      2:
+         Result := 'Lava';
+      3:
+         Result := 'Mud';
+      else
+         Result := '?';
+   end;
+end;
 
 constructor TGenEditor.Create(PX, PY: Integer; AP: PGenParams; AL: PLightSettings);
 begin
@@ -106,6 +133,7 @@ begin
    FSec.Vegetation := True;
    FSec.CaveDecor := True;
    FSec.Lighting := True;
+   FSec.Liquids := True;   { NEW }
    FFile := 'my_world.tgp';
    FMsg := '';
    FStatusOK := True;
@@ -168,7 +196,8 @@ begin
    BW := EW - 8;
    DrawRectangle(FCX, FCY, BW, RH - 1, C);
    DrawRectangleLinesEx(RectangleCreate(FCX, FCY, BW, RH - 1), 1, ColorCreate(255, 255, 255, 40));
-   DrawText(PChar(L), FCX + BW div 2 - Round(MeasureText(PChar(L), 11) * 0.5), FCY + 4, 11, ColorCreate(20, 20, 20, 255));
+   DrawText(PChar(L), FCX + BW div 2 - Round(MeasureText(PChar(L), 11) * 0.5),
+      FCY + 4, 11, ColorCreate(20, 20, 20, 255));
    if CK(FCX, FCY, BW, RH) then
       Result := True;
    FCY := FCY + RH + 2;
@@ -194,7 +223,8 @@ begin
    if CK(FCX + LW, FCY, BW, RH) then
       V := Max(Lo, V - St);
    DrawRectangle(VX, FCY, 44, RH - 1, ColorCreate(35, 35, 50, 255));
-   DrawText(PChar(IntToStr(V)), VX + 22 - MeasureText(PChar(IntToStr(V)), 10) div 2, FCY + 4, 10, ColorCreate(240, 240, 100, 255));
+   DrawText(PChar(IntToStr(V)), VX + 22 - MeasureText(PChar(IntToStr(V)), 10) div 2,
+      FCY + 4, 10, ColorCreate(240, 240, 100, 255));
    DrawRectangle(VX + 46, FCY, BW, RH - 1, ColorCreate(50, 50, 70, 255));
    DrawText(PChar('+'), VX + 46 + BW div 2 - 3, FCY + 4, 11, ColorCreate(220, 220, 220, 255));
    if CK(VX + 46, FCY, BW, RH) then
@@ -236,7 +266,8 @@ begin
    DrawRectangle(VX, FCY, 44, RH - 1, ColorCreate(35, 35, 50, 255));
    Fm := '%.' + IntToStr(D) + 'f';
    VS := Format(Fm, [V]);
-   DrawText(PChar(VS), VX + 22 - MeasureText(PChar(VS), 10) div 2, FCY + 4, 10, ColorCreate(240, 240, 100, 255));
+   DrawText(PChar(VS), VX + 22 - MeasureText(PChar(VS), 10) div 2,
+      FCY + 4, 10, ColorCreate(240, 240, 100, 255));
    DrawRectangle(VX + 46, FCY, BW, RH - 1, ColorCreate(50, 50, 70, 255));
    DrawText(PChar('+'), VX + 46 + BW div 2 - 3, FCY + 4, 11, ColorCreate(220, 220, 220, 255));
    if CK(VX + 46, FCY, BW, RH) then
@@ -308,11 +339,14 @@ begin
    else
       C3 := ColorCreate(20, 50, 30, 255);
    DrawRectangle(X1, FCY, TW, RH - 1, C1);
-   DrawText(PChar('Plains'), X1 + TW div 2 - MeasureText('Plains', 10) div 2, FCY + 4, 10, ColorCreate(220, 220, 220, 255));
+   DrawText(PChar('Plains'), X1 + TW div 2 - MeasureText('Plains', 10) div 2,
+      FCY + 4, 10, ColorCreate(220, 220, 220, 255));
    DrawRectangle(X2, FCY, TW, RH - 1, C2);
-   DrawText(PChar('Desert'), X2 + TW div 2 - MeasureText('Desert', 10) div 2, FCY + 4, 10, ColorCreate(220, 220, 220, 255));
+   DrawText(PChar('Desert'), X2 + TW div 2 - MeasureText('Desert', 10) div 2,
+      FCY + 4, 10, ColorCreate(220, 220, 220, 255));
    DrawRectangle(X3, FCY, TW, RH - 1, C3);
-   DrawText(PChar('Forest'), X3 + TW div 2 - MeasureText('Forest', 10) div 2, FCY + 4, 10, ColorCreate(220, 220, 220, 255));
+   DrawText(PChar('Forest'), X3 + TW div 2 - MeasureText('Forest', 10) div 2,
+      FCY + 4, 10, ColorCreate(220, 220, 220, 255));
    if CK(X1, FCY, TW, RH) then
       FBTab := btPlains;
    if CK(X2, FCY, TW, RH) then
@@ -391,6 +425,8 @@ var
    P: PGenParams;
    L: PLightSettings;
    B: PBiomeParams;
+   BLQ: PLiquidBiomeParams;    { active biome's liquid params }
+   LiqTypeI: Integer;          { proxy for TLiquidType → IS2 }
    HW, BLY, CH, MS, ThH, ThY, SBH: Integer;
    FCY2: Integer;
    VF: Single;
@@ -399,13 +435,21 @@ var
 begin
    P := FParams;
    L := FLighting;
+
+   { Safety defaults — BLQ is only dereferenced inside the Liquids block }
+   BLQ := @P^.Liquid.Plains;
+   LiqTypeI := 0;
+
    DrawRectangle(FPX, FPY, EW, EH, CBG);
-   DrawRectangleLinesEx(RectangleCreate(FPX, FPY, EW, EH), 1, ColorCreate(80, 80, 120, 255));
+   DrawRectangleLinesEx(RectangleCreate(FPX, FPY, EW, EH), 1,
+      ColorCreate(80, 80, 120, 255));
    BD;
+
    FRegen := BT('REGENERATE WORLD', CRG) or FRegen;
    FReset := BT('Reset to Defaults', CRS) or FReset;
    SR;
-   { Surface Shape }
+
+   { ── Surface Shape ──────────────────────────────────────────────────────── }
    SH('Surface Shape', FSec.Surface, CSS);
    if FSec.Surface then
    begin
@@ -419,7 +463,8 @@ begin
       FS('Gain', P^.SurfaceGain, 0.2, 0.8, 0.05, 2);
       SR;
    end;
-   { Depth Zones }
+
+   { ── Depth Zones ────────────────────────────────────────────────────────── }
    SH('Depth Zones', FSec.Depth, CSD);
    if FSec.Depth then
    begin
@@ -430,7 +475,8 @@ begin
       IS2('Bedrock Rows', P^.BedrockRows, 1, 6, 1);
       SR;
    end;
-   { Cave System — three sub-groups with colour-coded labels }
+
+   { ── Cave System ────────────────────────────────────────────────────────── }
    SH('Cave System', FSec.Caves, CCV);
    if FSec.Caves then
    begin
@@ -459,7 +505,8 @@ begin
       FS('Chamber Warp', P^.ChamberWarpStrength, 0, 80, 4.0, 1);
       SR;
    end;
-   { Ore Veins }
+
+   { ── Ore Veins ──────────────────────────────────────────────────────────── }
    SH('Ore Veins', FSec.Veins, CVN);
    if FSec.Veins then
    begin
@@ -471,7 +518,8 @@ begin
       FS('Gravel Thresh', P^.GravelThreshold, 0.1, 0.9, 0.05, 2);
       SR;
    end;
-   { Biomes }
+
+   { ── Biomes ─────────────────────────────────────────────────────────────── }
    SH('Biomes', FSec.Biomes, CBM);
    if FSec.Biomes then
    begin
@@ -497,14 +545,16 @@ begin
       FS('Cave Density', B^.CaveDensityMult, 0.1, 3.0, 0.1, 2);
       SR;
    end;
-   { Deep Zone }
+
+   { ── Deep Zone ──────────────────────────────────────────────────────────── }
    SH('Deep Zone', FSec.Deep, CDP);
    if FSec.Deep then
    begin
       FS('Granite Ratio', P^.DeepGraniteRatio, 0, 1, 0.05, 2);
       SR;
    end;
-   { Vegetation }
+
+   { ── Vegetation ─────────────────────────────────────────────────────────── }
    SH('Vegetation', FSec.Vegetation, CVG);
    if FSec.Vegetation then
    begin
@@ -539,7 +589,8 @@ begin
       FS('Shrub Density', P^.VegForest.ShrubDensity, 0, 1, 0.05, 2);
       SR;
    end;
-   { Cave Decor }
+
+   { ── Cave Decor ─────────────────────────────────────────────────────────── }
    SH('Cave Decor', FSec.CaveDecor, CCD);
    if FSec.CaveDecor then
    begin
@@ -562,7 +613,128 @@ begin
       FS('Moss Density', P^.CaveDecor.MossDensity, 0, 1, 0.05, 2);
       SR;
    end;
-   { Lighting }
+
+   { ==========================================================================
+     NEW — Liquids section
+     Inserted between Cave Decor and Lighting.
+     Controls the three placement passes and the per-liquid visual appearance.
+     ========================================================================== }
+   SH('Liquids', FSec.Liquids, CLQ);
+   if FSec.Liquids then
+   begin
+      { ── Type legend (always visible at the top of the section) ─────────── }
+      if (FCY + RH >= FC0) and (FCY <= FC1) then
+         DrawText(PChar('Type: 0=None  1=Water  2=Lava  3=Mud'),
+            FCX, FCY + 4, 8, ColorCreate(140, 200, 220, 200));
+      FCY := FCY + RH;
+
+      { ── Water visual ──────────────────────────────────────────────────── }
+      DrawText(PChar('-- Water --'), FCX, FCY + 4, 10, CLQ);
+      FCY := FCY + RH;
+      BS('Red', P^.Liquid.WaterVisual.R, 0, 255);
+      BS('Green', P^.Liquid.WaterVisual.G, 0, 255);
+      BS('Blue', P^.Liquid.WaterVisual.B, 0, 255);
+      BS('Opacity', P^.Liquid.WaterVisual.Alpha, 0, 255);
+      FS('Ripple Speed', P^.Liquid.WaterVisual.Anim.RippleSpeed, 0.0, 5.0, 0.1, 2);
+      FS('Ripple Amp', P^.Liquid.WaterVisual.Anim.RippleAmp, 0.0, 4.0, 0.1, 2);
+      SR;
+
+      { ── Lava visual ────────────────────────────────────────────────────── }
+      DrawText(PChar('-- Lava --'), FCX, FCY + 4, 10,
+         ColorCreate(220, 80, 20, 255));
+      FCY := FCY + RH;
+      BS('Red', P^.Liquid.LavaVisual.R, 0, 255);
+      BS('Green', P^.Liquid.LavaVisual.G, 0, 255);
+      BS('Blue', P^.Liquid.LavaVisual.B, 0, 255);
+      BS('Opacity', P^.Liquid.LavaVisual.Alpha, 0, 255);
+      TG('Emissive', P^.Liquid.LavaVisual.Emissive);
+      BS('Emit Bright', P^.Liquid.LavaVisual.EmitBrightness, 0, 255);
+      BS('Emit Red', P^.Liquid.LavaVisual.EmitR, 0, 255);
+      BS('Emit Green', P^.Liquid.LavaVisual.EmitG, 0, 255);
+      BS('Emit Blue', P^.Liquid.LavaVisual.EmitB, 0, 255);
+      FS('Ripple Speed', P^.Liquid.LavaVisual.Anim.RippleSpeed, 0.0, 3.0, 0.1, 2);
+      FS('Flicker Speed', P^.Liquid.LavaVisual.Anim.FlickerSpeed, 0.0, 10.0, 0.2, 2);
+      FS('Flicker Amp', P^.Liquid.LavaVisual.Anim.FlickerAmp, 0.0, 1.0, 0.05, 2);
+      SR;
+
+      { ── Mud-water visual ────────────────────────────────────────────────── }
+      DrawText(PChar('-- Mud Water --'), FCX, FCY + 4, 10,
+         ColorCreate(100, 80, 50, 255));
+      FCY := FCY + RH;
+      BS('Red', P^.Liquid.MudVisual.R, 0, 255);
+      BS('Green', P^.Liquid.MudVisual.G, 0, 255);
+      BS('Blue', P^.Liquid.MudVisual.B, 0, 255);
+      BS('Opacity', P^.Liquid.MudVisual.Alpha, 0, 255);
+      FS('Ripple Speed', P^.Liquid.MudVisual.Anim.RippleSpeed, 0.0, 5.0, 0.1, 2);
+      SR;
+
+      { ── Per-biome placement parameters ─────────────────────────────────── }
+      DrawText(PChar('-- Placement by Biome --'), FCX, FCY + 4, 10, CLQ);
+      FCY := FCY + RH;
+
+      { Reuse the existing biome tab control; clicking tabs here or in the
+        Biomes section updates the same FBTab field. }
+      Tabs;
+
+      case FBTab of
+         btDesert:
+            BLQ := @P^.Liquid.Desert;
+         btForest:
+            BLQ := @P^.Liquid.Forest;
+         else
+            BLQ := @P^.Liquid.Plains;
+      end;
+
+      { ── Surface lakes ────────────────────────────────────────────────── }
+      DrawText(PChar('-- Surface Lakes --'), FCX, FCY + 4, 10, CLQ);
+      FCY := FCY + RH;
+      TG('Enabled', BLQ^.SurfaceLakeEnabled);
+      FS('Probability', BLQ^.SurfaceLakeProb, 0.0, 1.0, 0.05, 2);
+
+      { Liquid type selector — IS2 on an integer proxy, with name overlay }
+      LiqTypeI := Ord(BLQ^.SurfaceLakeType);
+      if IS2('Type (0-3)', LiqTypeI, 0, 3, 1) then
+         BLQ^.SurfaceLakeType := TLiquidType(LiqTypeI);
+      { Show the name of the current type on the same row just drawn }
+      if (FCY - RH + RH >= FC0) and (FCY - RH <= FC1) then
+         DrawText(PChar('[' + LiqTypeName(LiqTypeI) + ']'),
+            FCX + 178, FCY - RH + 1 + 4, 9,
+            ColorCreate(120, 220, 255, 200));
+
+      IS2('Min Depth', BLQ^.SurfaceMinDepth, 1, 20, 1);
+      IS2('Max Fill', BLQ^.SurfaceMaxFill, 1, 32, 1);
+      SR;
+
+      { ── Underground lakes ────────────────────────────────────────────── }
+      DrawText(PChar('-- Underground Lakes --'), FCX, FCY + 4, 10, CLQ);
+      FCY := FCY + RH;
+      TG('Enabled', BLQ^.UnderLakeEnabled);
+      FS('Probability', BLQ^.UnderLakeProb, 0.0, 1.0, 0.05, 2);
+
+      LiqTypeI := Ord(BLQ^.UnderLakeType);
+      if IS2('Type (0-3)', LiqTypeI, 0, 3, 1) then
+         BLQ^.UnderLakeType := TLiquidType(LiqTypeI);
+      if (FCY - RH + RH >= FC0) and (FCY - RH <= FC1) then
+         DrawText(PChar('[' + LiqTypeName(LiqTypeI) + ']'),
+            FCX + 178, FCY - RH + 1 + 4, 9,
+            ColorCreate(120, 220, 255, 200));
+
+      FS('Fill Ratio', BLQ^.UnderLakeFillRatio, 0.05, 1.0, 0.05, 2);
+      IS2('Min World Y', BLQ^.UnderLakeMinWorldY, 4, 200, 2);
+      SR;
+
+      { ── Lava pools ───────────────────────────────────────────────────── }
+      DrawText(PChar('-- Lava Pools --'), FCX, FCY + 4, 10,
+         ColorCreate(220, 80, 20, 255));
+      FCY := FCY + RH;
+      TG('Enabled', BLQ^.LavaEnabled);
+      IS2('Start Y', BLQ^.LavaStartY, 100, 255, 2);
+      FS('Probability', BLQ^.LavaProb, 0.0, 1.0, 0.05, 2);
+      SR;
+   end;
+   { END Liquids section }
+
+   { ── Lighting ────────────────────────────────────────────────────────────── }
    if Assigned(L) then
    begin
       SH('Lighting', FSec.Lighting, CLT);
@@ -595,13 +767,15 @@ begin
          SR;
       end;
    end;
-   { Save / Load }
+
+   { ── Save / Load ─────────────────────────────────────────────────────────── }
    SH('Save / Load', FSec.SaveLoad, CSL);
    if FSec.SaveLoad then
    begin
       if (FCY + RH >= FC0) and (FCY <= FC1) then
       begin
-         DrawRectangle(FCX, FCY, EW - 8, RH - 1, IfThen(FFileEdit, ColorCreate(50, 50, 80, 255), ColorCreate(30, 30, 50, 255)));
+         DrawRectangle(FCX, FCY, EW - 8, RH - 1,
+            IfThen(FFileEdit, ColorCreate(50, 50, 80, 255), ColorCreate(30, 30, 50, 255)));
          SFN := FFile;
          while (Length(SFN) > 0) and (MeasureText(PChar(SFN), 10) > EW - 16) do
             SFN := Copy(SFN, 2, MaxInt);
@@ -624,9 +798,11 @@ begin
          HW := (EW - 8) div 2 - 2;
          BLY := FCY;
          DrawRectangle(FCX, BLY, HW, RH - 1, CSV);
-         DrawText(PChar('Save'), FCX + HW div 2 - 16, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
          DrawRectangle(FCX + HW + 4, BLY, HW, RH - 1, CLD);
-         DrawText(PChar('Load'), FCX + HW + 4 + HW div 2 - 16, BLY + 4, 11, ColorCreate(20, 20, 20, 255));
+         DrawText(PChar('Save'), FCX + HW div 2 - 16, BLY + 4, 11,
+            ColorCreate(20, 20, 20, 255));
+         DrawText(PChar('Load'), FCX + HW + 4 + HW div 2 - 16, BLY + 4, 11,
+            ColorCreate(20, 20, 20, 255));
          if CK(FCX, BLY, HW, RH) then
          begin
             if SaveGenParams(FFile, P^) then
@@ -659,12 +835,14 @@ begin
          FCY := FCY + RH + 2;
          if (FMsg <> '') and (FCY <= FC1) then
          begin
-            DrawText(PChar(FMsg), FCX, FCY + 4, 9, IfThen(FStatusOK, COK, CER));
+            DrawText(PChar(FMsg), FCX, FCY + 4, 9,
+               IfThen(FStatusOK, COK, CER));
             FCY := FCY + 16;
          end;
       end;
    end;
-   { Scrollbar }
+
+   { ── Scrollbar ───────────────────────────────────────────────────────────── }
    FCY2 := FCY + FScrollY + 8;
    CH := FCY2 - FPY;
    MS := Max(0, CH - EH + 20);
@@ -681,8 +859,10 @@ begin
          ThY := FPY + 2 + Round((SBH - ThH) * (FScrollY / MS))
       else
          ThY := FPY + 2;
-      DrawRectangle(FPX + EW - 6, FPY + 2, 4, SBH, ColorCreate(50, 50, 70, 200));
-      DrawRectangle(FPX + EW - 6, ThY, 4, ThH, ColorCreate(120, 120, 180, 220));
+      DrawRectangle(FPX + EW - 6, FPY + 2, 4, SBH,
+         ColorCreate(50, 50, 70, 200));
+      DrawRectangle(FPX + EW - 6, ThY, 4, ThH,
+         ColorCreate(120, 120, 180, 220));
       if not FFileEdit then
          if GetMouseWheelMove <> 0 then
             FScrollY := Max(0, Min(MS, FScrollY - Round(GetMouseWheelMove * RH * 3)));

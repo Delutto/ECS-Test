@@ -2,17 +2,10 @@ unit Terraria.ChunkGenerator;
 
 {$mode objfpc}{$H+}
 
-{ IsCaveAt — four-stage improved cave algorithm
-  Stage 1  Depth fraction: DepthFrac in [0,1] from CaveStartDepth to DepthStone.
-  Stage 2  Domain warp: two FBM fields displace coords → organic curving tunnels.
-  Stage 3  Depth-variable threshold: lerp(CaveThreshold, CaveThresholdDeep, DepthFrac).
-  Stage 4  Chamber system: lower-freq independent warped FBM OR'd with tunnel. }
-
 interface
 
 uses
-   SysUtils, Math, Terraria.Common, Terraria.WorldChunk, Terraria.ChunkManager,
-   Terraria.Noise, Terraria.GenParams;
+   SysUtils, Math, Terraria.Common, Terraria.WorldChunk, Terraria.ChunkManager, Terraria.Noise, Terraria.GenParams, Terraria.Liquid;
 
 type
    TBiomeSegment = record
@@ -42,6 +35,7 @@ type
       FParams: TGenParams;
       FManager: TChunkManager;
       FBiomeMap: TBiomeSegmentMap;
+      FLiquidPlacer: TLiquidPlacer;
       function ComputeSurfaceY(TX: Integer): Integer;
       function GetSegmentBiome(TX: Integer): byte;
       function ForegroundTile(TX, TY, _AS: Integer; AB: byte): byte;
@@ -68,6 +62,7 @@ type
       procedure ApplyParams;
       property Seed: longint read FSeed write FSeed;
       property Params: TGenParams read FParams write FParams;
+      property LiquidPlacer: TLiquidPlacer read FLiquidPlacer;
    end;
 
 implementation
@@ -302,10 +297,12 @@ begin
    FParams := DefaultGenParams;
    FParams.Seed := S;
    FBiomeMap := TBiomeSegmentMap.Create(S);
+   FLiquidPlacer := TLiquidPlacer.Create(AM, @FParams.Liquid, S);
 end;
 
 destructor TChunkGenerator.Destroy;
 begin
+   FLiquidPlacer.Free;
    FBiomeMap.Free;
    inherited;
 end;
@@ -315,6 +312,9 @@ begin
    ClampGenParams(FParams);
    FSeed := FParams.Seed;
    FBiomeMap.Reset(FSeed);
+   NoiseSeed(FSeed);
+   if Assigned(FLiquidPlacer) then
+      FLiquidPlacer.Seed := FSeed;
 end;
 
 function TChunkGenerator.GetSegmentBiome(TX: Integer): byte;
@@ -341,29 +341,22 @@ begin
    Result := FParams.BaseSurface + BP.SurfaceOffsetY + Round(N * (FParams.SurfaceAmp + BP.SurfaceAmpBonus));
    Result := Max(FParams.MinSurface, Min(FParams.MaxSurface, Result));
 end;
-{ ── IsCaveAt: four-stage improved cave algorithm ───────────────────────── }
+
 function TChunkGenerator.IsCaveAt(TX, TY, ASY: Integer; ACM: Single): boolean;
 const
-  { Warp offset constants — values chosen so all four sample points in
-    noise space are well separated (>5 noise periods apart) → uncorrelated. }
    TWX = 5.2;
-   TWY = 1.3;   { tunnel warp X, Y offsets }
+   TWY = 1.3;
    CX1 = 3.7;
-   CY1 = 8.1;   { chamber warp X offsets }
+   CY1 = 8.1;
    CX2 = 11.4;
-   CY2 = 2.6;   { chamber warp Y offsets }
+   CY2 = 2.6;
    MAXT = 0.49;
 var
-   WF, MCD, DF: Single;
-   WX, WY, TX2, TY2: Single;
-   TN, TT: Single;
-   CWX, CWY, CX, CY2V: Single;
-   CN, CT: Single;
+   WF, MCD, DF, WX, WY, TX2, TY2, TN, TT, CWX, CWY, CX, CY2V, CN, CT: Single;
 begin
    Result := False;
    if ACM <= 0 then
       Exit;
-   { Stage 1: depth fraction }
    MCD := FParams.DepthStone - FParams.CaveStartDepth;
    if MCD < 1 then
       MCD := 1;
@@ -373,19 +366,16 @@ begin
    if DF > 1 then
       DF := 1;
    WF := FParams.CaveWarpFreq;
-   { Stage 2: domain warp for tunnel }
    WX := FBM2D(TX * WF, TY * WF, 2) * FParams.CaveWarpStrength;
    WY := FBM2D(TX * WF + TWX, TY * WF + TWY, 2) * FParams.CaveWarpStrength;
    TX2 := TX + WX;
    TY2 := TY + WY;
-   { Stage 3: tunnel noise + depth-lerped threshold }
    TN := FBM2D(TX2 * FParams.CaveFreqX, TY2 * FParams.CaveFreqY, FParams.CaveOctaves);
    TT := FParams.CaveThreshold + (FParams.CaveThresholdDeep - FParams.CaveThreshold) * DF;
    TT := TT * ACM;
    if TT > MAXT then
       TT := MAXT;
    Result := Abs(TN) < TT;
-   { Stage 4: chamber system (OR'd, independent warp) }
    if FParams.ChamberEnabled and not Result then
    begin
       CWX := FBM2D(TX * WF + CX1, TY * WF + CY1, 2) * FParams.ChamberWarpStrength;
@@ -515,7 +505,6 @@ begin
    begin
       TY := TChunkManager.ChunkToTileY(ACY) + WY;
       TV := ForegroundTile(TX, TY, SY, Bi);
-      { SY passed so IsCaveAt computes depth fraction without extra lookup }
       if FParams.CavesEnabled and (TV <> TILE_AIR) and (TV <> TILE_BEDROCK) and (TY >= SY + FParams.CaveStartDepth) then
          if IsCaveAt(TX, TY, SY, CM) then
             TV := TILE_AIR;
@@ -524,13 +513,6 @@ begin
 end;
 
 procedure TChunkGenerator.FillBGColumn(AC: TWorldChunk; LX, ACX, ACY, _AS: Integer; AB: byte);
-{ FIX: Derive the background (wall) tile from ForegroundTile() instead of a
-  simplified depth-only table. This ensures caves always expose the correct
-  material on their walls: granite caves show granite walls, marble caves show
-  marble walls, sandstone zones show sandstone walls, clay/gravel pockets show
-  the respective wall, etc. The foreground tile function is called without the
-  cave-carving check, so the background layer faithfully reflects the solid
-  material distribution of the world at every coordinate. }
 var
    WY, TY, TX: Integer;
    WT: byte;
@@ -544,12 +526,6 @@ begin
          AC.SetBG(LX, WY, TILE_AIR);
          Continue;
       end;
-      { ForegroundTile encodes the correct biome-aware, depth-zoned and
-        noise-driven material for this world coordinate, identical to what
-        GenerateColumn would place before cave carving. Decoration tiles
-        (ID >= TILE_SHRUB) cannot appear here since ForegroundTile only
-        returns solid tile IDs or TILE_AIR for positions above the surface.
-        A fallback to TILE_STONE guards against any future TILE_AIR path. }
       WT := ForegroundTile(TX, TY, _AS, AB);
       if WT = TILE_AIR then
          WT := TILE_STONE;
@@ -637,8 +613,7 @@ end;
 
 procedure TChunkGenerator.PlantTree(AC: TWorldChunk; LX, SLY, TX, OTY: Integer; const V: TVegetationParams);
 var
-   TH, R, H, DX, DY, TBW, TTW, WY: Integer;
-   CWX, CWY, LX2, LY2: Integer;
+   TH, R, H, DX, DY, TBW, TTW, WY, CWX, CWY, LX2, LY2: Integer;
 begin
    if SLY <= 0 then
       Exit;
@@ -692,8 +667,8 @@ end;
 procedure TChunkGenerator.PlantCactus(AC: TWorldChunk; LX, SLY, TX, OTY: Integer; const V: TVegetationParams);
 var
    CH, LY, MY, TY2: Integer;
-   GL: boolean;
    NA: Single;
+   GL: boolean;
    WYB: Integer;
 begin
    if SLY <= 1 then
@@ -848,6 +823,8 @@ begin
    if FParams.CavesEnabled then
       for LX := 0 to CHUNK_TILES_W - 1 do
          PlaceCaveDecor(AC, LX, ACX, ACY);
+   if Assigned(FLiquidPlacer) then
+      FLiquidPlacer.PlaceChunk(AC);
 end;
 
 end.

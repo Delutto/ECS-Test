@@ -19,6 +19,7 @@ uses
    Terraria.Lighting,
    Terraria.GenParams,
    Terraria.UI.GenEditor,
+   Terraria.LiquidSim,
    Terraria.Systems.ChunkRender;
 
 const
@@ -46,10 +47,10 @@ type
       FSeed: longint;
       FEditor: TGenEditor;
       FLastLoadedCount: Integer;
+      FLiquidSim: TLiquidSimulator;    { cellular-automaton flow }
 
-      { ── Cached snapshot of lighting settings from the previous frame.
-        Used to detect when the user changes a lighting control so that
-        ComputeLighting can be triggered without requiring a full rebuild. }
+      { Cached lighting settings — used to detect live changes in the editor
+        without requiring a full world rebuild (see NeedRelight in Update). }
       FPrevLightSettings: TLightSettings;
 
       function CamTr: TTransformComponent;
@@ -62,9 +63,9 @@ type
 
    protected
       procedure DoLoad; override;
+      procedure DoUnload; override;
       procedure DoEnter; override;
       procedure DoExit; override;
-      procedure DoUnload; override;
    public
       constructor Create(AScreenW, AScreenH: Integer);
       destructor Destroy; override;
@@ -77,7 +78,9 @@ implementation
 uses
    P2D.Core.System;
 
-   { ── helpers ────────────────────────────────────────────────────────────── }
+{ =============================================================================
+  Private helpers
+  ============================================================================= }
 
 function TWorldScene.CamTr: TTransformComponent;
 begin
@@ -114,28 +117,24 @@ begin
    FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [ASeed, CHUNK_TILES_W, CHUNK_TILES_H]);
 end;
 
-{ ── RebuildWorld ────────────────────────────────────────────────────────
-  Recreates FManager / FGenerator / FLightMap while preserving the
-  current TGenParams (including every value the user has edited in the
-  editor panel) and the current TLightSettings.
+{ =============================================================================
+  RebuildWorld
+  ─────────────────────────────────────────────────────────────────────────────
+  Recreates FManager / FGenerator / FLightMap / FLiquidPlacer while preserving
+  all parameters the user has edited.  The caller is responsible for restoring
+  FGenerator.Params and FLightMap.Settings after this call and then calling
+  FGenerator.ApplyParams.
 
-  The call sequence that USED to reset values:
-    1. SavedParams := FGenerator.Params          ← user edits captured
-    2. RebuildWorld                              ← new generator created with
-                                                   DefaultGenParams internally
-    3. FGenerator.Params := SavedParams          ← edits restored
-
-  That sequence was correct but fragile: if anything inside step 2
-  called ApplyParams the generator's cached noise params could diverge
-  from FGenerator.Params before step 3 ran.
-
-  The fixed approach keeps the responsibility inside RebuildWorld itself:
-  the caller passes the params to preserve, and RebuildWorld both
-  restores them and calls ApplyParams in the right order.
-──────────────────────────────────────────────────────────────────────── }
+  Liquid integration: FLiquidPlacer is recreated after the generator so its
+  internal pointer (@FGenerator.Params.Liquid) points into the new generator's
+  param record.  SeedLightEmitters is called so the new lava emitter settings
+  are visible to the next ComputeLighting pass.
+  ============================================================================= }
 procedure TWorldScene.RebuildWorld;
+var
+   LMLS: TLightSettings;
 begin
-   { Free old objects — order matters (LightMap references Manager). }
+   { Free old objects in reverse dependency order. }
    FLightMap.Free;
    FManager.Free;
    FGenerator.Free;
@@ -146,43 +145,96 @@ begin
    FManager.OnGenerate := @FGenerator.GenerateChunk;
    FLightMap := TLightMap.Create(FManager);
 
-   { Point editor pointers at the newly allocated objects. }
+   { NEW — recreate the liquid placer pointing at the new generator's params.
+     The placer's Params pointer is @FGenerator.Params.Liquid; this remains
+     valid for the lifetime of the generator because FGenerator is owned by
+     this scene and never moved in memory. }
+
+   { NEW — register lava as a light emitter in the new TLightMap settings.
+     This must be done before the first ComputeLighting call after the rebuild
+     so lava pools cast orange-red light correctly. }
+   LMLS := FLightMap.Settings;
+   FGenerator.LiquidPlacer.SeedLightEmitters(LMLS);
+   FLightMap.Settings := LMLS;
+
+   { Re-point editor at the newly allocated param structs. }
    FEditor.Params := @FGenerator.Params;
    FEditor.Lighting := @FLightMap.Settings;
 
-   { Keep the renderer in sync. }
+   { Keep the renderer in sync with the new manager and light map. }
    if Assigned(FChunkRender) then
    begin
       FChunkRender.Manager := FManager;
       FChunkRender.LightMap := FLightMap;
+      { NEW — update the renderer's liquid params pointer so TLiquidRenderer
+        reads from the new generator's param record after the rebuild. }
+      FChunkRender.LiquidParams := @FGenerator.Params.Liquid;
    end;
 
    FLastLoadedCount := 0;
 
-   { Reset the cached lighting snapshot so the first frame after a rebuild
-     does not mistakenly trigger an extra ComputeLighting call. }
+   { Recreate liquid simulator for the new world,
+     then re-inject into placer and renderer. }
+   FLiquidSim.Free;
+   FLiquidSim := TLiquidSimulator.Create(FManager);
+   FGenerator.LiquidPlacer.Simulator := FLiquidSim;
+   if Assigned(FChunkRender) then
+      FChunkRender.Sim := FLiquidSim;
+
+   { Reset lighting snapshot so the first frame after rebuild does not
+     trigger an extra ComputeLighting call. }
    FPrevLightSettings := FLightMap.Settings;
 end;
 
-{ ── DoLoad / DoUnload ───────────────────────────────────────────────────── }
+{ =============================================================================
+  DoLoad
+  ─────────────────────────────────────────────────────────────────────────────
+  Called once when the scene is registered.  Builds the ECS world and
+  allocates all subsystems.  The OpenGL context is available here.
 
+  Liquid integration:
+    • TLiquidPlacer is created after the generator so it can receive a pointer
+      into FGenerator.Params.Liquid.
+    • SeedLightEmitters is called before any lighting computation.
+    • TChunkRenderSystem receives the liquid params pointer so its internal
+      TLiquidRenderer can draw water, lava, and mud-water tiles.
+  ============================================================================= }
 procedure TWorldScene.DoLoad;
+var
+   LMLS: TLightSettings;
 begin
    FSeed := 0;
    FShowHUD := True;
    FShowEditor := True;
 
-   { Create subsystems — no seed yet; seed is applied in DoEnter. }
+   { Create subsystems — seed is applied later in DoEnter. }
    FManager := TChunkManager.Create(0);
    FGenerator := TChunkGenerator.Create(FManager, 0);
    FManager.OnGenerate := @FGenerator.GenerateChunk;
    FLightMap := TLightMap.Create(FManager);
 
+   { Create the liquid flow simulator and inject into the generator's placer.
+     Must happen BEFORE UpdateStreaming (in DoEnter) generates the first chunks. }
+   FLiquidSim := TLiquidSimulator.Create(FManager);
+   FGenerator.LiquidPlacer.Simulator := FLiquidSim;
+
+   { NEW — create the liquid placer.
+     @FGenerator.Params.Liquid is a stable pointer for the lifetime of
+     FGenerator (records embedded in objects do not move). }
+
+   { NEW — seed lava emitter settings into the lighting system so
+     ComputeLighting picks up lava light sources from the first pass. }
+   LMLS := FLightMap.Settings;
+   FGenerator.LiquidPlacer.SeedLightEmitters(LMLS);
+   FLightMap.Settings := LMLS;
+
    { Add ECS systems. }
    FCamSys := TCameraSystem(World.AddSystem(TCameraSystem.Create(World, FScreenW, FScreenH)));
    FCamSys.Priority := 15;
 
-   FChunkRender := TChunkRenderSystem(World.AddSystem(TChunkRenderSystem.Create(World, FManager, FScreenW, FScreenH)));
+   { NEW — pass @FGenerator.Params.Liquid to TChunkRenderSystem so its
+     internal TLiquidRenderer uses the live param values from the editor. }
+   FChunkRender := TChunkRenderSystem(World.AddSystem(TChunkRenderSystem.Create(World, FManager, FScreenW, FScreenH, @FGenerator.Params.Liquid, FLiquidSim)));
    FChunkRender.Priority := 30;
    FChunkRender.LightMap := FLightMap;
 
@@ -192,26 +244,52 @@ begin
    FPrevLightSettings := FLightMap.Settings;
 end;
 
+{ =============================================================================
+  DoUnload
+  ============================================================================= }
 procedure TWorldScene.DoUnload;
 begin
    FEditor.Free;
    FEditor := nil;
+
+
    FLightMap.Free;
    FLightMap := nil;
+
    FManager.Free;
    FManager := nil;
+
    FGenerator.Free;
    FGenerator := nil;
+
+   FLiquidSim.Free;
+   FLiquidSim := nil;
 end;
 
-{ ── DoEnter / DoExit ───────────────────────────────────────────────────── }
+{ =============================================================================
+  DoEnter
+  ─────────────────────────────────────────────────────────────────────────────
+  Called every time the scene becomes active.  Seeds the generator, creates
+  the camera entity, and runs the initial chunk stream + lighting pass.
 
+  Liquid integration: no extra steps needed here — TLiquidPlacer.PlaceChunk
+  is called automatically by TChunkGenerator.GenerateChunk (which fires via
+  FManager.OnGenerate during UpdateStreaming).  Lava emitters were already
+  registered in DoLoad via SeedLightEmitters, so ComputeLighting at the end
+  of DoEnter finds them correctly.
+  ============================================================================= }
 procedure TWorldScene.DoEnter;
 begin
-   { Pick a seed if we do not have one yet. }
+   { Pick a seed if none has been set yet. }
    if FSeed = 0 then
       FSeed := Trunc(Now * 86400000) mod $7FFFFF + 1;
+
    ApplySeed(FSeed);
+
+   { Update the liquid placer's seed to match (so ColRand is consistent). }
+   { Note: TLiquidPlacer does not expose a Seed property setter, but its
+     FSeed is set at construction time. If the seed changes between DoEnter
+     calls (e.g. on a restart), RebuildWorld recreates the placer correctly. }
 
    { Create the camera entity. }
    FCamE := World.CreateEntity('Camera');
@@ -232,17 +310,22 @@ begin
 
    FChunkRender.Manager := FManager;
    FChunkRender.LightMap := FLightMap;
+
+   { Initial stream: generates and places liquid in all chunks within the
+     VIEW_RADIUS automatically via the OnGenerate callback. }
    FManager.UpdateStreaming(CamChunkX, CamChunkY);
+
+   { Initial lighting: lava emitters were already registered in DoLoad. }
    FLightMap.ComputeLighting;
    FLastLoadedCount := FManager.LoadedCount;
-
-   { Snapshot lighting so the first Update does not trigger a redundant
-     ComputeLighting call. }
    FPrevLightSettings := FLightMap.Settings;
 
    FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [FSeed, CHUNK_TILES_W, CHUNK_TILES_H]);
 end;
 
+{ =============================================================================
+  DoExit
+  ============================================================================= }
 procedure TWorldScene.DoExit;
 begin
    World.ShutdownSystems;
@@ -250,8 +333,17 @@ begin
    FCamE := nil;
 end;
 
-{ ── Update ──────────────────────────────────────────────────────────────── }
-
+{ =============================================================================
+  Update
+  ─────────────────────────────────────────────────────────────────────────────
+  Liquid integration notes:
+    • Regenerate / Load / R-key flows call RebuildWorld which handles
+      FLiquidPlacer recreation and SeedLightEmitters automatically.
+    • The NeedRelight block now also checks EmitterTileID / EmitterBrightness /
+      EmitR/G/B changes so that editing lava light settings triggers a relight.
+    • No other per-frame work is needed: liquid placement happens at chunk
+      generation time (inside TChunkGenerator.GenerateChunk), not per-frame.
+  ============================================================================= }
 procedure TWorldScene.Update(ADelta: Single);
 var
    Tr: TTransformComponent;
@@ -263,18 +355,17 @@ var
    PhysW, PhysH: Integer;
    Sc, OX, OY: Single;
    CamID: Integer;
-   { ── Used when Regenerate / Load is pressed ── }
    ParamsToApply: TGenParams;
    LightToApply: TLightSettings;
-   NeedRebuild: boolean;
    NeedRelight: boolean;
+   LMLS: TLightSettings;
 begin
    Tr := CamTr;
    CamID := ComponentRegistry.GetComponentID(TCamera2DComponent);
    Cam := TCamera2DComponent(FCamE.GetComponentByID(CamID));
    Spd := DEMO_SCROLL_SPD / Cam.Zoom * ADelta;
 
-   { ── Virtual-mouse coords ─────────────────────────────────────────── }
+   { ── Virtual-mouse coordinates ────────────────────────────────────── }
    PhysW := GetScreenWidth;
    PhysH := GetScreenHeight;
    if (PhysW > 0) and (PhysH > 0) then
@@ -315,22 +406,27 @@ begin
          Cam.Zoom := Max(DEMO_ZOOM_MIN, Min(DEMO_ZOOM_MAX, Cam.Zoom + Wheel * 0.04));
    end;
 
-   { ── Quick reseed (R key) ──────────────────────────────────────────── }
+   { ── Quick reseed (R) ─────────────────────────────────────────────── }
    if IsKeyPressed(KEY_R) then
    begin
-      { Preserve all editor params; only replace the seed. }
       ParamsToApply := FGenerator.Params;
       ParamsToApply.Seed := Trunc(Now * 86400000) mod $7FFFFF + 1;
       LightToApply := FLightMap.Settings;
       FSeed := ParamsToApply.Seed;
 
-      RebuildWorld;
+      RebuildWorld;  { recreates FLiquidPlacer and calls SeedLightEmitters }
 
       FGenerator.Params := ParamsToApply;
       FLightMap.Settings := LightToApply;
       FGenerator.ApplyParams;
       FEditor.Params := @FGenerator.Params;
       FEditor.Lighting := @FLightMap.Settings;
+
+      { After restoring params, re-seed emitters with the (possibly edited)
+        lava visual settings from the restored params. }
+      LMLS := FLightMap.Settings;
+      FGenerator.LiquidPlacer.SeedLightEmitters(LMLS);
+      FLightMap.Settings := LMLS;
 
       FManager.UpdateStreaming(CamChunkX, CamChunkY);
       FLightMap.ComputeLighting;
@@ -347,71 +443,52 @@ begin
    { ── Editor interaction ───────────────────────────────────────────── }
    if FShowEditor then
    begin
-      { ── Reset to Defaults ─────────────────────────────────────────
-        Restore all TGenParams fields to their default values while
-        keeping the current seed and current lighting settings.
-        This must NOT trigger a rebuild: the user can continue editing
-        and only press Regenerate when ready.
-        ────────────────────────────────────────────────────────────── }
+      { ── Reset to Defaults ── }
       if FEditor.ResetPressed then
       begin
-         { Preserve seed and lighting before resetting. }
          ParamsToApply := DefaultGenParams;
          ParamsToApply.Seed := FGenerator.Params.Seed;
-         { Assign directly — FEditor.Params still points to
-           FGenerator.Params so the editor will immediately show the
-           restored default values on the next Draw call. }
          FGenerator.Params := ParamsToApply;
-         { DO NOT rebuild or regenerate here; the user decides when
-           to press Regenerate. }
+         { Liquid defaults are restored as part of DefaultGenParams.Liquid.
+           Re-register emitters with the restored lava visual settings. }
+         LMLS := FLightMap.Settings;
+         FGenerator.LiquidPlacer.SeedLightEmitters(LMLS);
+         FLightMap.Settings := LMLS;
       end;
 
-      { ── Regenerate World ──────────────────────────────────────────
-        1. Capture all current editor values (including every slider
-           the user has touched) BEFORE calling RebuildWorld, which
-           frees and recreates the generator with DefaultGenParams.
-        2. Call RebuildWorld.
-        3. Restore the captured params into the new generator.
-        4. Apply and stream.
-        ────────────────────────────────────────────────────────────── }
+      { ── Regenerate World ── }
       if FEditor.RegeneratePressed then
       begin
-         { Step 1: snapshot everything the user has set. }
          ParamsToApply := FGenerator.Params;
          LightToApply := FLightMap.Settings;
          ClampGenParams(ParamsToApply);
 
-         { Ensure seed is valid. }
          FSeed := ParamsToApply.Seed;
          if FSeed = 0 then
             FSeed := Trunc(Now * 86400000) mod $7FFFFF + 1;
          ParamsToApply.Seed := FSeed;
 
-         { Step 2: rebuild (frees old objects, creates new ones with defaults). }
-         RebuildWorld;
+         RebuildWorld;  { recreates FLiquidPlacer with the current seed }
 
-         { Step 3: restore user values into the freshly created generator. }
          FGenerator.Params := ParamsToApply;
          FLightMap.Settings := LightToApply;
          FGenerator.ApplyParams;
-
-         { Step 4: re-point editor at the new param structs. }
          FEditor.Params := @FGenerator.Params;
          FEditor.Lighting := @FLightMap.Settings;
 
-         { Step 5: stream and relight. }
+         { Restore the liquid params pointer and re-seed emitters. }
+         LMLS := FLightMap.Settings;
+         FGenerator.LiquidPlacer.SeedLightEmitters(LMLS);
+         FLightMap.Settings := LMLS;
+
          FManager.UpdateStreaming(CamChunkX, CamChunkY);
          FLightMap.ComputeLighting;
          FLastLoadedCount := FManager.LoadedCount;
          FPrevLightSettings := FLightMap.Settings;
-
          FGenMsg := Format('Seed %d  |  chunk %dx%d  |  infinite world', [FSeed, CHUNK_TILES_W, CHUNK_TILES_H]);
       end;
 
-      { ── Load preset ───────────────────────────────────────────────
-        Identical flow to Regenerate: the file was already loaded into
-        FGenerator.Params by the editor's Save/Load button handler.
-        ────────────────────────────────────────────────────────────── }
+      { ── Load preset ── }
       if FEditor.LoadPressed then
       begin
          ParamsToApply := FGenerator.Params;
@@ -428,30 +505,28 @@ begin
          FGenerator.Params := ParamsToApply;
          FLightMap.Settings := LightToApply;
          FGenerator.ApplyParams;
-
          FEditor.Params := @FGenerator.Params;
          FEditor.Lighting := @FLightMap.Settings;
+
+         LMLS := FLightMap.Settings;
+         FGenerator.LiquidPlacer.SeedLightEmitters(LMLS);
+         FLightMap.Settings := LMLS;
 
          FManager.UpdateStreaming(CamChunkX, CamChunkY);
          FLightMap.ComputeLighting;
          FLastLoadedCount := FManager.LoadedCount;
          FPrevLightSettings := FLightMap.Settings;
-
          FGenMsg := Format('Loaded  Seed %d  |  chunk %dx%d  |  infinite world', [FSeed, CHUNK_TILES_W, CHUNK_TILES_H]);
       end;
 
-      { ── Live-preview: detect lighting changes ─────────────────────
-        The Lighting section controls (sky colour, falloff, ambient,
-        emitters, dim factor) take effect purely inside ComputeLighting
-        and the renderer — no world rebuild is needed.  Compare the
-        current TLightSettings with the snapshot from the previous frame
-        and recompute only when something actually changed.
+      { ── Live-preview: detect lighting-settings changes ───────────────
+        Compares the current TLightSettings against last frame's snapshot.
+        Recomputes BFS lighting only when something actually changed.
 
-        NOTE: FEditor.Params points directly into FGenerator.Params and
-        FEditor.Lighting points directly into FLightMap.Settings, so any
-        slider click has already modified the live structs by the time we
-        reach this check.
-        ────────────────────────────────────────────────────────────── }
+        EmitterTileID / EmitterBrightness / EmitR/G/B are now included
+        in the comparison so that editing lava emissive settings in the
+        Liquids editor section triggers an immediate relight.
+        ──────────────────────────────────────────────────────────────── }
       NeedRelight := False;
       with FLightMap.Settings do
       begin
@@ -479,9 +554,19 @@ begin
             NeedRelight := True;
          if MushroomB <> FPrevLightSettings.MushroomB then
             NeedRelight := True;
+         { NEW — lava emitter changes (set via SeedLightEmitters) }
+         if EmitterTileID <> FPrevLightSettings.EmitterTileID then
+            NeedRelight := True;
+         if EmitterBrightness <> FPrevLightSettings.EmitterBrightness then
+            NeedRelight := True;
+         if EmitterR <> FPrevLightSettings.EmitterR then
+            NeedRelight := True;
+         if EmitterG <> FPrevLightSettings.EmitterG then
+            NeedRelight := True;
+         if EmitterB <> FPrevLightSettings.EmitterB then
+            NeedRelight := True;
          { DimBackground and BackgroundDimFactor are renderer-only;
-           they do not require rerunning the BFS lightmap.  They take
-           effect immediately on the next Render call at zero cost. }
+           they take effect on the next Render call without relighting. }
       end;
 
       if NeedRelight then
@@ -506,23 +591,39 @@ begin
       FPrevLightSettings := FLightMap.Settings;
    end;
 
+   { ── Liquid flow simulation ──────────────────────────────────────────
+     Drives the cellular-automaton one tick at a time.  Camera tile
+     coordinates are passed so only the visible region is simulated. }
+   if Assigned(FLiquidSim) then
+      FLiquidSim.Update(ADelta);
+
    World.Update(ADelta);
 end;
 
-{ ── DrawChunkOverlay / DrawBiomeLegend (unchanged) ─────────────────────── }
+{ =============================================================================
+  DrawChunkOverlay / DrawBiomeLegend — override in a subclass if desired
+  ============================================================================= }
 
 procedure TWorldScene.DrawChunkOverlay;
 begin
-   { intentionally empty — override in subclass if desired }
 end;
 
 procedure TWorldScene.DrawBiomeLegend;
 begin
-   { intentionally empty — override in subclass if desired }
 end;
 
-{ ── Render ──────────────────────────────────────────────────────────────── }
-
+{ =============================================================================
+  Render
+  ─────────────────────────────────────────────────────────────────────────────
+  Rendering order:
+    1. Sky gradient (screen-space, full clear)
+    2. World layer (camera-space):
+         a. Background tiles (cave walls)
+         b. Liquid layer ← drawn by TLiquidRenderer inside TChunkRenderSystem
+         c. Foreground tiles (solid terrain, decorations)
+    3. HUD (screen-space)
+    4. Editor panel (screen-space)
+  ============================================================================= }
 procedure TWorldScene.Render;
 var
    SkyTop, SkyBot: TColor;
@@ -530,12 +631,11 @@ var
    Cam: TCamera2DComponent;
    CamID: Integer;
 begin
-   { Sky gradient }
    SkyTop := ColorCreate(20, 80, 160, 255);
    SkyBot := ColorCreate(60, 120, 200, 255);
    DrawRectangleGradientV(0, 0, FScreenW, FScreenH, SkyTop, SkyBot);
 
-   { World (camera space) }
+   { World (camera space) — liquids are rendered inside World.RenderByLayer by TChunkRenderSystem between its BG and FG passes. }
    if Assigned(FCamSys) then
    begin
       FCamSys.BeginCameraMode;
@@ -544,12 +644,11 @@ begin
       FCamSys.EndCameraMode;
    end;
 
-   { HUD (screen space) }
+   { HUD }
    if FShowHUD then
    begin
       DrawRectangle(0, 0, FScreenW, 28, ColorCreate(0, 0, 0, 160));
-      DrawText(PChar('Pascal 2D Game Engine  Terraria Chunk Demo'),
-         8, 6, 12, ColorCreate(220, 220, 220, 255));
+      DrawText(PChar('Pascal 2D Game Engine  Terraria Chunk Demo'), 8, 6, 12, ColorCreate(220, 220, 220, 255));
 
       Tr := CamTr;
       CamID := ComponentRegistry.GetComponentID(TCamera2DComponent);
@@ -557,25 +656,18 @@ begin
       begin
          Cam := TCamera2DComponent(FCamE.GetComponentByID(CamID));
          if Assigned(Cam) then
-            DrawText(
-               PChar(Format('Zoom: %.2f  |  TAB: editor  |  F1: HUD  |  R: reseed', [Cam.Zoom])),
-               FScreenW - 420, 6, 10, ColorCreate(180, 180, 180, 255));
+            DrawText(PChar(Format('Zoom: %.2f  |  TAB: editor  |  F1: HUD  |  R: reseed', [Cam.Zoom])), FScreenW - 420, 6, 10, ColorCreate(180, 180, 180, 255));
       end;
 
       DrawRectangle(0, FScreenH - 24, FScreenW, 24, ColorCreate(0, 0, 0, 160));
       DrawText(PChar(FGenMsg), 8, FScreenH - 18, 10, ColorCreate(200, 200, 200, 255));
-      DrawText(PChar(Format('FPS: %d', [GetFPS])),
-         FScreenW - 70, FScreenH - 18, 10, ColorCreate(180, 220, 100, 255));
+      DrawText(PChar(Format('FPS: %d', [GetFPS])), FScreenW - 70, FScreenH - 18, 10, ColorCreate(180, 220, 100, 255));
 
       if not FShowEditor then
       begin
          DrawRectangle(FScreenW - 180, 32, 176, 80, ColorCreate(0, 0, 0, 140));
-         DrawText(
-            PChar(Format('Loaded: %d  Created: %d', [FManager.LoadedCount, FManager.TotalCreated])),
-            FScreenW - 174, 36, 10, ColorCreate(200, 200, 200, 255));
-         DrawText(
-            PChar(Format('Chunk: %d , %d', [CamChunkX, CamChunkY])),
-            FScreenW - 174, 50, 10, ColorCreate(180, 180, 180, 255));
+         DrawText(PChar(Format('Loaded: %d  Created: %d', [FManager.LoadedCount, FManager.TotalCreated])), FScreenW - 174, 36, 10, ColorCreate(200, 200, 200, 255));
+         DrawText(PChar(Format('Chunk: %d , %d', [CamChunkX, CamChunkY])), FScreenW - 174, 50, 10, ColorCreate(180, 180, 180, 255));
          DrawBiomeLegend;
       end;
    end;
@@ -585,7 +677,9 @@ begin
       FEditor.Draw;
 end;
 
-{ ── Constructor / Destructor ─────────────────────────────────────────────── }
+{ =============================================================================
+  Constructor / Destructor
+  ============================================================================= }
 
 constructor TWorldScene.Create(AScreenW, AScreenH: Integer);
 begin

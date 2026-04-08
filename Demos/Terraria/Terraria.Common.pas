@@ -34,8 +34,16 @@ const
      TERRAIN TILE TYPE BYTE CODES
      =========================================================================
      IDs 1–13 are SOLID terrain tiles rendered via the soil spritesheet.
-     TILE_SHRUB (14) is the decoration boundary — every ID >= TILE_SHRUB is
-     a transparent decoration tile rendered via procedurally-generated textures.
+     TILE_SHRUB (14) is the decoration boundary — every ID >= TILE_SHRUB and
+     < TILE_WATER is a transparent decoration tile rendered via procedurally-
+     generated textures.
+
+     IDs 26–28 are LIQUID tiles. They are rendered by TLiquidRenderer as
+     coloured, semi-transparent quads with optional animation. They are NOT
+     in the soil spritesheet (SOIL_SHEET_ROW = -1 for all liquid IDs) and
+     NOT in the FTex/FTexBG procedural-texture arrays used for decorations.
+     TChunkRenderSystem skips liquid IDs in its standard tile loop; the
+     liquid rendering is handled by TLiquidRenderer.RenderChunk.
      ========================================================================= }
 
    TILE_AIR = 0;
@@ -51,16 +59,12 @@ const
    TILE_CLAY = 8;
    TILE_GRAVEL = 9;
    TILE_BEDROCK = 10;
-
-   { New solid tiles — also rendered from the spritesheet }
-   TILE_MUD = 11;   { muddy ground (swamp/cave transition zones) }
-   TILE_SNOW = 12;   { surface snow (snow biome)                  }
-   TILE_ICE = 13;   { solid ice (deep snow biome)                }
+   TILE_MUD = 11;
+   TILE_SNOW = 12;
+   TILE_ICE = 13;
 
    { ── Decoration boundary ─────────────────────────────────────────────── }
-   { Every tile ID >= TILE_SHRUB is a decoration (semi-transparent,
-     rendered from procedurally-generated CPU textures). }
-   TILE_SHRUB = 14;   { small bush / grass tuft (plains)           }
+   TILE_SHRUB = 14;
 
    { ── Surface vegetation (IDs 15–19) ──────────────────────────────────── }
    TILE_TREE_TRUNK = 15;
@@ -77,7 +81,48 @@ const
    TILE_MUSHROOM = 24;
    TILE_MOSS = 25;
 
-   TILE_COUNT = 26;   { total number of tile types }
+   { ── LIQUID tiles (IDs 26–28) ─────────────────────────────────────────
+     These tiles occupy foreground cells (SetFG/GetFG) and are rendered
+     as coloured transparent quads by TLiquidRenderer, NOT by the standard
+     soil/decor tile pipeline.
+
+     TILE_LIQUID_BOUNDARY marks the first liquid ID so the renderer and
+     collision systems can quickly identify liquid tiles with a single
+     comparison: TileID >= TILE_LIQUID_BOUNDARY.
+
+     Liquid tiles BLOCK neither pathfinding nor player collision by default;
+     game systems that want "swimming" behaviour should check for them
+     explicitly using HasComponent(TLiquidTrigger) or similar.
+     ──────────────────────────────────────────────────────────────────── }
+   TILE_LIQUID_BOUNDARY = 26;   { first liquid tile ID                      }
+   TILE_WATER = 26;       { fresh water (surface lakes, cave lakes)   }
+   TILE_LAVA = 27;        { molten lava (deep zone pools)             }
+   TILE_MUD_WATER = 28;   { muddy/swampy water (forest biome)         }
+
+   TILE_COUNT = 29;   { total number of tile types (updated from 26)        }
+
+   { =========================================================================
+     BIOME CONSTANTS
+     ========================================================================= }
+   BIOME_PLAINS = 0;
+   BIOME_DESERT = 1;
+   BIOME_FOREST = 2;
+
+   { =========================================================================
+     CHUNK DIMENSIONS
+     =========================================================================
+     These constants define the tile dimensions of each TWorldChunk.
+     CHUNK_PIXEL_W and CHUNK_PIXEL_H are the pixel dimensions used by the
+     renderer to compute world-space positions.
+     ========================================================================= }
+   CHUNK_TILES_W = 32;
+   CHUNK_TILES_H = 32;
+   CHUNK_PIXEL_W = CHUNK_TILES_W * TILE_SIZE;
+   CHUNK_PIXEL_H = CHUNK_TILES_H * TILE_SIZE;
+
+   { Virtual screen dimensions (must match TTerrariaDemoGame.Create) }
+   VIRT_W = 1280;
+   VIRT_H = 720;
 
    { =========================================================================
      SOIL SPRITESHEET — soils_better_16x16.png
@@ -85,161 +130,113 @@ const
      Layout: 4 columns × 13 rows, each cell is 16×16 pixels.
        Columns 0–3  = four visual variations of the same soil type.
        Rows 0–12    = one soil type per row (see SOIL_SHEET_ROW below).
-
-     Each solid tile is rendered by picking one of the four variation columns
-     using a deterministic hash of its world-tile coordinates, producing a
-     natural, non-repeating appearance with zero extra memory cost.
      ========================================================================= }
    SOIL_SHEET_PATH = 'assets/graphics/soils_better_16x16.png';
-   SOIL_SHEET_TILE = 16;   { pixel size of each cell in the spritesheet   }
-   SOIL_SHEET_COLS = 4;    { variation columns per soil type               }
-   SOIL_SHEET_ROWS = 13;   { number of soil-type rows in the spritesheet   }
+   SOIL_SHEET_TILE = 16;
+   SOIL_SHEET_COLS = 4;
+   SOIL_SHEET_ROWS = 13;
+
+   { Background dim factor for soil tiles rendered in the wall layer }
+   SOIL_BG_DIM: Single = 0.45;
 
    { Maps tile ID → spritesheet row.
-     -1 = tile is not in the spritesheet (decoration or air) — use FTex/FTexBG. }
-   SOIL_SHEET_ROW: array[0..TILE_COUNT - 1] of shortint = (
-      -1,   {  0: TILE_AIR        — not rendered                  }
-      1,    {  1: TILE_DIRT       — row  1  DIRT                  }
-      0,    {  2: TILE_GRASS      — row  0  DIRTGRASS             }
-      2,    {  3: TILE_STONE      — row  2  STONE                 }
-      3,    {  4: TILE_SAND       — row  3  SAND                  }
-      4,    {  5: TILE_SANDSTONE  — row  4  SANDSTONE             }
-      5,    {  6: TILE_GRANITE    — row  5  GRANITE               }
-      6,    {  7: TILE_MARBLE     — row  6  MARBLE                }
-      7,    {  8: TILE_CLAY       — row  7  CLAY                  }
-      9,    {  9: TILE_GRAVEL     — row  9  GRAVEL                }
-      12,   { 10: TILE_BEDROCK    — row 12  BEDROCK               }
-      8,    { 11: TILE_MUD        — row  8  MUD                   }
-      10,   { 12: TILE_SNOW       — row 10  SNOW                  }
-      11,   { 13: TILE_ICE        — row 11  ICE                   }
-      -1,   { 14: TILE_SHRUB      — decoration (procedural)       }
-      -1,   { 15: TILE_TREE_TRUNK — decoration                    }
-      -1,   { 16: TILE_TREE_LEAF  — decoration                    }
-      -1,   { 17: TILE_CACTUS     — decoration                    }
-      -1,   { 18: TILE_CACTUS_TOP — decoration                    }
-      -1,   { 19: TILE_FERN       — decoration                    }
-      -1,   { 20: TILE_ROOT       — decoration                    }
-      -1,   { 21: TILE_VINE       — decoration                    }
-      -1,   { 22: TILE_STALACTITE — decoration                    }
-      -1,   { 23: TILE_STALAGMITE — decoration                    }
-      -1,   { 24: TILE_MUSHROOM   — decoration                    }
-      -1    { 25: TILE_MOSS       — decoration                    }
+     -1 = tile is not in the spritesheet.
+     Liquid tiles (26–28) are also -1 because they use TLiquidRenderer. }
+   SOIL_SHEET_ROW: array[0..TILE_COUNT - 1] of shortint = (-1,   {  0: TILE_AIR        }
+      1,    {  1: TILE_DIRT       }
+      0,    {  2: TILE_GRASS      }
+      2,    {  3: TILE_STONE      }
+      3,    {  4: TILE_SAND       }
+      4,    {  5: TILE_SANDSTONE  }
+      5,    {  6: TILE_GRANITE    }
+      6,    {  7: TILE_MARBLE     }
+      7,    {  8: TILE_CLAY       }
+      9,    {  9: TILE_GRAVEL     }
+      12,   { 10: TILE_BEDROCK    }
+      8,    { 11: TILE_MUD        }
+      10,   { 12: TILE_SNOW       }
+      11,   { 13: TILE_ICE        } -1,   { 14: TILE_SHRUB      } -1,   { 15: TILE_TREE_TRUNK } -1,   { 16: TILE_TREE_LEAF  } -1,   { 17: TILE_CACTUS     } -1,
+      { 18: TILE_CACTUS_TOP } -1,   { 19: TILE_FERN       } -1,   { 20: TILE_ROOT       } -1,   { 21: TILE_VINE       } -1,   { 22: TILE_STALACTITE } -1,
+      { 23: TILE_STALAGMITE } -1,   { 24: TILE_MUSHROOM   } -1,   { 25: TILE_MOSS       } -1,   { 26: TILE_WATER      — rendered by TLiquidRenderer } -1,
+      { 27: TILE_LAVA       — rendered by TLiquidRenderer } -1    { 28: TILE_MUD_WATER  — rendered by TLiquidRenderer }
       );
 
-   { ── Background dim factor for soil sheet tiles ───────────────────────── }
-   { Background (wall) soil tiles are rendered from the same spritesheet but with this multiplier applied to all RGB channels of the computed tint. }
-   SOIL_BG_DIM: Single = 0.60;
-
    { =========================================================================
-     DECORATION TILE PALETTE DATA
-     Used by TChunkRenderSystem.GenTileTextures to build procedural CPU
-     textures for decoration tiles (TILE_SHRUB and above).
-     Soil tile palette arrays are kept for reference but are no longer used
-     by the renderer — the spritesheet replaces them.
+     DECORATION SPRITE DATA (unchanged from original)
+     RGB detail rectangles for procedural decor textures.
      ========================================================================= }
 
-   { ── TILE_SHRUB (14) — leafy green bush ───────────────────────────────── }
-   TILE_SHRUB_RGB: array[0..3] of TRect4 = (
-      (X: 1; Y: 3; W: 6; H: 4; R: 50; G: 150; B: 40),
-      (X: 0; Y: 4; W: 8; H: 3; R: 60; G: 170; B: 50),
-      (X: 2; Y: 2; W: 4; H: 2; R: 70; G: 160; B: 44),
-      (X: 3; Y: 6; W: 2; H: 2; R: 100; G: 70; B: 40));
+   TILE_SHRUB_RGB: array[0..2] of TRect4 = (
+      (X: 1; Y: 2; W: 6; H: 4; R: 60; G: 160; B: 40),
+      (X: 2; Y: 0; W: 4; H: 3; R: 50; G: 140; B: 30),
+      (X: 3; Y: 4; W: 2; H: 2; R: 70; G: 180; B: 50)
+      );
 
-   { ── TILE_TREE_TRUNK (15) ─────────────────────────────────────────────── }
-   TILE_TREE_TRUNK_RGB: array[0..3] of TRect4 = (
-      (X: 2; Y: 0; W: 4; H: 8; R: 120; G: 80; B: 46),
-      (X: 3; Y: 0; W: 2; H: 8; R: 130; G: 90; B: 52),
-      (X: 2; Y: 2; W: 1; H: 2; R: 90; G: 58; B: 32),
-      (X: 5; Y: 5; W: 1; H: 2; R: 90; G: 58; B: 32));
+   TILE_TREE_TRUNK_RGB: array[0..1] of TRect4 = (
+      (X: 2; Y: 0; W: 4; H: 8; R: 110; G: 72; B: 40),
+      (X: 3; Y: 2; W: 1; H: 4; R: 90; G: 55; B: 28)
+      );
 
-   { ── TILE_TREE_LEAF (16) ──────────────────────────────────────────────── }
-   TILE_TREE_LEAF_RGB: array[0..0] of TRect4 = (
-      (X: 0; Y: 0; W: 8; H: 8; R: 40; G: 130; B: 36));
+   TILE_TREE_LEAF_RGB: array[0..2] of TRect4 = (
+      (X: 0; Y: 1; W: 8; H: 6; R: 40; G: 130; B: 36),
+      (X: 1; Y: 0; W: 6; H: 2; R: 55; G: 150; B: 45),
+      (X: 2; Y: 5; W: 4; H: 2; R: 30; G: 110; B: 28)
+      );
 
-   { ── TILE_CACTUS (17) ─────────────────────────────────────────────────── }
-   TILE_CACTUS_RGB: array[0..3] of TRect4 = (
-      (X: 2; Y: 0; W: 4; H: 8; R: 50; G: 140; B: 50),
-      (X: 1; Y: 2; W: 1; H: 1; R: 40; G: 120; B: 40),
-      (X: 6; Y: 5; W: 1; H: 1; R: 40; G: 120; B: 40),
-      (X: 3; Y: 0; W: 2; H: 8; R: 60; G: 160; B: 58));
+   TILE_CACTUS_RGB: array[0..1] of TRect4 = (
+      (X: 2; Y: 0; W: 4; H: 8; R: 60; G: 140; B: 40),
+      (X: 1; Y: 1; W: 1; H: 6; R: 80; G: 160; B: 50)
+      );
 
-   { ── TILE_CACTUS_TOP (18) ─────────────────────────────────────────────── }
-   TILE_CACTUS_TOP_RGB: array[0..2] of TRect4 = (
-      (X: 2; Y: 2; W: 4; H: 6; R: 50; G: 140; B: 50),
-      (X: 3; Y: 0; W: 2; H: 3; R: 60; G: 160; B: 58),
-      (X: 3; Y: 0; W: 2; H: 1; R: 80; G: 180; B: 70));
+   TILE_CACTUS_TOP_RGB: array[0..0] of TRect4 = (
+      (X: 1; Y: 0; W: 6; H: 8; R: 60; G: 140; B: 40)
+      );
 
-   { ── TILE_FERN (19) ───────────────────────────────────────────────────── }
-   TILE_FERN_RGB: array[0..3] of TRect4 = (
-      (X: 3; Y: 5; W: 2; H: 3; R: 80; G: 110; B: 40),
-      (X: 1; Y: 3; W: 3; H: 3; R: 60; G: 140; B: 40),
-      (X: 4; Y: 2; W: 3; H: 4; R: 55; G: 135; B: 38),
-      (X: 2; Y: 1; W: 2; H: 2; R: 70; G: 150; B: 44));
+   TILE_FERN_RGB: array[0..2] of TRect4 = (
+      (X: 0; Y: 3; W: 8; H: 5; R: 40; G: 120; B: 30),
+      (X: 2; Y: 1; W: 4; H: 3; R: 55; G: 140; B: 40),
+      (X: 1; Y: 0; W: 2; H: 2; R: 35; G: 100; B: 25)
+      );
 
-   { ── TILE_ROOT (20) ───────────────────────────────────────────────────── }
-   TILE_ROOT_RGB: array[0..2] of TRect4 = (
-      (X: 3; Y: 0; W: 2; H: 8; R: 120; G: 80; B: 44),
-      (X: 2; Y: 2; W: 1; H: 2; R: 100; G: 64; B: 34),
-      (X: 5; Y: 5; W: 1; H: 2; R: 100; G: 64; B: 34));
+   TILE_ROOT_RGB: array[0..1] of TRect4 = (
+      (X: 3; Y: 0; W: 2; H: 8; R: 100; G: 65; B: 30),
+      (X: 1; Y: 3; W: 2; H: 3; R: 80; G: 50; B: 22)
+      );
 
-   { ── TILE_VINE (21) ───────────────────────────────────────────────────── }
-   TILE_VINE_RGB: array[0..2] of TRect4 = (
-      (X: 3; Y: 0; W: 2; H: 8; R: 44; G: 130; B: 44),
-      (X: 1; Y: 3; W: 2; H: 2; R: 36; G: 110; B: 36),
-      (X: 5; Y: 6; W: 2; H: 1; R: 36; G: 110; B: 36));
+   TILE_VINE_RGB: array[0..1] of TRect4 = (
+      (X: 3; Y: 0; W: 2; H: 8; R: 40; G: 130; B: 35),
+      (X: 1; Y: 2; W: 2; H: 2; R: 55; G: 150; B: 45)
+      );
 
-   { ── TILE_STALACTITE (22) ─────────────────────────────────────────────── }
-   TILE_STALACTITE_RGB: array[0..2] of TRect4 = (
-      (X: 3; Y: 0; W: 2; H: 5; R: 130; G: 128; B: 140),
-      (X: 3; Y: 5; W: 2; H: 2; R: 110; G: 108; B: 120),
-      (X: 3; Y: 7; W: 2; H: 1; R: 90; G: 88; B: 100));
+   TILE_STALACTITE_RGB: array[0..1] of TRect4 = (
+      (X: 2; Y: 0; W: 4; H: 6; R: 150; G: 140; B: 130),
+      (X: 3; Y: 5; W: 2; H: 3; R: 120; G: 110; B: 100)
+      );
 
-   { ── TILE_STALAGMITE (23) ─────────────────────────────────────────────── }
-   TILE_STALAGMITE_RGB: array[0..2] of TRect4 = (
-      (X: 3; Y: 3; W: 2; H: 5; R: 130; G: 128; B: 140),
-      (X: 3; Y: 1; W: 2; H: 2; R: 110; G: 108; B: 120),
-      (X: 3; Y: 0; W: 2; H: 1; R: 90; G: 88; B: 100));
+   TILE_STALAGMITE_RGB: array[0..1] of TRect4 = (
+      (X: 2; Y: 2; W: 4; H: 6; R: 150; G: 140; B: 130),
+      (X: 3; Y: 1; W: 2; H: 3; R: 120; G: 110; B: 100)
+      );
 
-   { ── TILE_MUSHROOM (24) ───────────────────────────────────────────────── }
-   TILE_MUSHROOM_RGB: array[0..4] of TRect4 = (
-      (X: 2; Y: 3; W: 4; H: 5; R: 200; G: 60; B: 140),
-      (X: 1; Y: 2; W: 6; H: 3; R: 220; G: 80; B: 160),
-      (X: 0; Y: 3; W: 8; H: 2; R: 240; G: 100; B: 180),
-      (X: 3; Y: 1; W: 2; H: 2; R: 200; G: 60; B: 140),
-      (X: 2; Y: 6; W: 4; H: 2; R: 180; G: 170; B: 175));
+   TILE_MUSHROOM_RGB: array[0..2] of TRect4 = (
+      (X: 2; Y: 4; W: 4; H: 4; R: 200; G: 80; B: 160),
+      (X: 1; Y: 2; W: 6; H: 3; R: 220; G: 100; B: 180),
+      (X: 3; Y: 6; W: 2; H: 2; R: 80; G: 200; B: 255)
+      );
 
-   { ── TILE_MOSS (25) ───────────────────────────────────────────────────── }
-   TILE_MOSS_RGB: array[0..2] of TRect4 = (
-      (X: 0; Y: 0; W: 8; H: 3; R: 38; G: 110; B: 38),
-      (X: 1; Y: 1; W: 2; H: 2; R: 50; G: 130; B: 48),
-      (X: 5; Y: 0; W: 2; H: 2; R: 44; G: 120; B: 42));
+   TILE_MOSS_RGB: array[0..1] of TRect4 = (
+      (X: 0; Y: 0; W: 8; H: 3; R: 40; G: 160; B: 50),
+      (X: 1; Y: 2; W: 6; H: 2; R: 55; G: 180; B: 60)
+      );
 
-   { ── Biome identifiers ───────────────────────────────────────────────── }
-   BIOME_PLAINS = 0;
-   BIOME_DESERT = 1;
-   BIOME_FOREST = 2;
-
-   { ── Demo camera defaults ────────────────────────────────────────────── }
-   DEMO_ZOOM_WIDE = 0.25;
-   DEMO_ZOOM_MIN = 0.08;
-   DEMO_ZOOM_MAX = 2.0;
-   DEMO_SCROLL_SPD = 320;
-
-   { ── Virtual canvas ──────────────────────────────────────────────────── }
-   VIRT_W = 1280;
-   VIRT_H = 720;
-
-   CHUNK_TILES_W = 32;
-   CHUNK_TILES_H = 32;
-   CHUNK_PIXEL_W = CHUNK_TILES_W * TILE_SIZE;
-   CHUNK_PIXEL_H = CHUNK_TILES_H * TILE_SIZE;
-
-   { ── Light system ────────────────────────────────────────────────────── }
+   { =========================================================================
+     LIGHTING HASH TABLE CONSTANTS (used by Terraria.Lighting)
+     ========================================================================= }
    LM_HASH_BUCKETS = 1024;
    LM_HASH_P1 = 73856093;
    LM_HASH_P2 = 19349663;
-   LM_QUEUE_CAP = 1048576;
-   MAX_ALL_CHUNKS = 512;
+   LM_QUEUE_CAP = 131072;
+   MAX_ALL_CHUNKS = 4096;
 
 implementation
 

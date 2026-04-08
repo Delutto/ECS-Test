@@ -1,6 +1,7 @@
 unit Terraria.Lighting;
 
 {$mode objfpc}{$H+}
+{$ModeSwitch advancedrecords}
 
 { =============================================================================
   Terraria.Lighting — Cellular-Automata / Flood-Fill 2D Lighting
